@@ -1,0 +1,6 @@
+{
+  "name": "eData Mobile App Suite",
+  "description": "High-fidelity interactive workspace and implementation blueprint for eData mobile platforms. Features real-time state syncing with back-office terminals, Nigeria KYC verification, and transaction risk auditing via Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
