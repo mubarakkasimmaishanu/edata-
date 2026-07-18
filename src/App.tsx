@@ -3,7 +3,7 @@ import MobileSimulator from './components/MobileSimulator';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
 import { UserProfile, ProductItem, Transaction } from './types';
 import { Smartphone, RotateCw } from 'lucide-react';
-import { api, getAuthToken, setAuthToken } from './services/api';
+import { api, getAuthToken, setAuthToken, API_BASE_URL } from './services/api';
 
 export default function App() {
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
@@ -198,7 +198,7 @@ export default function App() {
   useEffect(() => {
     const checkConnectionOnLoad = async () => {
       try {
-        const res = await fetch('http://localhost/edata/api/detect-network?phone=0803');
+        const res = await fetch(`${API_BASE_URL}/detect-network?phone=0803`);
         if (res.ok) {
           setApiStatus('connected');
         } else {
@@ -239,10 +239,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-0 sm:p-4 font-sans selection:bg-sky-500 selection:text-white" id="standalone-mobile-frame">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white" id="standalone-mobile-frame">
       
       {/* Top API Status bar for Developer preview context */}
-      <div className="hidden sm:flex items-center justify-between w-full max-w-[390px] px-4 py-2 bg-slate-950/60 border border-slate-800 rounded-2xl mb-3 text-xs gap-3">
+      <div className="flex items-center justify-between w-full px-6 py-2 bg-slate-900 border-b border-slate-800 text-xs gap-3 shrink-0 text-slate-300">
         <div className="flex items-center gap-2">
           <div className="relative flex h-2 w-2">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -271,8 +271,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Responsive App Container */}
-      <div className="w-full max-w-md flex flex-col items-center justify-center">
+      {/* Full Width Responsive App Container */}
+      <div className="w-full flex-1 flex flex-col">
         <MobileSimulator 
           currentUser={currentUser}
           setCurrentUser={handleSetCurrentUser}
@@ -290,11 +290,6 @@ export default function App() {
           apiStatus={apiStatus}
           setApiStatus={setApiStatus}
         />
-      </div>
-
-      {/* Standalone footer notice */}
-      <div className="hidden sm:block text-center text-[10px] text-slate-500 mt-4 max-w-[320px] font-mono leading-relaxed">
-        eData Mobile Native Client. Communicating securely with Yii2 Advanced Backend.
       </div>
 
     </div>

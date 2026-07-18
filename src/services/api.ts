@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta as any).env.VITE_YII_API_URL || 'http://localhost/edata/api';
+export const API_BASE_URL = (import.meta as any).env.VITE_YII_API_URL || 'https://edata.com.ng/api';
 
 export function getAuthToken(): string | null {
   return localStorage.getItem('edata_token');
