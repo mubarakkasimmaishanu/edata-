@@ -918,53 +918,13 @@ Thank you for using eData Mobile!
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 select-none" id="mobile-shell-container">
+    <div className="flex flex-col items-center justify-center p-0 md:p-6 select-none" id="mobile-shell-container">
       
-      {/* Phone Shell Wrap */}
-      <div className="relative w-[360px] h-[740px] bg-zinc-900 rounded-[50px] shadow-2xl border-[12px] border-zinc-800 flex flex-col overflow-hidden ring-4 ring-slate-800">
+      {/* Clean stand-alone mobile-responsive Web App Container */}
+      <div className="relative w-full max-w-md min-h-[720px] bg-slate-50 md:rounded-[36px] shadow-2xl flex flex-col overflow-hidden border border-slate-200/50">
         
-        {/* Dynamic Notch / Island */}
-        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-full z-50 flex items-center justify-center">
-          <div className="w-3 h-3 bg-zinc-950 rounded-full mr-2" />
-          <div className="w-12 h-1 bg-zinc-950 rounded-full" />
-        </div>
-
-        {/* Status Bar */}
-        <div className={`pt-8 pb-2 px-6 flex justify-between items-center text-[10px] font-bold z-40 shrink-0 transition-colors ${
-          currentScreen === 'app' && appTab === 'home' 
-            ? 'bg-[#111111] text-slate-300' 
-            : 'bg-sky-50 text-slate-700'
-        }`}>
-          {currentScreen === 'app' && appTab === 'home' ? (
-            <>
-              <span>4:49</span>
-              {/* Screen recording indicator pill to mimic reference image */}
-              <div className="flex items-center gap-1 bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[8px] font-black scale-90 shadow-sm animate-pulse">
-                <span className="w-1 h-1 rounded-full bg-white"></span>
-                <span>00:05</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span>5G</span>
-                <Wifi className="w-3 h-3 text-slate-300" />
-                <div className="flex items-center border border-slate-600 rounded-sm px-1 py-0.5 text-[8px] leading-none font-black scale-95">
-                  48
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <span>09:41</span>
-              <div className="flex items-center gap-1.5">
-                <Wifi className="w-3 h-3" />
-                <span>5G</span>
-                <Battery className="w-3.5 h-3.5" />
-              </div>
-            </>
-          )}
-        </div>
-
         {/* Main Inside Viewport */}
-        <div className="flex-1 bg-slate-50 overflow-y-auto flex flex-col">
+        <div className="flex-1 bg-slate-50 flex flex-col">
                  {/* SCREEN: Auth Portal (Login / Registration) */}
           {currentScreen === 'auth' && (
             <div className="flex-1 p-6 flex flex-col justify-between bg-slate-50">
@@ -3937,9 +3897,6 @@ Thank you for using eData Mobile!
           )}
 
         </div>
-
-        {/* Home Indicator line */}
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-white rounded-full z-50" />
       </div>
 
     </div>

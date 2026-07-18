@@ -271,8 +271,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Central mobile phone view container */}
-      <div className="w-full sm:w-[390px] h-full sm:h-auto shrink-0 flex flex-col items-center justify-center bg-slate-950/20 sm:border sm:border-slate-800/80 rounded-none sm:rounded-[40px] p-0 sm:p-2 sm:shadow-2xl">
+      {/* Responsive App Container */}
+      <div className="w-full max-w-md flex flex-col items-center justify-center">
         <MobileSimulator 
           currentUser={currentUser}
           setCurrentUser={handleSetCurrentUser}
