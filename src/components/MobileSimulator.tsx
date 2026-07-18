@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Transaction, ProductItem } from '../types';
 import { 
-  Smartphone, Wifi, Battery, ChevronLeft, ArrowRight, ArrowDownLeft, 
+  Smartphone, Wifi, Battery, ChevronLeft, ArrowRight, ArrowDownLeft, Home,
   ArrowUpRight, Copy, Share2, HelpCircle, CheckCircle, AlertTriangle, 
   User, Lock, Key, Eye, HelpCircle as HelpIcon, Flame, ShieldAlert,
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
@@ -3153,7 +3153,7 @@ Thank you for using eData Mobile!
                   : 'bg-white border-t border-slate-100'
               }`}>
                 {[
-                  { id: 'home', icon: Smartphone, label: 'Home' },
+                  { id: 'home', icon: Home, label: 'Home' },
                   { id: 'services', icon: Layers, label: 'Services' },
                   { id: 'support', icon: Headphones, label: 'Support' },
                   { id: 'profile', icon: User, label: 'Profile' }
