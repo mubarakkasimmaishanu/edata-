@@ -1473,7 +1473,9 @@ Thank you for using eData Mobile!
                   })();
 
                   // Construct dynamic referral link
-                  const referralLink = `http://localhost/edata/signup?ref=${currentUser.id || '1'}`;
+                  const referralLink = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+                    ? `https://edata.com.ng/signup?ref=${currentUser.id || '1'}` 
+                    : `http://localhost/edata/signup?ref=${currentUser.id || '1'}`;
 
                   // Fetch most recent transaction
                   const lastTx = transactions[0];
