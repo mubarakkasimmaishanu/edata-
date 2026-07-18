@@ -1299,21 +1299,17 @@ Thank you for using eData Mobile!
             <div className="flex-1 flex flex-col justify-between">
               
               {/* Header block (Changes content based on tab) */}
-              <div className={`px-5 pt-3 pb-4 space-y-3 shrink-0 ${
-                appTab === 'home' 
-                  ? 'bg-[#111111]' 
-                  : 'bg-sky-50/40 shadow-sm border-b border-sky-100/10'
-              }`}>
+              <div className="px-5 pt-3 pb-4 space-y-3 shrink-0 bg-white shadow-sm border-b border-slate-100">
                 {appTab === 'home' ? (
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2.5">
                       {/* Avatar with sky-blue ring */}
-                      <div className="w-8 h-8 rounded-full border-2 border-sky-500 p-0.5 flex items-center justify-center bg-sky-950/40 shadow-inner">
-                        <User className="w-5 h-5 text-sky-400" />
+                      <div className="w-8 h-8 rounded-full border-2 border-sky-500 p-0.5 flex items-center justify-center bg-sky-50 shadow-inner">
+                        <User className="w-5 h-5 text-sky-600" />
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-400 block font-bold leading-none">Hi,</span>
-                        <span className="text-xs font-black text-white leading-none tracking-wide mt-1 block">
+                        <span className="text-[10px] text-slate-500 block font-bold leading-none">Hi,</span>
+                        <span className="text-xs font-black text-slate-800 leading-none tracking-wide mt-1 block">
                           {(currentUser.name || 'ISRAEL').split(' ')[0].toUpperCase()}
                         </span>
                       </div>
@@ -1321,11 +1317,11 @@ Thank you for using eData Mobile!
 
                     {/* Right side support + notification controls */}
                     <div className="flex items-center gap-4">
-                      {/* Headphone icon (AI Support link) */}
+                      {/* Headphone icon (Support link) */}
                       <button 
                         type="button" 
                         onClick={() => setAppTab('support')}
-                        className="relative p-1 hover:bg-slate-800 rounded-lg text-slate-300 transition-all cursor-pointer"
+                        className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
                         title="Customer Support Desk"
                       >
                         <Headphones className="w-4 h-4" />
@@ -1335,11 +1331,11 @@ Thank you for using eData Mobile!
                       <button 
                         type="button"
                         onClick={() => setAppTab('history')}
-                        className="relative p-1 hover:bg-slate-800 rounded-lg text-slate-300 transition-all cursor-pointer"
+                        className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
                         title="Notification Inbox / History"
                       >
                         <Bell className="w-4 h-4" />
-                        <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111] leading-none px-0.5">
+                        <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white leading-none px-0.5">
                           99+
                         </span>
                       </button>
@@ -1408,7 +1404,7 @@ Thank you for using eData Mobile!
               </div>
 
               {/* TAB CONTAINER VIEW */}
-              <div className={`flex-1 overflow-y-auto p-3 space-y-3 relative scrollbar-none ${appTab === 'home' ? 'bg-[#111111]' : ''}`}>
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 relative scrollbar-none bg-slate-50">
                 
                 {/* Pull-to-refresh style API syncing loading bar */}
                 {isSyncing && (
@@ -1494,25 +1490,25 @@ Thank you for using eData Mobile!
                       </div>
 
                       {/* Earnings Strip (Dynamic Yesterday's Earnings) */}
-                      <div className="bg-[#1D1D1D] rounded-xl px-3 py-1.5 flex items-center justify-between border border-slate-800/40">
+                      <div className="bg-white rounded-xl px-3 py-1.5 flex items-center justify-between border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-1.5">
-                          <Coins className="w-3 h-3 text-sky-400" />
-                          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Yesterday's Earnings:</span>
-                          <span className="text-[9px] text-sky-400 font-black">
+                          <Coins className="w-3 h-3 text-sky-600" />
+                          <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Yesterday's Earnings:</span>
+                          <span className="text-[9px] text-sky-600 font-black">
                             +₦{yesterdaysEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                         <button 
                           type="button"
                           onClick={() => alert("Yesterday's Earnings shows the dynamic sum of your successful transactions completed on the previous calendar day.")}
-                          className="text-slate-500 hover:text-sky-400 cursor-pointer"
+                          className="text-slate-400 hover:text-sky-600 cursor-pointer"
                         >
                           <Info className="w-2.5 h-2.5" />
                         </button>
                       </div>
 
                       {/* Quick Transfer Card */}
-                      <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-around items-center border border-slate-800/40">
+                      <div className="bg-white rounded-xl p-2.5 flex justify-around items-center border border-slate-100 shadow-sm">
                         {[
                           { id: 'bank', label: 'To Bank', badge: 'Fee', icon: Smartphone },
                           { id: 'palmpay', label: 'To PalmPay', icon: ArrowUpRight },
@@ -1527,15 +1523,15 @@ Thank you for using eData Mobile!
                           >
                             {/* Mini badge */}
                             {btn.badge && (
-                              <span className="absolute -top-1 -right-1.5 bg-sky-500 text-white text-[5px] font-black px-1 py-0.5 rounded-md leading-none shadow-sm uppercase z-10 scale-90">
+                              <span className="absolute -top-1 -right-1.5 bg-sky-600 text-white text-[5px] font-black px-1 py-0.5 rounded-md leading-none shadow-sm uppercase z-10 scale-90">
                                 {btn.badge}
                               </span>
                             )}
                             {/* Button square container */}
-                            <div className="w-9 h-9 rounded-xl bg-[#292929] group-hover:bg-[#333333] flex items-center justify-center transition-all shadow-inner active:scale-95">
-                              <btn.icon className="w-3.5 h-3.5 text-sky-400" />
+                            <div className="w-9 h-9 rounded-xl bg-sky-50 group-hover:bg-sky-100 flex items-center justify-center transition-all shadow-inner active:scale-95">
+                              <btn.icon className="w-3.5 h-3.5 text-sky-600" />
                             </div>
-                            <span className="text-[8px] font-bold text-slate-400 group-hover:text-slate-300">{btn.label}</span>
+                            <span className="text-[8px] font-bold text-slate-600 group-hover:text-sky-600">{btn.label}</span>
                           </button>
                         ))}
                       </div>
@@ -1543,47 +1539,47 @@ Thank you for using eData Mobile!
                       {/* Recent Transaction (Dynamic Live Backend Log) */}
                       {lastTx ? (
                         <div 
-                          className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-between items-center border border-slate-800/40 cursor-pointer active:scale-[0.99] transition-all hover:bg-[#252525]" 
+                          className="bg-white rounded-xl p-2.5 flex justify-between items-center border border-slate-100 cursor-pointer active:scale-[0.99] transition-all hover:bg-slate-50 shadow-sm" 
                           onClick={() => {
                             setActiveReceipt(lastTx);
                           }}
                         >
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-black text-white">₦{lastTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] font-black text-slate-800 font-mono">₦{lastTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                               <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none ${
-                                lastTx.status === 'Completed' ? 'bg-sky-500/20 text-sky-400' : lastTx.status === 'Failed' ? 'bg-rose-500/20 text-rose-400' : 'bg-sky-500/10 text-sky-300'
+                                lastTx.status === 'Completed' ? 'bg-sky-50 text-sky-600' : lastTx.status === 'Failed' ? 'bg-rose-50 text-rose-600' : 'bg-sky-50 text-sky-500'
                               }`}>{lastTx.status}</span>
                             </div>
-                            <span className="text-[8px] text-slate-400 block truncate max-w-[210px]">{lastTx.productName}</span>
+                            <span className="text-[8px] text-slate-500 block truncate max-w-[210px]">{lastTx.productName}</span>
                           </div>
-                          <span className="text-[7px] text-slate-500 font-bold whitespace-nowrap">{lastTx.date.split(' ')[0]}</span>
+                          <span className="text-[7px] text-slate-400 font-bold whitespace-nowrap">{lastTx.date.split(' ')[0]}</span>
                         </div>
                       ) : (
-                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-between items-center border border-slate-800/40 text-slate-500">
+                        <div className="bg-white rounded-xl p-2.5 flex justify-between items-center border border-slate-100 text-slate-400 shadow-sm">
                           <div className="space-y-0.5">
-                            <span className="text-[9px] font-black text-slate-400">No Transactions</span>
-                            <span className="text-[8px] text-slate-500 block">Your utility funding logs will appear here</span>
+                            <span className="text-[9px] font-black text-slate-600">No Transactions</span>
+                            <span className="text-[8px] text-slate-400 block">Your utility funding logs will appear here</span>
                           </div>
-                          <span className="text-[7px] text-slate-600 font-bold">Get Started</span>
+                          <span className="text-[7px] text-slate-500 font-bold">Get Started</span>
                         </div>
                       )}
 
                       {/* Services Grid (8 Services - 100% backend-supported) */}
-                      <div className="bg-[#1D1D1D] rounded-xl p-3 border border-slate-800/40">
+                      <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm">
                         <div className="grid grid-cols-4 gap-y-3 gap-x-2">
                           {[
-                            { id: 'Airtime', icon: Phone, color: 'text-sky-400', tab: 'airtime' },
-                            { id: 'Data', icon: Layers, color: 'text-sky-400', tab: 'data' },
-                            { id: 'Cable TV', icon: Tv, color: 'text-sky-400', tab: 'cable' },
-                            { id: 'Electricity', icon: Lightbulb, color: 'text-sky-400', tab: 'electricity' },
-                            { id: 'Refer & Earn', icon: Flame, color: 'text-sky-400', action: () => {
+                            { id: 'Airtime', icon: Phone, color: 'text-sky-600', tab: 'airtime' },
+                            { id: 'Data', icon: Layers, color: 'text-sky-600', tab: 'data' },
+                            { id: 'Cable TV', icon: Tv, color: 'text-sky-600', tab: 'cable' },
+                            { id: 'Electricity', icon: Lightbulb, color: 'text-sky-600', tab: 'electricity' },
+                            { id: 'Refer & Earn', icon: Flame, color: 'text-sky-600', action: () => {
                               navigator.clipboard.writeText(referralLink);
                               alert("🎉 Referral link copied to clipboard! Share it to earn upgrade commissions: " + referralLink);
                             }},
-                            { id: 'A2C Convert', icon: RefreshCw, color: 'text-sky-400', tab: 'a2c' },
-                            { id: 'Exam Card', icon: BookOpen, color: 'text-sky-400', tab: 'exam' },
-                            { id: 'More', icon: MoreHorizontal, color: 'text-sky-400', action: () => setAppTab('services') }
+                            { id: 'A2C Convert', icon: RefreshCw, color: 'text-sky-600', tab: 'a2c' },
+                            { id: 'Exam Card', icon: BookOpen, color: 'text-sky-600', tab: 'exam' },
+                            { id: 'More', icon: MoreHorizontal, color: 'text-sky-600', action: () => setAppTab('services') }
                           ].map((srv, idx) => (
                             <button
                               key={idx}
@@ -1598,10 +1594,10 @@ Thank you for using eData Mobile!
                               }}
                               className="relative flex flex-col items-center gap-1 cursor-pointer group min-w-0"
                             >
-                              <div className="w-8 h-8 rounded-full bg-[#252525] group-hover:bg-[#2d2d2d] flex items-center justify-center transition-all active:scale-95">
+                              <div className="w-8 h-8 rounded-full bg-sky-50 group-hover:bg-sky-100 flex items-center justify-center transition-all active:scale-95 animate-fade-in">
                                 <srv.icon className={`w-3.5 h-3.5 ${srv.color}`} />
                               </div>
-                              <span className="text-[7px] font-extrabold text-slate-400 text-center truncate w-full group-hover:text-slate-300">
+                              <span className="text-[7px] font-extrabold text-slate-500 text-center truncate w-full group-hover:text-sky-600">
                                 {srv.id}
                               </span>
                             </button>
@@ -1610,16 +1606,16 @@ Thank you for using eData Mobile!
                       </div>
 
                       {/* Referral Banner (Compact) */}
-                      <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex items-center justify-between border border-slate-800/40 relative overflow-hidden">
+                      <div className="bg-white rounded-xl p-2.5 flex items-center justify-between border border-slate-100 shadow-sm relative overflow-hidden">
                         <div className="flex items-center gap-2.5">
                           {/* Sky-blue reward badge circular */}
-                          <div className="w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/25 flex flex-col items-center justify-center shrink-0">
-                            <span className="text-[6px] text-sky-400 font-bold uppercase leading-none">Reward</span>
-                            <span className="text-[7px] text-sky-400 font-black leading-none mt-0.5">₦2.5k</span>
+                          <div className="w-8 h-8 rounded-full bg-sky-50 border border-sky-100 flex flex-col items-center justify-center shrink-0">
+                            <span className="text-[6px] text-sky-600 font-bold uppercase leading-none">Reward</span>
+                            <span className="text-[7px] text-sky-600 font-black leading-none mt-0.5">₦2.5k</span>
                           </div>
                           <div>
-                            <h4 className="text-[9px] font-black text-white leading-tight">100% Cash Reward</h4>
-                            <span className="text-[7px] text-slate-400 leading-tight block">Earn up to ₦2500 per invite</span>
+                            <h4 className="text-[9px] font-black text-slate-800 leading-tight">100% Cash Reward</h4>
+                            <span className="text-[7px] text-slate-500 leading-tight block">Earn up to ₦2500 per invite</span>
                           </div>
                         </div>
 
@@ -1630,7 +1626,7 @@ Thank you for using eData Mobile!
                             navigator.clipboard.writeText(referralLink);
                             alert("🎉 Referral link copied to clipboard! Share it with friends to earn rewards: " + referralLink);
                           }}
-                          className="border border-sky-500 hover:bg-sky-500/10 text-sky-400 text-[7px] font-black px-3 py-1 rounded-full transition-all cursor-pointer shrink-0 active:scale-95"
+                          className="border border-sky-500 hover:bg-sky-500 text-sky-600 text-[7px] font-black px-3 py-1 rounded-full transition-all cursor-pointer shrink-0 active:scale-95"
                         >
                           Claim
                         </button>
@@ -1639,49 +1635,49 @@ Thank you for using eData Mobile!
                       {/* Membership Upgrade Section */}
                       <div className="grid grid-cols-2 gap-2.5">
                         {/* Left: Account Status Card */}
-                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 border border-slate-800/40 flex flex-col justify-between h-[100px] text-left">
+                        <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm flex flex-col justify-between h-[100px] text-left">
                           <div className="space-y-0.5">
-                            <h5 className="text-[9px] font-black text-white leading-none">Membership</h5>
-                            <span className="text-[6.5px] text-slate-400 leading-tight block">Account authorization level</span>
+                            <h5 className="text-[9px] font-black text-slate-800 leading-none">Membership</h5>
+                            <span className="text-[6.5px] text-slate-500 leading-tight block">Account authorization level</span>
                           </div>
                           <div className="mt-1.5">
-                            <span className="text-[10px] font-black text-sky-400 leading-none block bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md text-center">
+                            <span className="text-[10px] font-black text-sky-600 leading-none block bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-md text-center">
                               {currentUser.category}
                             </span>
-                            <span className="text-[6px] text-slate-500 font-bold uppercase tracking-wider leading-none mt-1 block">Pricing Tier</span>
+                            <span className="text-[6px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-1 block">Pricing Tier</span>
                           </div>
                           <button 
                             type="button" 
                             onClick={() => setPriceSheetOpen(true)}
-                            className="bg-sky-500 hover:bg-sky-600 text-slate-950 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95"
+                            className="bg-sky-600 hover:bg-sky-700 text-white text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95 shadow-sm"
                           >
                             View Rate Chart
                           </button>
                         </div>
 
                         {/* Right: Premium Upgrade Card with ribbon */}
-                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 border border-slate-800/40 flex flex-col justify-between h-[100px] relative overflow-hidden text-left">
+                        <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm flex flex-col justify-between h-[100px] relative overflow-hidden text-left">
                           {/* Pro Ribbon in top-right */}
-                          <div className="absolute top-0 right-0 bg-[#0ea5e9] text-white text-[5px] font-black px-2 py-0.5 rotate-45 translate-x-3 translate-y-1 shadow-sm uppercase">
+                          <div className="absolute top-0 right-0 bg-sky-500 text-white text-[5px] font-black px-2 py-0.5 rotate-45 translate-x-3 translate-y-1 shadow-sm uppercase">
                             Pro
                           </div>
                           
                           <div className="space-y-0.5">
-                            <h5 className="text-[9px] font-black text-white leading-none">VTU License</h5>
-                            <span className="text-[6.5px] text-slate-400 leading-tight block">Wholesale reseller rates</span>
+                            <h5 className="text-[9px] font-black text-slate-800 leading-none">VTU License</h5>
+                            <span className="text-[6.5px] text-slate-500 leading-tight block">Wholesale reseller rates</span>
                           </div>
                           <div className="mt-1.5">
-                            <span className="text-xs font-black text-sky-400 leading-none block">
+                            <span className="text-xs font-black text-sky-600 leading-none block">
                               {currentUser.category === 'Premium User' ? 'ACTIVE' : '₦1,500'}
                             </span>
-                            <span className="text-[6px] text-slate-500 font-bold uppercase tracking-wider leading-none mt-0.5 block">One-time Fee</span>
+                            <span className="text-[6px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-0.5 block">One-time Fee</span>
                           </div>
                           
                           {currentUser.category === 'Premium User' ? (
                             <button 
                               type="button" 
                               disabled
-                              className="bg-slate-800 text-slate-500 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
+                              className="bg-slate-100 text-slate-400 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
                             >
                               License Active
                             </button>
@@ -1689,7 +1685,7 @@ Thank you for using eData Mobile!
                             <button 
                               type="button" 
                               disabled
-                              className="bg-sky-500/20 text-sky-400 border border-sky-500/20 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
+                              className="bg-sky-50 text-sky-600 border border-sky-100 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
                             >
                               Pending Approval
                             </button>
@@ -1697,7 +1693,7 @@ Thank you for using eData Mobile!
                             <button 
                               type="button" 
                               onClick={() => setUpgradeModalOpen(true)}
-                              className="bg-sky-500 hover:bg-sky-600 text-slate-950 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95"
+                              className="bg-sky-600 hover:bg-sky-700 text-white text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95 shadow-sm"
                             >
                               Upgrade Now
                             </button>
@@ -3147,11 +3143,7 @@ Thank you for using eData Mobile!
               </div>
 
               {/* Bottom Nav tabs navigation */}
-              <div className={`px-2 py-2 flex justify-around items-center shrink-0 z-40 w-full transition-colors ${
-                appTab === 'home' 
-                  ? 'bg-[#1D1D1D] border-t border-slate-800/85' 
-                  : 'bg-white border-t border-slate-100'
-              }`}>
+              <div className="px-2 py-2 flex justify-around items-center shrink-0 z-40 w-full transition-colors bg-white border-t border-slate-100">
                 {[
                   { id: 'home', icon: Home, label: 'Home' },
                   { id: 'services', icon: Layers, label: 'Services' },
@@ -3171,14 +3163,12 @@ Thank you for using eData Mobile!
                       }}
                       className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
                         isActive 
-                          ? (appTab === 'home' ? 'text-sky-400 scale-105 font-black' : 'bg-sky-50 text-sky-600 scale-105 font-bold') 
-                          : (appTab === 'home' ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')
+                          ? 'bg-sky-50 text-sky-600 scale-105 font-bold' 
+                          : 'text-slate-400 hover:text-slate-600'
                       }`}
                     >
                       <tab.icon className={`w-3.5 h-3.5 ${
-                        isActive 
-                          ? (appTab === 'home' ? 'text-sky-400' : 'text-sky-600') 
-                          : (appTab === 'home' ? 'text-slate-500' : 'text-slate-400')
+                        isActive ? 'text-sky-600' : 'text-slate-400'
                       }`} />
                       <span className="text-[8px] font-black tracking-tight">{tab.label}</span>
                     </button>
