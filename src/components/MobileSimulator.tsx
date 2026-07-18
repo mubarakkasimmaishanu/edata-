@@ -918,13 +918,10 @@ Thank you for using eData Mobile!
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-0 md:p-6 select-none" id="mobile-shell-container">
+    <div className="w-full min-h-screen flex flex-col bg-slate-50 select-none" id="web-app-container">
       
-      {/* Clean stand-alone mobile-responsive Web App Container */}
-      <div className="relative w-full max-w-md min-h-[720px] bg-slate-50 md:rounded-[36px] shadow-2xl flex flex-col overflow-hidden border border-slate-200/50">
-        
-        {/* Main Inside Viewport */}
-        <div className="flex-1 bg-slate-50 flex flex-col">
+      {/* Main Inside Viewport */}
+      <div className="flex-1 bg-slate-50 flex flex-col">
                  {/* SCREEN: Auth Portal (Login / Registration) */}
           {currentScreen === 'auth' && (
             <div className="flex-1 p-6 flex flex-col justify-between bg-slate-50">
@@ -1299,50 +1296,51 @@ Thank you for using eData Mobile!
             <div className="flex-1 flex flex-col justify-between">
               
               {/* Header block (Changes content based on tab) */}
-              <div className="px-5 pt-3 pb-4 space-y-3 shrink-0 bg-white shadow-sm border-b border-slate-100">
-                {appTab === 'home' ? (
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2.5">
-                      {/* Avatar with sky-blue ring */}
-                      <div className="w-8 h-8 rounded-full border-2 border-sky-500 p-0.5 flex items-center justify-center bg-sky-50 shadow-inner">
-                        <User className="w-5 h-5 text-sky-600" />
+              <div className="px-5 pt-3 pb-4 shrink-0 bg-white shadow-sm border-b border-slate-100 w-full">
+                <div className="max-w-md mx-auto w-full">
+                  {appTab === 'home' ? (
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-2.5">
+                        {/* Avatar with sky-blue ring */}
+                        <div className="w-8 h-8 rounded-full border-2 border-sky-500 p-0.5 flex items-center justify-center bg-sky-50 shadow-inner">
+                          <User className="w-5 h-5 text-sky-600" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block font-bold leading-none">Hi,</span>
+                          <span className="text-xs font-black text-slate-800 leading-none tracking-wide mt-1 block">
+                            {(currentUser.name || 'ISRAEL').split(' ')[0].toUpperCase()}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 block font-bold leading-none">Hi,</span>
-                        <span className="text-xs font-black text-slate-800 leading-none tracking-wide mt-1 block">
-                          {(currentUser.name || 'ISRAEL').split(' ')[0].toUpperCase()}
-                        </span>
+
+                      {/* Right side support + notification controls */}
+                      <div className="flex items-center gap-4">
+                        {/* Headphone icon (Support link) */}
+                        <button 
+                          type="button" 
+                          onClick={() => setAppTab('support')}
+                          className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
+                          title="Customer Support Desk"
+                        >
+                          <Headphones className="w-4 h-4" />
+                        </button>
+
+                        {/* Notification bell with 99+ red dot badge */}
+                        <button 
+                          type="button"
+                          onClick={() => setAppTab('history')}
+                          className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
+                          title="Notification Inbox / History"
+                        >
+                          <Bell className="w-4 h-4" />
+                          <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white leading-none px-0.5">
+                            99+
+                          </span>
+                        </button>
                       </div>
                     </div>
-
-                    {/* Right side support + notification controls */}
-                    <div className="flex items-center gap-4">
-                      {/* Headphone icon (Support link) */}
-                      <button 
-                        type="button" 
-                        onClick={() => setAppTab('support')}
-                        className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
-                        title="Customer Support Desk"
-                      >
-                        <Headphones className="w-4 h-4" />
-                      </button>
-
-                      {/* Notification bell with 99+ red dot badge */}
-                      <button 
-                        type="button"
-                        onClick={() => setAppTab('history')}
-                        className="relative p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-all cursor-pointer"
-                        title="Notification Inbox / History"
-                      >
-                        <Bell className="w-4 h-4" />
-                        <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white leading-none px-0.5">
-                          99+
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // STANDARD HEADER FOR SERVICE TABS
+                  ) : (
+                    // STANDARD HEADER FOR SERVICE TABS
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <button
@@ -1399,12 +1397,14 @@ Thank you for using eData Mobile!
                         </button>
                       )}
                     </div>
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* TAB CONTAINER VIEW */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 relative scrollbar-none bg-slate-50">
+              <div className="flex-1 overflow-y-auto p-3 relative scrollbar-none bg-slate-50 flex flex-col w-full">
+                <div className="max-w-md mx-auto w-full flex-1 flex flex-col space-y-3">
                 
                 {/* Pull-to-refresh style API syncing loading bar */}
                 {isSyncing && (
@@ -3140,6 +3140,7 @@ Thank you for using eData Mobile!
                   </div>
                 )}
 
+                </div>
               </div>
 
               {/* Bottom Nav tabs navigation */}
@@ -3888,7 +3889,5 @@ Thank you for using eData Mobile!
 
         </div>
       </div>
-
-    </div>
   );
 }
