@@ -6,19 +6,29 @@ import {
   User, Lock, Key, Eye, HelpCircle as HelpIcon, Flame, ShieldAlert,
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, Send as PaperPlane, UserCheck, Check, Search, AlertCircle,
-  History, MoreHorizontal
+  History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift
 } from 'lucide-react';
+import { api } from '../services/api';
+import { jsPDF } from 'jspdf';
+import { DEFAULT_USER } from '../data';
+
 
 interface MobileSimulatorProps {
   currentUser: UserProfile;
-  setCurrentUser: React.Dispatch<React.SetStateAction<UserProfile>>;
+  setCurrentUser: (user: UserProfile | ((prev: UserProfile) => UserProfile)) => void;
   products: ProductItem[];
   transactions: Transaction[];
-  setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+  setTransactions: (txs: Transaction[] | ((prev: Transaction[]) => Transaction[])) => void;
   subscribers: UserProfile[];
-  setSubscribers: React.Dispatch<React.SetStateAction<UserProfile[]>>;
+  setSubscribers: (subs: UserProfile[] | ((prev: UserProfile[]) => UserProfile[])) => void;
   handleGlobalRefresh?: () => void;
   isSyncing?: boolean;
+  handleLoginSuccess?: (token: string) => void;
+  handleLogout?: () => void;
+  currentScreen: 'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app';
+  setCurrentScreen: (screen: 'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app') => void;
+  apiStatus: 'connected' | 'offline' | 'sandbox';
+  setApiStatus?: (status: 'connected' | 'offline' | 'sandbox') => void;
 }
 
 export default function MobileSimulator({
@@ -30,20 +40,35 @@ export default function MobileSimulator({
   subscribers,
   setSubscribers,
   handleGlobalRefresh,
-  isSyncing = false
+  isSyncing = false,
+  handleLoginSuccess,
+  handleLogout,
+  currentScreen,
+  setCurrentScreen,
+  apiStatus,
+  setApiStatus
 }: MobileSimulatorProps) {
   // Navigation states
-  const [currentScreen, setCurrentScreen] = useState<'auth' | 'otp' | 'bvn_verify' | 'app'>('auth');
-  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'ai_chat' | 'profile'>('home');
+  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'ai_chat' | 'profile' | 'a2c'>('home');
+
 
   // Onboarding/Auth state variables
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [authEmail, setAuthEmail] = useState<string>(currentUser.email);
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [loginError, setLoginError] = useState<string>('');
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
   const [authName, setAuthName] = useState<string>(currentUser.name);
   const [authPhone, setAuthPhone] = useState<string>(currentUser.phone);
   const [authPromo, setAuthPromo] = useState<string>('');
   const [regMode, setRegMode] = useState<'self' | 'referral'>('self');
   const [acceptTerms, setAcceptTerms] = useState<boolean>(true);
+  
+  // Registration password states
+  const [regPassword, setRegPassword] = useState<string>('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState<string>('');
+  const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState<boolean>(false);
   
   // OTP code inputs
   const [otpCode, setOtpCode] = useState<string>('');
@@ -55,19 +80,94 @@ export default function MobileSimulator({
   const [kycLoading, setKycLoading] = useState<boolean>(false);
 
   // Active Transaction flow states
-  const [selectedCategory, setSelectedCategory] = useState<'Airtime' | 'Data' | 'Electricity' | 'Cable' | 'Exam'>('Airtime');
+  const [selectedCategory, setSelectedCategory] = useState<'Airtime' | 'Data' | 'Electricity' | 'Cable' | 'Exam' | 'A2C'>('Airtime');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [targetNumber, setTargetNumber] = useState<string>('');
   const [detectedOperator, setDetectedOperator] = useState<string>('');
   const [checkoutAmount, setCheckoutAmount] = useState<string>('');
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
   const [pinSheetOpen, setPinSheetOpen] = useState<boolean>(false);
+  const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(true);
   const [pinInput, setPinInput] = useState<string>('');
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
   const [priceSheetOpen, setPriceSheetOpen] = useState<boolean>(false);
   const [othersSheetOpen, setOthersSheetOpen] = useState<boolean>(false);
   const [historySearch, setHistorySearch] = useState<string>('');
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState<string>('All');
+  const [a2cBank, setA2cBank] = useState<string>('');
+  const [a2cAccount, setA2cAccount] = useState<string>('');
+  const [a2cPayout, setA2cPayout] = useState<number>(0);
+
+  // Promo code states
+  const [promoCodeInput, setPromoCodeInput] = useState<string>('');
+  const [appliedPromo, setAppliedPromo] = useState<string>('');
+  const [promoDiscount, setPromoDiscount] = useState<number>(0);
+  const [promoError, setPromoError] = useState<string>('');
+  const [appliedPromoId, setAppliedPromoId] = useState<number | string>('');
+
+  // Validation states
+  const [customerName, setCustomerName] = useState<string>('');
+  const [isValidatingNumber, setIsValidatingNumber] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string>('');
+
+  const handleApplyPromoCode = async () => {
+    setPromoError('');
+    const code = promoCodeInput.trim().toUpperCase();
+    if (!code) {
+      setPromoError('Please enter a promo code.');
+      return;
+    }
+
+    if (!selectedProduct) {
+      setPromoError('Please select a provider/package first.');
+      return;
+    }
+
+    const basePrice = parseFloat(checkoutAmount || '0');
+    if (basePrice <= 0) {
+      setPromoError('Invalid transaction amount.');
+      return;
+    }
+
+    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+      if (code === 'WELCOME10' || code === 'EDATA50') {
+        const discount = code === 'WELCOME10' ? 10 : (basePrice * 0.5 > 100 ? 100 : basePrice * 0.5);
+        setPromoDiscount(discount);
+        setAppliedPromo(code);
+        setAppliedPromoId('promo-mock');
+      } else {
+        setPromoError('Invalid or expired promo code.');
+      }
+      return;
+    }
+
+    try {
+      let serviceId = selectedProduct.id;
+      if (selectedProduct.id.startsWith('plan-')) {
+        const parts = selectedProduct.id.split('-');
+        serviceId = parts[2];
+      }
+      const res = await api.validatePromo(code, serviceId, basePrice);
+      if (res.success && res.data) {
+        setPromoDiscount(parseFloat(res.data.discount || '0'));
+        setAppliedPromo(code);
+        setAppliedPromoId(res.data.promo_id);
+      } else {
+        setPromoError(res.error || 'Promo code validation failed.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setPromoError(err.message || 'Error validating promo code.');
+    }
+  };
+
+  // Reset promo code on product/category changes
+  useEffect(() => {
+    setAppliedPromo('');
+    setPromoDiscount(0);
+    setPromoCodeInput('');
+    setPromoError('');
+  }, [selectedProduct, selectedCategory]);
 
   // Interactive UI Modal states (completely in-app)
   const [fundModalOpen, setFundModalOpen] = useState<boolean>(false);
@@ -110,25 +210,35 @@ export default function MobileSimulator({
 
   // Auto detect operators
   useEffect(() => {
-    if (selectedCategory === 'Airtime' || selectedCategory === 'Data') {
+    if (selectedCategory === 'Airtime' || selectedCategory === 'Data' || selectedCategory === 'A2C') {
       let normalized = targetNumber.replace(/\D/g, '');
       if (normalized.startsWith('234')) {
         normalized = '0' + normalized.substring(3);
       }
-      const prefix = normalized.substring(0, 4);
-      if (['0803', '0806', '0703', '0706', '0903', '0906', '0813', '0814', '0816', '0704', '0913', '0916', '0804', '0702'].includes(prefix)) {
-        setDetectedOperator('MTN');
-      } else if (['0805', '0807', '0705', '0815', '0905', '0915'].includes(prefix)) {
-        setDetectedOperator('Glo');
-      } else if (['0802', '0808', '0701', '0708', '0902', '0907', '0901', '0912', '0812'].includes(prefix)) {
-        setDetectedOperator('Airtel');
-      } else if (['0809', '0817', '0818', '0909', '0908'].includes(prefix)) {
-        setDetectedOperator('9mobile');
-      } else {
-        if (normalized.length < 4) {
-          setDetectedOperator('');
-        }
+      
+      const mtnPrefixes = ['0803', '0806', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916', '0703', '0706', '0704', '07025', '07026', '07020', '0707'];
+      const airtelPrefixes = ['0701', '0708', '0802', '0808', '0812', '0901', '0902', '0904', '0907', '0911', '0912'];
+      const gloPrefixes = ['0705', '0805', '0807', '0811', '0815', '0905', '0915'];
+      const nineMobilePrefixes = ['0809', '0817', '0818', '0909', '0908'];
+
+      let detected = '';
+      if (normalized.length >= 5) {
+        const prefix5 = normalized.substring(0, 5);
+        if (mtnPrefixes.includes(prefix5)) detected = 'MTN';
+        else if (airtelPrefixes.includes(prefix5)) detected = 'Airtel';
+        else if (gloPrefixes.includes(prefix5)) detected = 'Glo';
+        else if (nineMobilePrefixes.includes(prefix5)) detected = '9mobile';
       }
+
+      if (!detected && normalized.length >= 4) {
+        const prefix4 = normalized.substring(0, 4);
+        if (mtnPrefixes.includes(prefix4)) detected = 'MTN';
+        else if (airtelPrefixes.includes(prefix4)) detected = 'Airtel';
+        else if (gloPrefixes.includes(prefix4)) detected = 'Glo';
+        else if (nineMobilePrefixes.includes(prefix4)) detected = '9mobile';
+      }
+
+      setDetectedOperator(detected);
     } else {
       setDetectedOperator('');
     }
@@ -136,7 +246,7 @@ export default function MobileSimulator({
 
   // Fetch dynamic pricing based on user tier
   const getDynamicPrice = (product: ProductItem) => {
-    if (currentUser.category === 'Super User') return product.priceSuper;
+    if (currentUser.category === 'Premium User') return product.pricePremium;
     if (currentUser.category === 'Referred User') return product.priceReferred;
     return product.priceNormal;
   };
@@ -180,6 +290,49 @@ export default function MobileSimulator({
     }
   }, [selectedProduct]);
 
+  // Clear validation when inputs or category changes
+  useEffect(() => {
+    setCustomerName('');
+    setValidationError('');
+  }, [targetNumber, selectedProduct, selectedCategory]);
+
+  // Validate Meter/Smartcard
+  const handleValidateNumber = async () => {
+    if (!targetNumber) {
+      setValidationError('Please enter a number first.');
+      return;
+    }
+    if (!selectedProduct) {
+      setValidationError('Please select a provider first.');
+      return;
+    }
+    setIsValidatingNumber(true);
+    setValidationError('');
+    setCustomerName('');
+
+    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+      setTimeout(() => {
+        setCustomerName('Mubarak Kasim Maishanu (Mock Verification)');
+        setIsValidatingNumber(false);
+      }, 500);
+      return;
+    }
+
+    try {
+      const res = await api.validateMeterOrSmartcard(selectedProduct.id, targetNumber);
+      if (res.success && res.data) {
+        setCustomerName(res.data.customer_name);
+      } else {
+        setValidationError(res.error || 'Validation failed.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setValidationError(err.message || 'Error validating number.');
+    } finally {
+      setIsValidatingNumber(false);
+    }
+  };
+
   // Run Real-time AI security scan
   const handleAISecurityScan = async () => {
     if (!targetNumber) {
@@ -221,56 +374,154 @@ export default function MobileSimulator({
     }
   };
 
-  // Submit Transaction checkout
-  const handleConfirmPurchase = () => {
-    // Validate PIN
-    if (currentUser.hasPin && pinInput !== currentUser.pinCode) {
-      alert("Invalid Transaction PIN. Please try again.");
-      setPinInput('');
+  // Initiate checkout flow (checks if biometrics are enabled to bypass PIN entry sheet)
+  const handleCheckoutInitiate = () => {
+    if (!currentUser.hasPin) {
+      alert("Please set up a Transaction PIN before completing your first transaction.");
+      setChangePinModalOpen(true);
       return;
     }
-
-    const price = parseFloat(checkoutAmount);
-    if (currentUser.walletBalance < price) {
-      alert("Insufficient wallet balance. Please fund your wallet.");
-      setPinSheetOpen(false);
-      return;
+    if (currentUser.biometricsEnabled) {
+      setScanState('scanning');
+      setTimeout(() => {
+        handleConfirmPurchase();
+      }, 1000);
+    } else {
+      setPinSheetOpen(true);
     }
+  };
 
-    // Deduct balance
-    const newBalance = currentUser.walletBalance - price;
-    setCurrentUser(curr => ({ ...curr, walletBalance: newBalance }));
+  // Submit Transaction checkout via Yii2 Backend API
+  const handleConfirmPurchase = async () => {
+    // 1. Resolve product ID & plan ID
+    let serviceId = selectedProduct?.id;
+    let planId = undefined;
     
-    // Update local subscribers state
-    setSubscribers(prev => prev.map(s => {
-      if (s.email === currentUser.email) {
-        return { ...s, walletBalance: newBalance };
+    if (selectedCategory === 'A2C') {
+      const a2cProduct = products.find(p => p.category === 'A2C');
+      serviceId = a2cProduct?.id || '38';
+    } else if (selectedProduct && selectedProduct.id.startsWith('plan-')) {
+      const parts = selectedProduct.id.split('-');
+      planId = parts[1];
+      serviceId = parts[2];
+    }
+
+    if (!serviceId) {
+      alert("Invalid product selection.");
+      return;
+    }
+
+    const basePrice = parseFloat(checkoutAmount || '0');
+    const price = selectedCategory === 'A2C' ? basePrice : Math.max(0, basePrice - promoDiscount);
+
+    setScanState('scanning');
+
+    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+      setTimeout(() => {
+        const ref = 'EDAT-SANDBOX-' + Math.floor(100000 + Math.random() * 900000);
+        const newTx: Transaction = {
+          id: ref,
+          type: selectedCategory === 'A2C' ? 'A2C' : selectedCategory,
+          productName: selectedCategory === 'A2C' 
+            ? `A2C Cash Payout (₦${a2cPayout.toLocaleString()})` 
+            : (selectedProduct?.name || `${selectedCategory} Payment`) + (appliedPromo ? ` (Promo ${appliedPromo} Applied)` : ''),
+          amount: price,
+          phoneOrMeter: targetNumber || ref,
+          operator: detectedOperator || selectedProduct?.operator,
+          reference: ref,
+          status: 'Completed',
+          date: new Date().toISOString(),
+          disputeRaised: false,
+          riskScore: riskScore,
+          riskAnalysis: riskAnalysis
+        };
+
+        if (selectedCategory !== 'A2C') {
+          setCurrentUser(prev => ({
+            ...prev,
+            walletBalance: prev.walletBalance - price
+          }));
+        }
+
+        setTransactions(prev => [newTx, ...prev]);
+        setActiveReceipt(newTx);
+        setPinSheetOpen(false);
+        setPinInput('');
+        setTargetNumber('');
+        setScanState('idle');
+        setA2cBank('');
+        setA2cAccount('');
+        setA2cPayout(0);
+        setAppliedPromo('');
+        setPromoDiscount(0);
+        setPromoCodeInput('');
+        setPromoError('');
+        setAppliedPromoId('');
+      }, 800);
+      return;
+    }
+
+    try {
+      const res = await api.purchase({
+        service_id: serviceId,
+        amount: price,
+        target_number: targetNumber,
+        transaction_pin: pinInput,
+        plan_id: planId,
+        promo_id: appliedPromoId || undefined,
+        bank_name: selectedCategory === 'A2C' ? a2cBank : undefined,
+        account_number: selectedCategory === 'A2C' ? a2cAccount : undefined,
+      });
+
+      if (res.success && res.data) {
+        // Create the transaction record to display in receipt
+        const newTx: Transaction = {
+          id: res.data.reference,
+          type: selectedCategory === 'A2C' ? 'A2C' : selectedCategory,
+          productName: selectedCategory === 'A2C' 
+            ? `A2C Cash Payout (₦${a2cPayout.toLocaleString()})` 
+            : (selectedProduct?.name || `${selectedCategory} Payment`) + (appliedPromo ? ` (Promo ${appliedPromo} Applied)` : ''),
+          amount: price,
+          phoneOrMeter: targetNumber,
+          operator: detectedOperator || selectedProduct?.operator,
+          reference: res.data.reference,
+          status: res.data.status || 'Completed',
+          date: new Date().toISOString(),
+          disputeRaised: false,
+          riskScore: riskScore,
+          riskAnalysis: riskAnalysis
+        };
+
+        // Reload data from backend to sync balance, deposits, transactions
+        if (handleGlobalRefresh) {
+          handleGlobalRefresh();
+        }
+
+        setTransactions(prev => [newTx, ...prev]);
+        setActiveReceipt(newTx);
+        setPinSheetOpen(false);
+        setPinInput('');
+        setTargetNumber('');
+        setScanState('idle');
+        setA2cBank('');
+        setA2cAccount('');
+        setA2cPayout(0);
+        setAppliedPromo('');
+        setPromoDiscount(0);
+        setPromoCodeInput('');
+        setPromoError('');
+        setAppliedPromoId('');
+      } else {
+        alert(res.error || "Purchase failed.");
+        setPinInput('');
+        setScanState('idle');
       }
-      return s;
-    }));
-
-    // Create the transaction record
-    const newTx: Transaction = {
-      id: `tx-mob-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: selectedCategory,
-      productName: selectedProduct?.name || `${selectedCategory} Payment`,
-      amount: price,
-      phoneOrMeter: targetNumber,
-      operator: detectedOperator || selectedProduct?.operator,
-      reference: `EDAT-PURCH-${Math.floor(100000 + Math.random() * 900000)}`,
-      status: 'Completed',
-      date: new Date().toISOString(),
-      disputeRaised: false,
-      riskScore: riskScore,
-      riskAnalysis: riskAnalysis
-    };
-
-    setTransactions(prev => [newTx, ...prev]);
-    setActiveReceipt(newTx);
-    setPinSheetOpen(false);
-    setPinInput('');
-    setTargetNumber('');
-    setScanState('idle');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "An error occurred during transaction checkout.");
+      setPinInput('');
+      setScanState('idle');
+    }
   };
 
   // AI Support Bot Chat
@@ -313,6 +564,82 @@ export default function MobileSimulator({
     }
   };
 
+  // API Login handler
+  const handleLoginSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLoginError('');
+    if (!authEmail.trim() || !authPassword.trim()) {
+      setLoginError('Email and Password are required.');
+      return;
+    }
+    setLoginLoading(true);
+
+    const isSandboxActive = localStorage.getItem('edata_sandbox') === 'true';
+
+    // If sandbox mode is explicitly active, do sandbox login directly
+    if (isSandboxActive) {
+      const match = subscribers.find(s => s.email.toLowerCase() === authEmail.toLowerCase());
+      if (match) {
+        localStorage.setItem('edata_sandbox', 'true');
+        setCurrentUser(match);
+        localStorage.setItem('edata_current_user', JSON.stringify(match));
+        setAuthPassword('');
+        setLoginError('');
+        if (handleLoginSuccess) {
+          handleLoginSuccess('mock-sandbox-token');
+        }
+      } else {
+        setLoginError('Email not registered in local sandbox registry.');
+      }
+      setLoginLoading(false);
+      return;
+    }
+
+    // Try to perform a live login using Yii2 Core API
+    try {
+      const res = await api.login(authEmail, authPassword);
+      if (res.success && res.data?.token) {
+        localStorage.setItem('edata_sandbox', 'false');
+        setApiStatus('connected');
+        if (handleLoginSuccess) {
+          handleLoginSuccess(res.data.token);
+        }
+        setAuthPassword('');
+        setLoginError('');
+      } else {
+        setLoginError(res.error || 'Invalid credentials.');
+      }
+    } catch (err: any) {
+      console.warn('Yii2 API Login failed. Checking offline fallback availability...', err);
+      
+      // Determine if error is a connection failure (server is offline/unreachable)
+      const isConnectionError = !err.status || err.message?.toLowerCase().includes('failed to fetch') || err.message?.toLowerCase().includes('network error') || err.message?.toLowerCase().includes('failed with status');
+      
+      if (isConnectionError) {
+        // Fall back to sandbox mode dynamically
+        const match = subscribers.find(s => s.email.toLowerCase() === authEmail.toLowerCase());
+        if (match) {
+          localStorage.setItem('edata_sandbox', 'true');
+          setApiStatus('sandbox');
+          setCurrentUser(match);
+          localStorage.setItem('edata_current_user', JSON.stringify(match));
+          setAuthPassword('');
+          setLoginError('');
+          if (handleLoginSuccess) {
+            handleLoginSuccess('mock-sandbox-token');
+          }
+          alert("⚠️ Local Yii2 backend is offline. Started app in Offline Sandbox Mode.");
+        } else {
+          setLoginError('Yii2 Backend is offline, and email is not registered in local sandbox registry.');
+        }
+      } else {
+        setLoginError(err.message || 'Invalid credentials.');
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   // Onboarding registration handler
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,18 +658,54 @@ export default function MobileSimulator({
       setVerificationError("Please enter a valid 4-digit verification code.");
       return;
     }
+    setVerificationError('');
+    setCurrentScreen('password_create');
+  };
 
-    // Assign temporary user state
-    setCurrentUser(curr => ({
-      ...curr,
-      name: authName,
+  // Registration password handler
+  const handleRegisterPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (regPassword.length < 6) {
+      alert("Password must be at least 6 characters long.");
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    const newUserObj: UserProfile = {
+      name: authEmail.split('@')[0].toUpperCase(),
       email: authEmail,
-      phone: authPhone,
+      phone: '',
+      walletBalance: 0,
+      category: regMode === 'referral' ? 'Referred User' : 'Basic User',
+      bvn: '',
+      nin: '',
+      isVerified: false,
+      pinCode: '',
+      hasPin: false,
       promoCode: authPromo,
-      category: regMode === 'referral' ? 'Referred User' : 'Basic User'
-    }));
+    };
 
-    setCurrentScreen('bvn_verify');
+    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+      localStorage.setItem('edata_sandbox', 'true');
+      setSubscribers(prev => {
+        if (!prev.find(s => s.email.toLowerCase() === authEmail.toLowerCase())) {
+          return [...prev, newUserObj];
+        }
+        return prev;
+      });
+      setCurrentUser(newUserObj);
+      localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
+      alert("🎉 Account created successfully! Please configure your Transaction PIN when completing your first purchase.");
+    } else {
+      alert("API mode active. Please use the Web App to sign up first, then log in here.");
+    }
+
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setCurrentScreen('app');
   };
 
   // Submit BVN/NIN verified status
@@ -350,9 +713,161 @@ export default function MobileSimulator({
     setKycLoading(true);
     setTimeout(() => {
       setKycLoading(false);
-      setCurrentUser(curr => ({ ...curr, isVerified: true }));
+      
+      const newUserObj: UserProfile = {
+        name: authName,
+        email: authEmail,
+        phone: authPhone,
+        walletBalance: 0,
+        category: regMode === 'referral' ? 'Referred User' : 'Basic User',
+        bvn: bvnInput || '11111111111',
+        nin: ninInput || '22222222222',
+        isVerified: true,
+        pinCode: '',
+        hasPin: false,
+        promoCode: authPromo,
+      };
+
+      if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+        localStorage.setItem('edata_sandbox', 'true');
+        setSubscribers(prev => {
+          if (!prev.find(s => s.email.toLowerCase() === authEmail.toLowerCase())) {
+            return [...prev, newUserObj];
+          }
+          return prev;
+        });
+        setCurrentUser(newUserObj);
+        localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
+      } else {
+        setCurrentUser(curr => ({ ...curr, isVerified: true }));
+      }
       setCurrentScreen('app');
     }, 1500);
+  };
+
+  // Generate and download visual A6 PDF receipt
+  const generatePDFReceipt = (tx: Transaction) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a6'
+      });
+
+      const primaryColor = [14, 165, 233]; 
+      const darkColor = [15, 23, 42]; 
+      const lightBg = [248, 250, 252]; 
+
+      // Page background
+      doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+      doc.rect(0, 0, 105, 148, 'F');
+
+      // Top accent bar
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 0, 105, 8, 'F');
+
+      // Header text
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('eData Mobile', 52.5, 18, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Lightning Fast Telecom & Utility Payouts', 52.5, 22, { align: 'center' });
+
+      // Divider line
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(10, 26, 95, 26);
+
+      // Success Status Banner
+      doc.setFillColor(240, 253, 250);
+      doc.roundedRect(15, 30, 75, 10, 1.5, 1.5, 'F');
+      doc.setDrawColor(187, 247, 208);
+      doc.roundedRect(15, 30, 75, 10, 1.5, 1.5, 'S');
+      
+      doc.setTextColor(4, 120, 87);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('● TRANSACTION SUCCESSFUL', 52.5, 36.5, { align: 'center' });
+
+      // Amount Title
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`NGN ${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 52.5, 52, { align: 'center' });
+
+      // Detailed parameter list
+      doc.setDrawColor(241, 245, 249);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(10, 60, 85, 60, 2.5, 2.5, 'FD');
+
+      doc.setFontSize(7.5);
+      
+      const details = [
+        { label: 'Reference ID', val: tx.reference },
+        { label: 'Service/Product', val: tx.productName },
+        { label: 'Recipient/Meter', val: tx.phoneOrMeter },
+        { label: 'Provider / Network', val: tx.operator || 'N/A' },
+        { label: 'Payment Method', val: 'Wallet Balance' },
+        { label: 'Execution Date', val: new Date(tx.date).toLocaleString() }
+      ];
+
+      let currentY = 67;
+      details.forEach((item) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text(item.label, 14, currentY);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(51, 65, 85);
+        
+        let displayVal = item.val;
+        if (displayVal.length > 28) {
+          displayVal = displayVal.substring(0, 26) + '...';
+        }
+        doc.text(displayVal, 91, currentY, { align: 'right' });
+        currentY += 8.5;
+      });
+
+      // Footer
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Thank you for choosing eData Mobile.', 52.5, 134, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.text('Support: support@edata.com | Web: www.edata.com', 52.5, 138, { align: 'center' });
+
+      doc.save(`Receipt-${tx.reference}.pdf`);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      alert('Error generating PDF receipt.');
+    }
+  };
+
+  // Copy textual details of receipt to clipboard
+  const copyReceiptToClipboard = (tx: Transaction) => {
+    const text = `
+=== EDATA TRANSACTION RECEIPT ===
+Reference ID: ${tx.reference}
+Amount: ₦${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+Service: ${tx.productName}
+Recipient: ${tx.phoneOrMeter}
+Provider: ${tx.operator || 'N/A'}
+Date: ${new Date(tx.date).toLocaleString()}
+Status: SUCCESSFUL
+=================================
+Thank you for using eData Mobile!
+    `.trim();
+
+    navigator.clipboard.writeText(text)
+      .then(() => alert("📋 Transaction receipt details copied to clipboard!"))
+      .catch((err) => {
+        console.error(err);
+        alert("Failed to copy receipt to clipboard.");
+      });
   };
 
   // Raise dispute
@@ -415,13 +930,37 @@ export default function MobileSimulator({
         </div>
 
         {/* Status Bar */}
-        <div className="bg-sky-50 pt-8 pb-2 px-6 flex justify-between items-center text-[10px] font-bold text-slate-700 z-40 shrink-0">
-          <span>09:41</span>
-          <div className="flex items-center gap-1.5">
-            <Wifi className="w-3 h-3" />
-            <span>5G</span>
-            <Battery className="w-3.5 h-3.5" />
-          </div>
+        <div className={`pt-8 pb-2 px-6 flex justify-between items-center text-[10px] font-bold z-40 shrink-0 transition-colors ${
+          currentScreen === 'app' && appTab === 'home' 
+            ? 'bg-[#111111] text-slate-300' 
+            : 'bg-sky-50 text-slate-700'
+        }`}>
+          {currentScreen === 'app' && appTab === 'home' ? (
+            <>
+              <span>4:49</span>
+              {/* Screen recording indicator pill to mimic reference image */}
+              <div className="flex items-center gap-1 bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[8px] font-black scale-90 shadow-sm animate-pulse">
+                <span className="w-1 h-1 rounded-full bg-white"></span>
+                <span>00:05</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span>5G</span>
+                <Wifi className="w-3 h-3 text-slate-300" />
+                <div className="flex items-center border border-slate-600 rounded-sm px-1 py-0.5 text-[8px] leading-none font-black scale-95">
+                  48
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>09:41</span>
+              <div className="flex items-center gap-1.5">
+                <Wifi className="w-3 h-3" />
+                <span>5G</span>
+                <Battery className="w-3.5 h-3.5" />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Inside Viewport */}
@@ -438,6 +977,16 @@ export default function MobileSimulator({
                   <h1 className="text-2xl font-bold text-slate-900 tracking-tight">eData Mobile</h1>
                   <p className="text-xs text-slate-500">Secure utility tokens, lightning quick payouts.</p>
                 </div>
+
+                {apiStatus === 'offline' && (
+                  <div className="bg-sky-50 border border-sky-200 text-sky-800 p-2.5 rounded-xl text-[10px] font-bold space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-sky-600" />
+                      <span>Yii2 Backend Offline. Sandbox mode active.</span>
+                    </div>
+                    <p className="font-normal text-[9px] text-slate-500 leading-normal">You can use test credentials like <strong>usmanannur58@gmail.com</strong> / <strong>1234</strong> or create a new account.</p>
+                  </div>
+                )}
 
                 {/* Switcher */}
                 <div className="bg-slate-200/60 p-1 rounded-xl flex">
@@ -459,17 +1008,6 @@ export default function MobileSimulator({
                 {isRegistering ? (
                   <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Full Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={authName}
-                        onChange={(e) => setAuthName(e.target.value)}
-                        placeholder="Usman Annur" 
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" 
-                      />
-                    </div>
-                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Email Address</label>
                       <input 
                         type="email" 
@@ -477,18 +1015,7 @@ export default function MobileSimulator({
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         placeholder="usmanannur58@gmail.com" 
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Phone Number</label>
-                      <input 
-                        type="tel" 
-                        required
-                        value={authPhone}
-                        onChange={(e) => setAuthPhone(e.target.value)}
-                        placeholder="08142233864" 
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800" 
                       />
                     </div>
                      <div className="space-y-1">
@@ -544,7 +1071,13 @@ export default function MobileSimulator({
                     </button>
                   </form>
                 ) : (
-                  <div className="space-y-4 pt-2">
+                  <form onSubmit={handleLoginSubmit} className="space-y-4 pt-2">
+                    {loginError && (
+                      <div className="bg-rose-50 text-rose-600 p-2.5 rounded-xl text-[10px] font-semibold flex items-start gap-1.5 border border-rose-100">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        <span>{loginError}</span>
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Email Address</label>
                       <input 
@@ -552,25 +1085,30 @@ export default function MobileSimulator({
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         placeholder="usmanannur58@gmail.com" 
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800" 
+                        disabled={loginLoading}
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Password</label>
                       <input 
                         type="password" 
-                        defaultValue="••••••••"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" 
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        placeholder="••••••••" 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800" 
+                        disabled={loginLoading}
                       />
                     </div>
 
                     <button 
-                      onClick={() => setCurrentScreen('app')}
-                      className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md mt-4 transition-all"
+                      type="submit"
+                      disabled={loginLoading}
+                      className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-400 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md mt-4 transition-all"
                     >
-                      Secure Login <ArrowRight className="w-3.5 h-3.5" />
+                      {loginLoading ? 'Logging in...' : 'Secure Login'} <ArrowRight className="w-3.5 h-3.5" />
                     </button>
-                  </div>
+                  </form>
                 )}
               </div>
 
@@ -583,7 +1121,19 @@ export default function MobileSimulator({
                 </div>
                 
                 <button 
-                  onClick={() => setCurrentScreen('app')}
+                  onClick={() => {
+                    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+                      localStorage.setItem('edata_sandbox', 'true');
+                      const match = subscribers.find(s => s.email === DEFAULT_USER.email) || DEFAULT_USER;
+                      setCurrentUser(match);
+                      localStorage.setItem('edata_current_user', JSON.stringify(match));
+                      if (handleLoginSuccess) {
+                        handleLoginSuccess('google-sandbox-token');
+                      }
+                    } else {
+                      setCurrentScreen('app');
+                    }
+                  }}
                   className="w-full bg-white border border-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
@@ -631,6 +1181,80 @@ export default function MobileSimulator({
                 >
                   Verify & Continue
                 </button>
+                <button 
+                  onClick={() => setCurrentScreen('auth')}
+                  className="w-full text-slate-400 font-bold py-2 text-xs"
+                >
+                  Back to register
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* SCREEN: Registration Password Creation */}
+          {currentScreen === 'password_create' && (
+            <div className="flex-1 p-6 flex flex-col justify-between bg-white text-slate-800">
+              <div className="space-y-6 mt-6">
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Secure Your Account</h2>
+                  <p className="text-xs text-slate-500">
+                    Create a password to finalize your registration.
+                  </p>
+                </div>
+
+                <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showRegPassword ? "text" : "password"} 
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Create Password" 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer flex items-center justify-center"
+                      >
+                        {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Confirm Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showRegConfirmPassword ? "text" : "password"} 
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Confirm Password" 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer flex items-center justify-center"
+                      >
+                        {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md mt-6"
+                  >
+                    Complete Registration
+                  </button>
+                </form>
+              </div>
+
+              <div>
                 <button 
                   onClick={() => setCurrentScreen('auth')}
                   className="w-full text-slate-400 font-bold py-2 text-xs"
@@ -715,10 +1339,56 @@ export default function MobileSimulator({
             <div className="flex-1 flex flex-col justify-between">
               
               {/* Header block (Changes content based on tab) */}
-              <div className="bg-sky-50/40 px-5 pt-2 pb-4 space-y-3 shadow-sm shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {appTab !== 'home' ? (
+              <div className={`px-5 pt-3 pb-4 space-y-3 shrink-0 ${
+                appTab === 'home' 
+                  ? 'bg-[#111111]' 
+                  : 'bg-sky-50/40 shadow-sm border-b border-sky-100/10'
+              }`}>
+                {appTab === 'home' ? (
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-2.5">
+                      {/* Avatar with sky-blue ring */}
+                      <div className="w-8 h-8 rounded-full border-2 border-sky-500 p-0.5 flex items-center justify-center bg-sky-950/40 shadow-inner">
+                        <User className="w-5 h-5 text-sky-400" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold leading-none">Hi,</span>
+                        <span className="text-xs font-black text-white leading-none tracking-wide mt-1 block">
+                          {(currentUser.name || 'ISRAEL').split(' ')[0].toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right side support + notification controls */}
+                    <div className="flex items-center gap-4">
+                      {/* Headphone icon (AI Support link) */}
+                      <button 
+                        type="button"
+                        onClick={() => setAppTab('ai_chat')}
+                        className="relative p-1 hover:bg-slate-800 rounded-lg text-slate-300 transition-all cursor-pointer"
+                        title="AI Live Support Chat"
+                      >
+                        <Headphones className="w-4 h-4" />
+                      </button>
+
+                      {/* Notification bell with 99+ red dot badge */}
+                      <button 
+                        type="button"
+                        onClick={() => setAppTab('history')}
+                        className="relative p-1 hover:bg-slate-800 rounded-lg text-slate-300 transition-all cursor-pointer"
+                        title="Notification Inbox / History"
+                      >
+                        <Bell className="w-4 h-4" />
+                        <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111] leading-none px-0.5">
+                          99+
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // STANDARD HEADER FOR SERVICE TABS
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setAppTab('home')}
@@ -727,60 +1397,58 @@ export default function MobileSimulator({
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
-                    ) : (
-                      <div className="w-7 h-7 bg-sky-600 rounded-lg flex items-center justify-center text-white text-xs font-black">e</div>
-                    )}
-                    <div>
-                      <h3 className="text-xs font-black text-slate-900 tracking-tight leading-none">
-                        {appTab === 'home' && 'eData'}
-                        {appTab === 'airtime' && 'Airtime VTU'}
-                        {appTab === 'data' && 'Data Bundle'}
-                        {appTab === 'electricity' && 'Electricity'}
-                        {appTab === 'cable' && 'Cable TV'}
-                        {appTab === 'exam' && 'Exam Token'}
-                        {appTab === 'history' && 'Transactions'}
-                        {appTab === 'ai_chat' && 'AI Support'}
-                        {appTab === 'profile' && 'My Profile'}
-                      </h3>
-                      <span className="text-[9px] text-slate-400 font-bold leading-none">{currentUser.category}</span>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 tracking-tight leading-none">
+                          {appTab === 'airtime' && 'Airtime VTU'}
+                          {appTab === 'data' && 'Data Bundle'}
+                          {appTab === 'electricity' && 'Electricity'}
+                          {appTab === 'cable' && 'Cable TV'}
+                          {appTab === 'exam' && 'Exam Token'}
+                          {appTab === 'a2c' && 'Airtime to Cash'}
+                          {appTab === 'history' && 'Transactions'}
+                          {appTab === 'ai_chat' && 'AI Support'}
+                          {appTab === 'profile' && 'My Profile'}
+                          {appTab === 'services' && 'All Services'}
+                        </h3>
+                        <span className="text-[9px] text-slate-400 font-bold leading-none">{currentUser.category}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Verification & Sync */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (handleGlobalRefresh) {
+                            handleGlobalRefresh();
+                          } else {
+                            alert("Syncing data with Yii2 Advanced backend API...");
+                          }
+                        }}
+                        className={`p-1 hover:bg-sky-100/60 text-sky-600 rounded-lg transition-all ${isSyncing ? 'animate-spin' : ''}`}
+                        title="Sync with Yii2 API"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                      {currentUser.isVerified ? (
+                        <span className="bg-sky-100 text-sky-700 text-[8px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                          <Check className="w-2.5 h-2.5" /> Verified
+                        </span>
+                      ) : (
+                        <button 
+                          onClick={() => setCurrentScreen('bvn_verify')}
+                          className="bg-sky-100 hover:bg-sky-200 text-sky-700 text-[8px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5"
+                        >
+                          <AlertTriangle className="w-2.5 h-2.5" /> Verify ID
+                        </button>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Verification shield indicator & Sync Refresh */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (handleGlobalRefresh) {
-                          handleGlobalRefresh();
-                        } else {
-                          alert("Syncing data with Yii2 Advanced backend API...");
-                        }
-                      }}
-                      className={`p-1 hover:bg-sky-100/60 text-sky-600 rounded-lg transition-all ${isSyncing ? 'animate-spin' : ''}`}
-                      title="Sync with Yii2 API"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-
-                    {currentUser.isVerified ? (
-                      <span className="bg-emerald-100 text-emerald-700 text-[8px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                        <Check className="w-2.5 h-2.5" /> Verified
-                      </span>
-                    ) : (
-                      <button 
-                        onClick={() => setCurrentScreen('bvn_verify')}
-                        className="bg-amber-100 hover:bg-amber-200 text-amber-700 text-[8px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5"
-                      >
-                        <AlertTriangle className="w-2.5 h-2.5" /> Verify ID
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* TAB CONTAINER VIEW */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-5 relative">
+              <div className={`flex-1 overflow-y-auto p-3 space-y-3 relative scrollbar-none ${appTab === 'home' ? 'bg-[#111111]' : ''}`}>
                 
                 {/* Pull-to-refresh style API syncing loading bar */}
                 {isSyncing && (
@@ -789,221 +1457,316 @@ export default function MobileSimulator({
                   </div>
                 )}
                 
-                {/* 1. HOME TAB VIEW */}
-                {appTab === 'home' && (
-                  <div className="space-y-4">
-                    {/* Wallet Balance Board */}
-                    <div 
-                      onClick={() => {
-                        setFundAmountInput('5000');
-                        setFundGateway('Paystack');
-                        setFundModalOpen(true);
-                      }}
-                      className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden border border-slate-800 hover:border-sky-500/25 transition-all cursor-pointer group"
-                    >
-                      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all">
-                        <Smartphone className="w-32 h-32" />
-                      </div>
+                {/* 1. HOME TAB VIEW (100% Live Backend-Powered Fintech Dashboard) */}
+                {appTab === 'home' && (() => {
+                  // Compute Yesterday's Earnings dynamically from successful transactions
+                  const yesterdaysEarnings = (() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yStr = yesterday.toDateString();
+                    return transactions
+                      .filter(t => {
+                        const d = new Date(t.date);
+                        return d.toDateString() === yStr && t.status === 'Completed';
+                      })
+                      .reduce((acc, t) => acc + t.amount, 0);
+                  })();
 
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Total Available Balance</span>
-                      <div className="text-2xl font-black font-mono tracking-tight mt-1 flex items-baseline gap-1">
-                        <span className="text-sky-400">₦</span>
-                        {currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
+                  // Construct dynamic referral link
+                  const referralLink = `http://localhost/edata/signup?ref=${currentUser.id || '1'}`;
 
-                      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-800">
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFundAmountInput('5000');
-                            setFundGateway('Paystack');
-                            setFundModalOpen(true);
-                          }}
-                          className="bg-sky-500 hover:bg-sky-600 text-slate-950 text-[11px] font-extrabold py-1.5 rounded-xl transition-all cursor-pointer shadow-sm shadow-sky-500/10"
-                        >
-                          + Fund Wallet
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPriceSheetOpen(true);
-                          }}
-                          className="bg-slate-800 hover:bg-slate-700 text-slate-100 text-[11px] font-bold py-1.5 rounded-xl transition-all cursor-pointer"
-                        >
-                          Price List
-                        </button>
-                      </div>
-                    </div>
+                  // Fetch most recent transaction
+                  const lastTx = transactions[0];
 
-                    {/* Quick Services Panels */}
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Utilities</h4>
-                      <div className="grid grid-cols-5 gap-1.5">
-                        {[
-                          { id: 'Airtime', icon: Phone, color: 'text-blue-500 bg-blue-50', tab: 'airtime' },
-                          { id: 'Data', icon: Layers, color: 'text-emerald-500 bg-emerald-50', tab: 'data' },
-                          { id: 'Electricity', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-50', tab: 'electricity' },
-                          { id: 'Cable', icon: Tv, color: 'text-sky-500 bg-sky-50', tab: 'cable' },
-                          { id: 'Others', icon: MoreHorizontal, color: 'text-purple-500 bg-purple-50', tab: 'exam' }
-                        ].map(item => (
+                  return (
+                    <div className="space-y-2 text-left">
+                      
+                      {/* Wallet Card */}
+                      <div className="bg-gradient-to-r from-[#0051d5] to-[#0ea5e9] text-white p-3 rounded-2xl shadow-md relative overflow-hidden">
+                        <div className="flex justify-between items-start">
+                          {/* Balance label with status dot and dropdown arrow icon */}
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></div>
+                            <span className="text-[9px] text-white/80 font-bold uppercase tracking-wider">Available Balance</span>
+                            <span className="text-white/85 text-[9px] font-bold">▾</span>
+                          </div>
+
+                          {/* Transaction History > link */}
                           <button 
-                            key={item.id}
+                            type="button" 
+                            onClick={() => setAppTab('history')}
+                            className="text-[9px] text-white/90 font-black hover:underline cursor-pointer flex items-center gap-0.5"
+                          >
+                            Transaction History &gt;
+                          </button>
+                        </div>
+
+                        {/* Balance value or hidden asterisks */}
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-xl font-black font-mono tracking-tight">
+                            {isBalanceHidden ? '••••' : `₦${currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+                            className="text-white/70 hover:text-white transition-all cursor-pointer p-0.5 rounded-lg"
+                          >
+                            {isBalanceHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        {/* Add Money black button */}
+                        <div className="flex justify-end mt-1">
+                          <button 
                             type="button"
                             onClick={() => {
-                              if (item.id === 'Others') {
-                                setOthersSheetOpen(true);
-                              } else {
-                                setSelectedCategory(item.id as any);
-                                setAppTab(item.tab as any);
-                              }
+                              setFundAmountInput('5000');
+                              setFundGateway('Paystack');
+                              setFundModalOpen(true);
                             }}
-                            className="flex flex-col items-center gap-1 min-w-0"
+                            className="bg-black hover:bg-black/90 text-white text-[9px] font-extrabold px-3.5 py-1 rounded-full transition-all cursor-pointer shadow-sm active:scale-95"
                           >
-                            <div className={`p-2 rounded-xl ${item.color} shadow-sm transition-transform active:scale-95`}>
-                              <item.icon className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-[8px] font-bold text-slate-600 truncate w-full text-center">
-                              {item.id === 'Electricity' ? 'Power' : item.id}
-                            </span>
+                            Add Money
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Membership Tier & Super User Upgrade Widget */}
-                    {currentUser.category !== 'Super User' ? (
-                      <div 
-                        onClick={() => {
-                          setUpgradeModalOpen(true);
-                        }}
-                        className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-sky-500/20 text-white p-3.5 rounded-2xl shadow-sm text-left relative overflow-hidden flex items-center justify-between hover:border-sky-500/40 transition-all cursor-pointer group"
-                      >
-                        <div className="space-y-1 max-w-[65%]">
-                          <div className="flex items-center gap-1.5">
-                            <span className="bg-sky-500/20 text-sky-400 text-[7px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-sky-500/30">
-                              PRO TIER
-                            </span>
-                            <span className="text-[8px] text-sky-200 font-bold">
-                              {currentUser.category === 'Referred User' ? 'Referred' : 'Basic'}
-                            </span>
-                          </div>
-                          <h4 className="text-[11px] font-extrabold text-white leading-tight">Upgrade to Super User</h4>
-                          <p className="text-[8px] text-slate-300 leading-tight">
-                            Unlock agent prices on all VTU and utility tokens instantly.
-                          </p>
                         </div>
-                        <button
+                      </div>
+
+                      {/* Earnings Strip (Dynamic Yesterday's Earnings) */}
+                      <div className="bg-[#1D1D1D] rounded-xl px-3 py-1.5 flex items-center justify-between border border-slate-800/40">
+                        <div className="flex items-center gap-1.5">
+                          <Coins className="w-3 h-3 text-sky-400" />
+                          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Yesterday's Earnings:</span>
+                          <span className="text-[9px] text-sky-400 font-black">
+                            +₦{yesterdaysEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <button 
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUpgradeModalOpen(true);
-                          }}
-                          className="bg-gradient-to-r from-sky-400 to-sky-600 text-slate-950 text-[9px] font-black px-3 py-2 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+                          onClick={() => alert("Yesterday's Earnings shows the dynamic sum of your successful transactions completed on the previous calendar day.")}
+                          className="text-slate-500 hover:text-sky-400 cursor-pointer"
                         >
-                          ₦1,500
+                          <Info className="w-2.5 h-2.5" />
                         </button>
                       </div>
-                    ) : (
-                      <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 text-white p-3.5 rounded-2xl flex items-center justify-between text-xs shadow-sm text-left relative overflow-hidden">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="bg-gradient-to-r from-sky-500 to-purple-500 text-[7px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                              Super User
-                            </span>
-                            <span className="text-[8px] text-emerald-400 font-bold flex items-center gap-0.5">
-                              <CheckCircle className="w-2.5 h-2.5" /> VIP Rates Active
-                            </span>
-                          </div>
-                          <p className="font-extrabold text-[10px] text-slate-200">Enjoying absolute lowest utility rates!</p>
-                        </div>
-                        <CheckCircle className="w-4 h-4 text-sky-400 shrink-0" />
-                      </div>
-                    )}
 
-                    {/* Frequent Purchase shortcuts */}
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Commonly Purchased</h4>
-                      <div className="space-y-2">
-                        {products.slice(4, 7).map(prod => (
-                          <button 
-                            key={prod.id}
-                            onClick={() => {
-                              setSelectedCategory(prod.category as any);
-                              setSelectedProduct(prod);
-                              setTargetNumber('08142233864'); // pre-fill
-                              if (prod.category === 'Airtime') {
-                                setAppTab('airtime');
-                              } else if (prod.category === 'Data') {
-                                setAppTab('data');
-                              } else if (prod.category === 'Electricity') {
-                                setAppTab('electricity');
-                              } else if (prod.category === 'Cable') {
-                                setAppTab('cable');
-                              } else if (prod.category === 'Exam') {
-                                setAppTab('exam');
-                              }
-                            }}
-                            className="w-full bg-white border border-slate-100 p-2.5 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all text-left shadow-sm active:scale-[0.99]"
+                      {/* Quick Transfer Card */}
+                      <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-around items-center border border-slate-800/40">
+                        {[
+                          { id: 'bank', label: 'To Bank', badge: 'Fee', icon: Smartphone },
+                          { id: 'palmpay', label: 'To PalmPay', icon: ArrowUpRight },
+                          { id: 'savings', label: 'Savings', icon: Coins },
+                          { id: 'cards', label: 'Cards', icon: CreditCard }
+                        ].map(btn => (
+                          <button
+                            key={btn.id}
+                            type="button"
+                            onClick={() => alert(`Quick Payout '${btn.label}' is connected to your wallet balance. Initiate transfer via service panels below.`)}
+                            className="relative flex flex-col items-center gap-1 cursor-pointer group shrink-0"
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="bg-sky-50 text-sky-600 p-1.5 rounded-lg text-[10px] font-black">{prod.operator?.substring(0,3)}</span>
-                              <div>
-                                <h5 className="text-[10px] font-bold text-slate-800 leading-none">{prod.name}</h5>
-                                <span className="text-[9px] text-slate-400 mt-0.5 block">{prod.description}</span>
-                              </div>
+                            {/* Mini badge */}
+                            {btn.badge && (
+                              <span className="absolute -top-1 -right-1.5 bg-sky-500 text-white text-[5px] font-black px-1 py-0.5 rounded-md leading-none shadow-sm uppercase z-10 scale-90">
+                                {btn.badge}
+                              </span>
+                            )}
+                            {/* Button square container */}
+                            <div className="w-9 h-9 rounded-xl bg-[#292929] group-hover:bg-[#333333] flex items-center justify-center transition-all shadow-inner active:scale-95">
+                              <btn.icon className="w-3.5 h-3.5 text-sky-400" />
                             </div>
-                            <div className="text-right">
-                              <span className="text-[10px] font-bold text-slate-900 block">₦{getDynamicPrice(prod)}</span>
-                              <span className="text-[8px] text-sky-600 font-bold block mt-0.5">Instant VTU</span>
-                            </div>
+                            <span className="text-[8px] font-bold text-slate-400 group-hover:text-slate-300">{btn.label}</span>
                           </button>
                         ))}
                       </div>
-                    </div>
 
-                    {/* Recent Transaction Log */}
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recent Transactions</h4>
-                      <div className="space-y-2">
-                        {transactions.slice(0, 3).map(tx => (
-                          <div 
-                            key={tx.id}
-                            onClick={() => setActiveReceipt(tx)}
-                            className="bg-white border border-slate-100 p-2.5 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`p-2 rounded-lg ${
-                                tx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                              }`}>
-                                {tx.type === 'Wallet Funding' ? (
-                                  <ArrowDownLeft className="w-3.5 h-3.5" />
-                                ) : (
-                                  <ArrowUpRight className="w-3.5 h-3.5" />
-                                )}
-                              </div>
-                              <div>
-                                <h5 className="text-[10px] font-bold text-slate-800 leading-none">{tx.productName}</h5>
-                                <span className="text-[9px] text-slate-400 mt-0.5 block">{tx.phoneOrMeter}</span>
-                              </div>
+                      {/* Recent Transaction (Dynamic Live Backend Log) */}
+                      {lastTx ? (
+                        <div 
+                          className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-between items-center border border-slate-800/40 cursor-pointer active:scale-[0.99] transition-all hover:bg-[#252525]" 
+                          onClick={() => {
+                            setActiveReceipt(lastTx);
+                          }}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-black text-white">₦{lastTx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none ${
+                                lastTx.status === 'Completed' ? 'bg-sky-500/20 text-sky-400' : lastTx.status === 'Failed' ? 'bg-rose-500/20 text-rose-400' : 'bg-sky-500/10 text-sky-300'
+                              }`}>{lastTx.status}</span>
                             </div>
-                            <div className="text-right">
-                              <span className={`text-[10px] font-bold block ${
-                                tx.type === 'Wallet Funding' ? 'text-emerald-600' : 'text-slate-900'
-                              }`}>
-                                {tx.type === 'Wallet Funding' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-                              </span>
-                              <span className="text-[8px] text-slate-400 block mt-0.5">
-                                {new Date(tx.date).toLocaleDateString()}
-                              </span>
-                            </div>
+                            <span className="text-[8px] text-slate-400 block truncate max-w-[210px]">{lastTx.productName}</span>
                           </div>
-                        ))}
+                          <span className="text-[7px] text-slate-500 font-bold whitespace-nowrap">{lastTx.date.split(' ')[0]}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex justify-between items-center border border-slate-800/40 text-slate-500">
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-black text-slate-400">No Transactions</span>
+                            <span className="text-[8px] text-slate-500 block">Your utility funding logs will appear here</span>
+                          </div>
+                          <span className="text-[7px] text-slate-600 font-bold">Get Started</span>
+                        </div>
+                      )}
+
+                      {/* Services Grid (8 Services - 100% backend-supported) */}
+                      <div className="bg-[#1D1D1D] rounded-xl p-3 border border-slate-800/40">
+                        <div className="grid grid-cols-4 gap-y-3 gap-x-2">
+                          {[
+                            { id: 'Airtime', icon: Phone, color: 'text-sky-400', tab: 'airtime' },
+                            { id: 'Data', icon: Layers, color: 'text-sky-400', tab: 'data' },
+                            { id: 'Cable TV', icon: Tv, color: 'text-sky-400', tab: 'cable' },
+                            { id: 'Electricity', icon: Lightbulb, color: 'text-sky-400', tab: 'electricity' },
+                            { id: 'Refer & Earn', icon: Flame, color: 'text-sky-400', action: () => {
+                              navigator.clipboard.writeText(referralLink);
+                              alert("🎉 Referral link copied to clipboard! Share it to earn upgrade commissions: " + referralLink);
+                            }},
+                            { id: 'A2C Convert', icon: RefreshCw, color: 'text-sky-400', tab: 'a2c' },
+                            { id: 'Exam Card', icon: BookOpen, color: 'text-sky-400', tab: 'exam' },
+                            { id: 'More', icon: MoreHorizontal, color: 'text-sky-400', action: () => setAppTab('services') }
+                          ].map((srv, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                if (srv.tab) {
+                                  setSelectedCategory(srv.id as any);
+                                  setAppTab(srv.tab as any);
+                                } else if (srv.action) {
+                                  srv.action();
+                                }
+                              }}
+                              className="relative flex flex-col items-center gap-1 cursor-pointer group min-w-0"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-[#252525] group-hover:bg-[#2d2d2d] flex items-center justify-center transition-all active:scale-95">
+                                <srv.icon className={`w-3.5 h-3.5 ${srv.color}`} />
+                              </div>
+                              <span className="text-[7px] font-extrabold text-slate-400 text-center truncate w-full group-hover:text-slate-300">
+                                {srv.id}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Referral Banner (Compact) */}
+                      <div className="bg-[#1D1D1D] rounded-xl p-2.5 flex items-center justify-between border border-slate-800/40 relative overflow-hidden">
+                        <div className="flex items-center gap-2.5">
+                          {/* Sky-blue reward badge circular */}
+                          <div className="w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/25 flex flex-col items-center justify-center shrink-0">
+                            <span className="text-[6px] text-sky-400 font-bold uppercase leading-none">Reward</span>
+                            <span className="text-[7px] text-sky-400 font-black leading-none mt-0.5">₦2.5k</span>
+                          </div>
+                          <div>
+                            <h4 className="text-[9px] font-black text-white leading-tight">100% Cash Reward</h4>
+                            <span className="text-[7px] text-slate-400 leading-tight block">Earn up to ₦2500 per invite</span>
+                          </div>
+                        </div>
+
+                        {/* Outline Claim button (copies referral link) */}
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(referralLink);
+                            alert("🎉 Referral link copied to clipboard! Share it with friends to earn rewards: " + referralLink);
+                          }}
+                          className="border border-sky-500 hover:bg-sky-500/10 text-sky-400 text-[7px] font-black px-3 py-1 rounded-full transition-all cursor-pointer shrink-0 active:scale-95"
+                        >
+                          Claim
+                        </button>
+                      </div>
+
+                      {/* Membership Upgrade Section */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {/* Left: Account Status Card */}
+                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 border border-slate-800/40 flex flex-col justify-between h-[100px] text-left">
+                          <div className="space-y-0.5">
+                            <h5 className="text-[9px] font-black text-white leading-none">Membership</h5>
+                            <span className="text-[6.5px] text-slate-400 leading-tight block">Account authorization level</span>
+                          </div>
+                          <div className="mt-1.5">
+                            <span className="text-[10px] font-black text-sky-400 leading-none block bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md text-center">
+                              {currentUser.category}
+                            </span>
+                            <span className="text-[6px] text-slate-500 font-bold uppercase tracking-wider leading-none mt-1 block">Pricing Tier</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => setPriceSheetOpen(true)}
+                            className="bg-sky-500 hover:bg-sky-600 text-slate-950 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95"
+                          >
+                            View Rate Chart
+                          </button>
+                        </div>
+
+                        {/* Right: Premium Upgrade Card with ribbon */}
+                        <div className="bg-[#1D1D1D] rounded-xl p-2.5 border border-slate-800/40 flex flex-col justify-between h-[100px] relative overflow-hidden text-left">
+                          {/* Pro Ribbon in top-right */}
+                          <div className="absolute top-0 right-0 bg-[#0ea5e9] text-white text-[5px] font-black px-2 py-0.5 rotate-45 translate-x-3 translate-y-1 shadow-sm uppercase">
+                            Pro
+                          </div>
+                          
+                          <div className="space-y-0.5">
+                            <h5 className="text-[9px] font-black text-white leading-none">VTU License</h5>
+                            <span className="text-[6.5px] text-slate-400 leading-tight block">Wholesale reseller rates</span>
+                          </div>
+                          <div className="mt-1.5">
+                            <span className="text-xs font-black text-sky-400 leading-none block">
+                              {currentUser.category === 'Premium User' ? 'ACTIVE' : '₦1,500'}
+                            </span>
+                            <span className="text-[6px] text-slate-500 font-bold uppercase tracking-wider leading-none mt-0.5 block">One-time Fee</span>
+                          </div>
+                          
+                          {currentUser.category === 'Premium User' ? (
+                            <button 
+                              type="button" 
+                              disabled
+                              className="bg-slate-800 text-slate-500 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
+                            >
+                              License Active
+                            </button>
+                          ) : currentUser.hasPendingUpgrade ? (
+                            <button 
+                              type="button" 
+                              disabled
+                              className="bg-sky-500/20 text-sky-400 border border-sky-500/20 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 cursor-not-allowed text-center"
+                            >
+                              Pending Approval
+                            </button>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => setUpgradeModalOpen(true)}
+                              className="bg-sky-500 hover:bg-sky-600 text-slate-950 text-[7px] font-black w-full py-1 rounded-lg mt-1.5 transition-all cursor-pointer text-center active:scale-95"
+                            >
+                              Upgrade Now
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Promotional Banner (Interactive) */}
+                      <div 
+                        className="bg-gradient-to-r from-sky-400 via-sky-500 to-sky-600 rounded-xl p-2.5 flex items-center justify-between shadow-md relative overflow-hidden border border-sky-300/35 cursor-pointer" 
+                        onClick={() => {
+                          navigator.clipboard.writeText(referralLink);
+                          alert("🎉 Referral link copied to clipboard! Share it with friends: " + referralLink);
+                        }}
+                      >
+                        <div className="space-y-0.5 max-w-[65%] text-left">
+                          <span className="bg-white/20 text-white text-[6px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none">Promo</span>
+                          <h4 className="text-[9px] font-black text-white leading-tight mt-0.5">Every Share Earn Up To ₦2,500</h4>
+                          <span className="text-[7px] text-white/80 leading-tight block">Refer active users to claim cash tokens</span>
+                        </div>
+                        
+                        {/* Stylized visual coin illustration */}
+                        <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center border border-white/10 animate-pulse shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-sky-300 flex items-center justify-center shadow-md font-black text-sky-700 text-[10px]">
+                            ₦
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 2. STANDALONE AIRTIME VIEW */}
                 {appTab === 'airtime' && (
@@ -1111,7 +1874,7 @@ export default function MobileSimulator({
                         </span>
                         {scanState === 'success' && (
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             Risk: {riskScore}/100
                           </span>
@@ -1151,6 +1914,58 @@ export default function MobileSimulator({
                       )}
                     </div>
 
+                    {/* Promo Code Input Segment */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Apply Promo Code</label>
+                        {appliedPromo && (
+                          <span className="text-[9px] text-sky-600 font-extrabold flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" /> Applied: {appliedPromo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. WELCOME10, EDATA50"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-sky-500/20 text-slate-800 font-mono" 
+                          disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedPromo('');
+                              setPromoDiscount(0);
+                              setPromoCodeInput('');
+                            }}
+                            className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-2 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleApplyPromoCode}
+                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      {promoError && (
+                        <span className="text-[8px] text-rose-600 font-bold block">{promoError}</span>
+                      )}
+                      {appliedPromo && (
+                        <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold border-t border-slate-200/50 pt-1 mt-1">
+                          <span>Promo Discount:</span>
+                          <span className="text-sky-600 font-mono">-₦{promoDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={() => {
                         setSelectedCategory('Airtime');
@@ -1158,15 +1973,17 @@ export default function MobileSimulator({
                           alert("Please fill out the destination phone number.");
                           return;
                         }
-                        if (parseFloat(checkoutAmount) > currentUser.walletBalance) {
+                        const basePrice = parseFloat(checkoutAmount || '0');
+                        const finalPrice = Math.max(0, basePrice - promoDiscount);
+                        if (finalPrice > currentUser.walletBalance) {
                           alert("Insufficient wallet balance.");
                           return;
                         }
-                        setPinSheetOpen(true);
+                        handleCheckoutInitiate();
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
                     >
-                      Process Airtime Checkout <ArrowRight className="w-3.5 h-3.5" />
+                      Pay ₦{Math.max(0, parseFloat(checkoutAmount || '0') - promoDiscount).toLocaleString()} & Checkout <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -1300,7 +2117,7 @@ export default function MobileSimulator({
                         </span>
                         {scanState === 'success' && (
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             Risk: {riskScore}/100
                           </span>
@@ -1340,6 +2157,58 @@ export default function MobileSimulator({
                       )}
                     </div>
 
+                    {/* Promo Code Input Segment */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Apply Promo Code</label>
+                        {appliedPromo && (
+                          <span className="text-[9px] text-sky-600 font-extrabold flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" /> Applied: {appliedPromo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. WELCOME10, EDATA50"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-sky-500/20 text-slate-800 font-mono" 
+                          disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedPromo('');
+                              setPromoDiscount(0);
+                              setPromoCodeInput('');
+                            }}
+                            className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-2 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleApplyPromoCode}
+                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      {promoError && (
+                        <span className="text-[8px] text-rose-600 font-bold block">{promoError}</span>
+                      )}
+                      {appliedPromo && (
+                        <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold border-t border-slate-200/50 pt-1 mt-1">
+                          <span>Promo Discount:</span>
+                          <span className="text-sky-600 font-mono">-₦{promoDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={() => {
                         setSelectedCategory('Data');
@@ -1347,15 +2216,17 @@ export default function MobileSimulator({
                           alert("Please fill out the destination phone number.");
                           return;
                         }
-                        if (parseFloat(checkoutAmount) > currentUser.walletBalance) {
+                        const basePrice = parseFloat(checkoutAmount || '0');
+                        const finalPrice = Math.max(0, basePrice - promoDiscount);
+                        if (finalPrice > currentUser.walletBalance) {
                           alert("Insufficient wallet balance.");
                           return;
                         }
-                        setPinSheetOpen(true);
+                        handleCheckoutInitiate();
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
                     >
-                      Process Data Checkout <ArrowRight className="w-3.5 h-3.5" />
+                      Pay ₦{Math.max(0, parseFloat(checkoutAmount || '0') - promoDiscount).toLocaleString()} & Checkout <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -1405,6 +2276,22 @@ export default function MobileSimulator({
                         onChange={(e) => setTargetNumber(e.target.value.replace(/\D/g, ''))}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
                       />
+                      <div className="flex items-center justify-between mt-1">
+                        <button
+                          type="button"
+                          disabled={isValidatingNumber || !targetNumber || !selectedProduct}
+                          onClick={handleValidateNumber}
+                          className="text-[9px] text-sky-600 font-bold hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          {isValidatingNumber ? 'Verifying...' : 'Verify Subscriber Name'}
+                        </button>
+                        {customerName && (
+                          <span className="text-[9px] text-sky-600 font-semibold">{customerName}</span>
+                        )}
+                        {validationError && (
+                          <span className="text-[9px] text-rose-600 font-semibold">{validationError}</span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Amount Input */}
@@ -1426,7 +2313,7 @@ export default function MobileSimulator({
                         </span>
                         {scanState === 'success' && (
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             Risk: {riskScore}/100
                           </span>
@@ -1463,21 +2350,75 @@ export default function MobileSimulator({
                       )}
                     </div>
 
+                    {/* Promo Code Input Segment */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Apply Promo Code</label>
+                        {appliedPromo && (
+                          <span className="text-[9px] text-sky-600 font-extrabold flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" /> Applied: {appliedPromo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. WELCOME10, EDATA50"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-sky-500/20 text-slate-800 font-mono" 
+                          disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedPromo('');
+                              setPromoDiscount(0);
+                              setPromoCodeInput('');
+                            }}
+                            className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-2 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleApplyPromoCode}
+                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      {promoError && (
+                        <span className="text-[8px] text-rose-600 font-bold block">{promoError}</span>
+                      )}
+                      {appliedPromo && (
+                        <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold border-t border-slate-200/50 pt-1 mt-1">
+                          <span>Promo Discount:</span>
+                          <span className="text-sky-600 font-mono">-₦{promoDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={() => {
                         if (!targetNumber) {
                           alert("Please fill out the destination identifier.");
                           return;
                         }
-                        if (parseFloat(checkoutAmount) > currentUser.walletBalance) {
+                        const basePrice = parseFloat(checkoutAmount || '0');
+                        const finalPrice = Math.max(0, basePrice - promoDiscount);
+                        if (finalPrice > currentUser.walletBalance) {
                           alert("Insufficient wallet balance.");
                           return;
                         }
-                        setPinSheetOpen(true);
+                        handleCheckoutInitiate();
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
                     >
-                      Process Electricity Checkout <ArrowRight className="w-3.5 h-3.5" />
+                      Pay ₦{Math.max(0, parseFloat(checkoutAmount || '0') - promoDiscount).toLocaleString()} & Checkout <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -1528,6 +2469,22 @@ export default function MobileSimulator({
                         onChange={(e) => setTargetNumber(e.target.value.replace(/\D/g, ''))}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
                       />
+                      <div className="flex items-center justify-between mt-1">
+                        <button
+                          type="button"
+                          disabled={isValidatingNumber || !targetNumber || !selectedProduct}
+                          onClick={handleValidateNumber}
+                          className="text-[9px] text-sky-600 font-bold hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          {isValidatingNumber ? 'Verifying...' : 'Verify Subscriber Name'}
+                        </button>
+                        {customerName && (
+                          <span className="text-[9px] text-sky-600 font-semibold">{customerName}</span>
+                        )}
+                        {validationError && (
+                          <span className="text-[9px] text-rose-600 font-semibold">{validationError}</span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Amount Input (Preselected & Disabled) */}
@@ -1549,7 +2506,7 @@ export default function MobileSimulator({
                         </span>
                         {scanState === 'success' && (
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             Risk: {riskScore}/100
                           </span>
@@ -1586,21 +2543,213 @@ export default function MobileSimulator({
                       )}
                     </div>
 
+                    {/* Promo Code Input Segment */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Apply Promo Code</label>
+                        {appliedPromo && (
+                          <span className="text-[9px] text-sky-600 font-extrabold flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" /> Applied: {appliedPromo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. WELCOME10, EDATA50"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-sky-500/20 text-slate-800 font-mono" 
+                          disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedPromo('');
+                              setPromoDiscount(0);
+                              setPromoCodeInput('');
+                            }}
+                            className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-2 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleApplyPromoCode}
+                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      {promoError && (
+                        <span className="text-[8px] text-rose-600 font-bold block">{promoError}</span>
+                      )}
+                      {appliedPromo && (
+                        <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold border-t border-slate-200/50 pt-1 mt-1">
+                          <span>Promo Discount:</span>
+                          <span className="text-sky-600 font-mono">-₦{promoDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={() => {
                         if (!targetNumber) {
                           alert("Please fill out the destination identifier.");
                           return;
                         }
-                        if (parseFloat(checkoutAmount) > currentUser.walletBalance) {
+                        const basePrice = parseFloat(checkoutAmount || '0');
+                        const finalPrice = Math.max(0, basePrice - promoDiscount);
+                        if (finalPrice > currentUser.walletBalance) {
                           alert("Insufficient wallet balance.");
                           return;
                         }
-                        setPinSheetOpen(true);
+                        handleCheckoutInitiate();
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
                     >
-                      Process Cable TV Checkout <ArrowRight className="w-3.5 h-3.5" />
+                      Pay ₦{Math.max(0, parseFloat(checkoutAmount || '0') - promoDiscount).toLocaleString()} & Checkout <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* 5.5 STANDALONE AIRTIME TO CASH (A2C) VIEW */}
+                {appTab === 'a2c' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                      <button 
+                        type="button"
+                        onClick={() => setAppTab('home')}
+                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <h3 className="text-sm font-bold text-slate-900">Airtime to Cash</h3>
+                    </div>
+
+                    {/* Network Selection */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Select Airtime Network</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { name: 'MTN', color: 'bg-yellow-400 text-yellow-950', rate: 0.82 },
+                          { name: 'Airtel', color: 'bg-red-600 text-white', rate: 0.80 },
+                          { name: 'Glo', color: 'bg-green-600 text-white', rate: 0.78 },
+                          { name: '9mobile', color: 'bg-teal-800 text-white', rate: 0.75 }
+                        ].map((net) => {
+                          const isSelected = detectedOperator.toLowerCase() === net.name.toLowerCase();
+                          return (
+                            <button
+                              key={net.name}
+                              type="button"
+                              onClick={() => {
+                                setDetectedOperator(net.name);
+                                setSelectedCategory('A2C');
+                                // calculate payout rate
+                                const amountVal = parseFloat(checkoutAmount || '0');
+                                const payoutVal = amountVal * net.rate;
+                                setA2cPayout(payoutVal);
+                              }}
+                              className={`p-1.5 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                isSelected 
+                                  ? 'border-sky-600 ring-2 ring-sky-600/25 bg-sky-50/20 scale-105' 
+                                  : 'border-slate-100 bg-white hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className={`px-1 py-1 rounded-lg text-[9px] font-black w-full text-center truncate ${net.color} shadow-sm`}>
+                                {net.name}
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-bold mt-1">{(net.rate * 100)}%</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Phone Number */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sending Phone Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 08142233864"
+                        value={targetNumber}
+                        onChange={(e) => setTargetNumber(e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
+                      />
+                    </div>
+
+                    {/* Airtime Amount */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Airtime Amount (₦)</label>
+                      <input 
+                        type="text" 
+                        value={checkoutAmount}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setCheckoutAmount(val);
+                          // recalculate payout
+                          const rateMap: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
+                          const r = rateMap[detectedOperator.toLowerCase()] || 0.80;
+                          setA2cPayout(parseFloat(val || '0') * r);
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
+                      />
+                    </div>
+
+                    {/* Payout Details */}
+                    <div className="bg-slate-100/60 p-3 rounded-2xl border border-slate-200/50 space-y-2 text-xs">
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>Conversion Rate:</span>
+                        <strong className="text-slate-800 font-mono">
+                          {detectedOperator ? (detectedOperator.toLowerCase() === 'mtn' ? '82%' : detectedOperator.toLowerCase() === 'airtel' ? '80%' : detectedOperator.toLowerCase() === 'glo' ? '78%' : '75%') : '80%'}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>You will receive (Cash):</span>
+                        <strong className="text-sky-600 text-sm font-black font-mono">₦{a2cPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                    </div>
+
+                    {/* Bank Payout details */}
+                    <div className="space-y-3 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Payout Bank Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. GTBank, Access Bank"
+                          value={a2cBank}
+                          onChange={(e) => setA2cBank(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Payout Account Number</label>
+                        <input 
+                          type="text" 
+                          placeholder="10-digit Account No."
+                          maxLength={10}
+                          value={a2cAccount}
+                          onChange={(e) => setA2cAccount(e.target.value.replace(/\D/g, ''))}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        if (!targetNumber || !a2cBank || !a2cAccount || !checkoutAmount) {
+                          alert("Please complete all A2C conversion parameters.");
+                          return;
+                        }
+                        // For A2C, we don't deduct wallet balance
+                        handleCheckoutInitiate();
+                      }}
+                      className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
+                    >
+                      Convert Airtime to Cash <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -1647,8 +2796,9 @@ export default function MobileSimulator({
                       <input 
                         type="text" 
                         placeholder="e.g. 08142233864"
+                        maxLength={11}
                         value={targetNumber}
-                        onChange={(e) => setTargetNumber(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => setTargetNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800" 
                       />
                     </div>
@@ -1672,7 +2822,7 @@ export default function MobileSimulator({
                         </span>
                         {scanState === 'success' && (
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             Risk: {riskScore}/100
                           </span>
@@ -1709,21 +2859,75 @@ export default function MobileSimulator({
                       )}
                     </div>
 
+                    {/* Promo Code Input Segment */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Apply Promo Code</label>
+                        {appliedPromo && (
+                          <span className="text-[9px] text-sky-600 font-extrabold flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" /> Applied: {appliedPromo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. WELCOME10, EDATA50"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-sky-500/20 text-slate-800 font-mono" 
+                          disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedPromo('');
+                              setPromoDiscount(0);
+                              setPromoCodeInput('');
+                            }}
+                            className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-2 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleApplyPromoCode}
+                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 rounded-lg text-[9px] transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+                      {promoError && (
+                        <span className="text-[8px] text-rose-600 font-bold block">{promoError}</span>
+                      )}
+                      {appliedPromo && (
+                        <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold border-t border-slate-200/50 pt-1 mt-1">
+                          <span>Promo Discount:</span>
+                          <span className="text-sky-600 font-mono">-₦{promoDiscount.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={() => {
                         if (!targetNumber) {
                           alert("Please fill out the destination identifier.");
                           return;
                         }
-                        if (parseFloat(checkoutAmount) > currentUser.walletBalance) {
+                        const basePrice = parseFloat(checkoutAmount || '0');
+                        const finalPrice = Math.max(0, basePrice - promoDiscount);
+                        if (finalPrice > currentUser.walletBalance) {
                           alert("Insufficient wallet balance.");
                           return;
                         }
-                        setPinSheetOpen(true);
+                        handleCheckoutInitiate();
                       }}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition-all mt-4 cursor-pointer"
                     >
-                      Process Exam Checkout <ArrowRight className="w-3.5 h-3.5" />
+                      Pay ₦{Math.max(0, parseFloat(checkoutAmount || '0') - promoDiscount).toLocaleString()} & Checkout <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -1740,9 +2944,9 @@ export default function MobileSimulator({
 
                     {/* Quick Stats Summary Card */}
                     <div className="grid grid-cols-2 gap-2 shrink-0">
-                      <div className="bg-emerald-50/50 border border-emerald-100/30 p-2 rounded-xl text-left">
+                      <div className="bg-sky-50/50 border border-sky-100/30 p-2 rounded-xl text-left">
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Total Inflow</span>
-                        <strong className="text-[11px] text-emerald-600 font-extrabold block mt-0.5">
+                        <strong className="text-[11px] text-sky-600 font-extrabold block mt-0.5">
                           ₦{transactions
                             .filter(tx => tx.type === 'Wallet Funding' && tx.status === 'Completed')
                             .reduce((sum, tx) => sum + tx.amount, 0)
@@ -1784,7 +2988,7 @@ export default function MobileSimulator({
 
                       {/* Filter Scrollable Row */}
                       <div className="flex gap-1 overflow-x-auto scrollbar-none pb-1 whitespace-nowrap">
-                        {['All', 'Airtime', 'Data', 'Electricity', 'Cable TV', 'Exam Token', 'Wallet Funding'].map(cat => (
+                        {['All', 'Airtime', 'Data', 'Electricity', 'Cable TV', 'Exam Token', 'A2C', 'Wallet Funding'].map(cat => (
                           <button
                             key={cat}
                             type="button"
@@ -1808,9 +3012,9 @@ export default function MobileSimulator({
                           const matchesCat = historyCategoryFilter === 'All' || tx.type === historyCategoryFilter;
                           const query = historySearch.toLowerCase().trim();
                           const matchesSearch = !query || 
-                            tx.productName.toLowerCase().includes(query) ||
-                            tx.phoneOrMeter.includes(query) ||
-                            tx.reference.toLowerCase().includes(query) ||
+                            (tx.productName && tx.productName.toLowerCase().includes(query)) ||
+                            (tx.phoneOrMeter && tx.phoneOrMeter.toLowerCase().includes(query)) ||
+                            (tx.reference && tx.reference.toLowerCase().includes(query)) ||
                             (tx.operator && tx.operator.toLowerCase().includes(query));
                           return matchesCat && matchesSearch;
                         });
@@ -1838,9 +3042,9 @@ export default function MobileSimulator({
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className={`p-2 rounded-lg shrink-0 ${
                                   tx.status === 'Completed' 
-                                    ? 'bg-emerald-50 text-emerald-600' 
+                                    ? 'bg-sky-50 text-sky-600' 
                                     : tx.status === 'Pending' 
-                                      ? 'bg-amber-50 text-amber-600' 
+                                      ? 'bg-sky-50 text-sky-600' 
                                       : 'bg-rose-50 text-rose-600'
                                 }`}>
                                   {isFunding ? (
@@ -1856,7 +3060,7 @@ export default function MobileSimulator({
                               </div>
                               <div className="text-right shrink-0">
                                 <span className={`text-[10px] font-bold block ${
-                                  isFunding ? 'text-emerald-600' : 'text-slate-900'
+                                  isFunding ? 'text-sky-600' : 'text-slate-900'
                                 }`}>
                                   {isFunding ? '+' : '-'}₦{tx.amount.toLocaleString()}
                                 </span>
@@ -1878,9 +3082,9 @@ export default function MobileSimulator({
                     <div className="border-b border-slate-100 pb-2 flex items-center justify-between shrink-0">
                       <div>
                         <h3 className="text-xs font-bold text-slate-900 leading-none">eData Copilot</h3>
-                        <span className="text-[8px] text-emerald-600 font-bold">Powered by Gemini AI</span>
+                        <span className="text-[8px] text-sky-600 font-bold">Powered by Gemini AI</span>
                       </div>
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                      <span className="w-2 h-2 bg-sky-500 rounded-full animate-ping" />
                     </div>
 
                     {/* Message threads */}
@@ -1952,7 +3156,7 @@ export default function MobileSimulator({
                       <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Membership Tier</h4>
                       
                       <div className="space-y-2">
-                        {['Basic User', 'Referred User', 'Super User'].map(cat => (
+                        {['Basic User', 'Referred User', 'Premium User'].map(cat => (
                           <button 
                             key={cat}
                             onClick={() => {
@@ -2004,7 +3208,7 @@ export default function MobileSimulator({
                           </div>
                           <button 
                             onClick={() => {
-                              setCurrentPassword('');
+                            setCurrentPassword('');
                               setNewPassword('');
                               setConfirmNewPassword('');
                               setChangePasswordModalOpen(true);
@@ -2015,17 +3219,49 @@ export default function MobileSimulator({
                           </button>
                         </div>
 
+                        {/* Biometric Smart Checkout Switch */}
+                        <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                          <div>
+                            <span className="font-bold text-slate-700 block text-[11px]">Biometric Security (Face ID / Touch ID)</span>
+                            <span className="text-[9px] text-slate-400 block">Dodge PIN authorization entry on checkout.</span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!currentUser.biometricsEnabled}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setCurrentUser(prev => ({
+                                  ...prev,
+                                  biometricsEnabled: checked
+                                }));
+                                setSubscribers(prev => prev.map(s => {
+                                  if (s.email === currentUser.email) {
+                                    return { ...s, biometricsEnabled: checked };
+                                  }
+                                  return s;
+                                }));
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                          </label>
+                        </div>
+
                         {/* Social Google accounts connection status */}
                         <div className="flex items-center justify-between py-1 border-b border-slate-50">
                           <div>
                             <span className="font-bold text-slate-700 block text-[11px]">Two-Factor Authorization</span>
                             <span className="text-[9px] text-slate-400 block">Enable secure email verification codes.</span>
                           </div>
-                          <span className="bg-emerald-50 text-emerald-600 font-bold text-[8px] px-1.5 py-0.5 rounded-full uppercase">Enabled</span>
+                          <span className="bg-sky-50 text-sky-600 font-bold text-[8px] px-1.5 py-0.5 rounded-full uppercase">Enabled</span>
                         </div>
 
                         <button 
-                          onClick={() => setCurrentScreen('auth')}
+                          onClick={() => {
+                            if (handleLogout) handleLogout();
+                            else setCurrentScreen('auth');
+                          }}
                           className="w-full text-center text-rose-600 font-bold text-[10px] py-1 mt-2 hover:underline"
                         >
                           Sign Out Account
@@ -2035,18 +3271,123 @@ export default function MobileSimulator({
                   </div>
                 )}
 
+                {/* 5. FULL SERVICES CATALOG VIEW */}
+                {appTab === 'services' && (
+                  <div className="space-y-5 text-left pb-6">
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Core Payment Utilities</h4>
+                      <div className="grid grid-cols-2 gap-3.5">
+                        {[
+                          { id: 'Airtime', name: 'Airtime VTU', icon: Phone, desc: 'Discounted VTU top-up', color: 'text-sky-600 bg-sky-50', tab: 'airtime' },
+                          { id: 'Data', name: 'Data Bundle', icon: Layers, desc: 'Cheap SME & Gifting bundles', color: 'text-sky-600 bg-sky-50', tab: 'data' },
+                          { id: 'Cable TV', name: 'Cable TV', icon: Tv, desc: 'DStv, GOtv, Startimes bills', color: 'text-sky-600 bg-sky-50', tab: 'cable' },
+                          { id: 'Electricity', name: 'Electricity', icon: Lightbulb, desc: 'Prepaid & Postpaid units', color: 'text-sky-600 bg-sky-50', tab: 'electricity' },
+                          { id: 'A2C Convert', name: 'Airtime to Cash', icon: RefreshCw, desc: 'Convert excess airtime to cash', color: 'text-sky-600 bg-sky-50', tab: 'a2c' },
+                          { id: 'Exam Card', name: 'Exam Scratch Card', icon: BookOpen, desc: 'WAEC, NECO, NABTEB tokens', color: 'text-sky-600 bg-sky-50', tab: 'exam' }
+                        ].map(srv => (
+                          <button
+                            key={srv.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(srv.id as any);
+                              setAppTab(srv.tab as any);
+                            }}
+                            className="flex flex-col items-start p-3.5 rounded-2xl border border-slate-100 bg-white hover:bg-sky-50/20 hover:border-sky-100 transition-all gap-2 active:scale-95 cursor-pointer shadow-sm text-left w-full"
+                          >
+                            <div className={`p-2 rounded-xl ${srv.color}`}>
+                              <srv.icon className="w-4 h-4" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-black text-slate-800 block leading-tight">{srv.name}</span>
+                              <span className="text-[7.5px] text-slate-400 block leading-tight">{srv.desc}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Fintech & Agency Operations</h4>
+                      <div className="grid grid-cols-2 gap-3.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFundAmountInput('5000');
+                            setFundGateway('Paystack');
+                            setFundModalOpen(true);
+                          }}
+                          className="flex flex-col items-start p-3.5 rounded-2xl border border-slate-100 bg-white hover:bg-sky-50/20 hover:border-sky-100 transition-all gap-2 active:scale-95 cursor-pointer shadow-sm text-left w-full"
+                        >
+                          <div className="p-2 rounded-xl text-sky-600 bg-sky-50">
+                            <Coins className="w-4 h-4" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] font-black text-slate-800 block leading-tight">Fund Wallet</span>
+                            <span className="text-[7.5px] text-slate-400 block leading-tight">Instant Paystack/Monnify deposit</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setUpgradeModalOpen(true)}
+                          className="flex flex-col items-start p-3.5 rounded-2xl border border-slate-100 bg-white hover:bg-sky-50/20 hover:border-sky-100 transition-all gap-2 active:scale-95 cursor-pointer shadow-sm text-left w-full"
+                        >
+                          <div className="p-2 rounded-xl text-sky-600 bg-sky-50">
+                            <Flame className="w-4 h-4" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] font-black text-slate-800 block leading-tight">Premium Reseller</span>
+                            <span className="text-[7.5px] text-slate-400 block leading-tight">Unlock agent rate tiers</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Supplementary Bills (Coming Soon)</h4>
+                      <div className="grid grid-cols-2 gap-3.5 opacity-60">
+                        {[
+                          { name: 'ISP Internet', icon: Wifi, desc: 'Smile & Spectranet' },
+                          { name: 'Bet Funding', icon: Flame, desc: 'Bet9ja, SportyBet, 1xBet' },
+                          { name: 'School Fees', icon: User, desc: 'Uni & College payments' },
+                          { name: 'Insurance Cover', icon: ShieldAlert, desc: 'Auto & health subscriptions' }
+                        ].map((srv, idx) => (
+                          <div
+                            key={idx}
+                            className="flex flex-col items-start p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 gap-2 relative overflow-hidden text-left w-full"
+                          >
+                            <span className="absolute top-1.5 right-1.5 bg-slate-200 text-slate-600 text-[5px] font-black uppercase px-1.5 py-0.5 rounded-md leading-none">Soon</span>
+                            <div className="p-2 rounded-xl text-sky-600 bg-sky-50">
+                              <srv.icon className="w-4 h-4" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-black text-slate-700 block leading-tight">{srv.name}</span>
+                              <span className="text-[7.5px] text-slate-400 block leading-tight">{srv.desc}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Bottom Nav tabs navigation */}
-              <div className="bg-white border-t border-slate-100 px-2 py-2 flex justify-around items-center shrink-0 z-40 w-full">
+              <div className={`px-2 py-2 flex justify-around items-center shrink-0 z-40 w-full transition-colors ${
+                appTab === 'home' 
+                  ? 'bg-[#1D1D1D] border-t border-slate-800/85' 
+                  : 'bg-white border-t border-slate-100'
+              }`}>
                 {[
                   { id: 'home', icon: Smartphone, label: 'Home' },
-                  { id: 'history', icon: History, label: 'History' },
-                  { id: 'ai_chat', icon: HelpIcon, label: 'Support' },
+                  { id: 'finance', icon: DollarSign, label: 'Finance' },
+                  { id: 'rewards', icon: Gift, label: 'Rewards' },
+                  { id: 'cards', icon: CreditCard, label: 'Cards' },
                   { id: 'profile', icon: User, label: 'Profile' }
                 ].map(tab => {
                   const isActive = tab.id === 'home'
-                    ? ['home', 'airtime', 'data', 'electricity', 'cable', 'exam'].includes(appTab)
+                    ? ['home', 'airtime', 'data', 'electricity', 'cable', 'exam', 'a2c', 'history', 'ai_chat', 'services'].includes(appTab)
                     : appTab === tab.id;
                   
                   return (
@@ -2056,15 +3397,23 @@ export default function MobileSimulator({
                       onClick={() => {
                         if (tab.id === 'home') {
                           setAppTab('home');
+                        } else if (tab.id === 'profile') {
+                          setAppTab('profile');
                         } else {
-                          setAppTab(tab.id as any);
+                          alert(`${tab.label} dashboard module is active under local sandbox demo modes.`);
                         }
                       }}
                       className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
-                        isActive ? 'bg-sky-50 text-sky-600 scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
+                        isActive 
+                          ? (appTab === 'home' ? 'text-sky-400 scale-105 font-black' : 'bg-sky-50 text-sky-600 scale-105 font-bold') 
+                          : (appTab === 'home' ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')
                       }`}
                     >
-                      <tab.icon className={`w-3.5 h-3.5 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
+                      <tab.icon className={`w-3.5 h-3.5 ${
+                        isActive 
+                          ? (appTab === 'home' ? 'text-sky-400' : 'text-sky-600') 
+                          : (appTab === 'home' ? 'text-slate-500' : 'text-slate-400')
+                      }`} />
                       <span className="text-[8px] font-black tracking-tight">{tab.label}</span>
                     </button>
                   );
@@ -2090,9 +3439,9 @@ export default function MobileSimulator({
                   {[
                     { id: 'exam', name: 'Exam Token', icon: BookOpen, desc: 'WAEC, NECO, JAMB Pin', color: 'text-purple-600 bg-purple-50' },
                     { id: 'internet', name: 'ISP Internet', icon: Wifi, desc: 'Smile, Spectranet', color: 'text-blue-600 bg-blue-50', custom: true },
-                    { id: 'insurance', name: 'Insurance', icon: CheckCircle, desc: 'Health, Auto Cover', color: 'text-emerald-600 bg-emerald-50', custom: true },
+                    { id: 'insurance', name: 'Insurance', icon: CheckCircle, desc: 'Health, Auto Cover', color: 'text-sky-600 bg-sky-50', custom: true },
                     { id: 'school', name: 'School Fees', icon: UserCheck, desc: 'Uni & College Bills', color: 'text-rose-600 bg-rose-50', custom: true },
-                    { id: 'waste', name: 'Waste Bill', icon: Layers, desc: 'LAWMA & State Waste', color: 'text-amber-600 bg-amber-50', custom: true },
+                    { id: 'waste', name: 'Waste Bill', icon: Layers, desc: 'LAWMA & State Waste', color: 'text-sky-600 bg-sky-50', custom: true },
                     { id: 'betting', name: 'Bet Funding', icon: Flame, desc: 'Bet9ja, SportyBet', color: 'text-red-600 bg-red-50', custom: true }
                   ].map(service => (
                     <button
@@ -2218,7 +3567,7 @@ export default function MobileSimulator({
 
                 {/* Receipt Card Visuals */}
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-3 relative overflow-hidden">
-                  <div className="inline-flex bg-emerald-100 text-emerald-700 p-2 rounded-full">
+                  <div className="inline-flex bg-sky-100 text-sky-700 p-2 rounded-full">
                     <CheckCircle className="w-6 h-6" />
                   </div>
                   <div>
@@ -2255,7 +3604,7 @@ export default function MobileSimulator({
                 {/* Dispute raise logic */}
                 <div className="space-y-2 pt-2">
                   {activeReceipt.disputeRaised ? (
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[10px] text-amber-800 space-y-1">
+                    <div className="bg-sky-50 border border-sky-100 rounded-xl p-3 text-[10px] text-sky-800 space-y-1">
                       <strong className="font-bold block">Dispute Status: {activeReceipt.disputeStatus || 'Under Review'}</strong>
                       <p className="leading-normal">{activeReceipt.disputeNotes}</p>
                     </div>
@@ -2268,14 +3617,20 @@ export default function MobileSimulator({
                     </button>
                   )}
                   
-                  <button 
-                    onClick={() => {
-                      alert("Receipt details copied to device clipboards successfully.");
-                    }}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition-all"
-                  >
-                    Share / Save Receipt
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => copyReceiptToClipboard(activeReceipt)}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy Details
+                    </button>
+                    <button 
+                      onClick={() => generatePDFReceipt(activeReceipt)}
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5 text-sky-400" /> Download PDF
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2502,10 +3857,6 @@ export default function MobileSimulator({
                   <button
                     type="button"
                     onClick={() => {
-                      if (currentUser.hasPin && oldPin !== (currentUser.pinCode || '1234')) {
-                        alert("The current transaction PIN you entered is incorrect.");
-                        return;
-                      }
                       if (newPin.length !== 4) {
                         alert("The new PIN must be exactly 4 numeric digits.");
                         return;
@@ -2515,9 +3866,57 @@ export default function MobileSimulator({
                         return;
                       }
 
-                      setCurrentUser(curr => ({ ...curr, pinCode: newPin, hasPin: true }));
-                      setChangePinModalOpen(false);
-                      alert("🎉 Success! Your secret Transaction PIN has been securely updated.");
+                      if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+                        setCurrentUser(prev => ({
+                          ...prev,
+                          hasPin: true,
+                          pinCode: newPin
+                        }));
+                        setSubscribers(prev => prev.map(s => {
+                          if (s.email === currentUser.email) {
+                            return { ...s, hasPin: true, pinCode: newPin };
+                          }
+                          return s;
+                        }));
+                        setChangePinModalOpen(false);
+                        setOldPin('');
+                        setNewPin('');
+                        setConfirmNewPin('');
+                        alert("🎉 Transaction PIN updated successfully inside Sandbox storage.");
+                        return;
+                      }
+
+                      if (currentUser.hasPin) {
+                        api.changePin(oldPin, newPin, confirmNewPin)
+                          .then(res => {
+                            if (res.success) {
+                              if (handleGlobalRefresh) handleGlobalRefresh();
+                              setChangePinModalOpen(false);
+                              setOldPin('');
+                              setNewPin('');
+                              setConfirmNewPin('');
+                              alert("🎉 " + (res.message || "Transaction PIN changed successfully."));
+                            } else {
+                              alert("❌ " + (res.error || "Failed to change PIN."));
+                            }
+                          })
+                          .catch(err => alert("❌ " + (err.message || "Error changing PIN.")));
+                      } else {
+                        api.setPin(newPin, confirmNewPin)
+                          .then(res => {
+                            if (res.success) {
+                              if (handleGlobalRefresh) handleGlobalRefresh();
+                              setChangePinModalOpen(false);
+                              setOldPin('');
+                              setNewPin('');
+                              setConfirmNewPin('');
+                              alert("🎉 " + (res.message || "Transaction PIN set successfully."));
+                            } else {
+                              alert("❌ " + (res.error || "Failed to set PIN."));
+                            }
+                          })
+                          .catch(err => alert("❌ " + (err.message || "Error setting PIN.")));
+                      }
                     }}
                     className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-black py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
                   >
@@ -2610,14 +4009,14 @@ export default function MobileSimulator({
             </div>
           )}
 
-          {/* INNER OVERLAY: INTERACTIVE SUPER USER UPGRADE MODAL */}
+          {/* INNER OVERLAY: INTERACTIVE PREMIUM USER UPGRADE MODAL */}
           {upgradeModalOpen && (
             <div className="absolute inset-0 bg-black/50 flex flex-col justify-end z-50">
               <div className="bg-white rounded-t-3xl p-5 space-y-4 font-sans text-left">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <div>
                     <h4 className="text-xs font-black text-slate-900 flex items-center gap-1">
-                      <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Upgrade to Super User
+                      <Flame className="w-3.5 h-3.5 text-sky-500 animate-pulse" /> Upgrade to Premium User
                     </h4>
                     <span className="text-[9px] text-slate-400 font-bold uppercase text-sky-600">VTU Agent License Activation</span>
                   </div>
@@ -2634,7 +4033,7 @@ export default function MobileSimulator({
                   <div className="py-12 flex flex-col items-center justify-center space-y-3">
                     <RefreshCw className="w-8 h-8 text-sky-500 animate-spin" />
                     <p className="text-xs font-bold text-slate-700">Deducting License Fee & Upgrading...</p>
-                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider text-amber-600">Registering with Yii2 Core Router</p>
+                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider text-sky-600">Registering with Yii2 Core Router</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2656,7 +4055,6 @@ export default function MobileSimulator({
                         </li>
                       </ul>
                     </div>
-
                     <div className="flex justify-between items-center bg-slate-50 border border-slate-100 p-3 rounded-xl">
                       <div>
                         <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-wider">Total Charge</span>
@@ -2667,50 +4065,64 @@ export default function MobileSimulator({
 
                     <button
                       type="button"
+                      disabled={upgradeLoading}
                       onClick={() => {
-                        if (currentUser.walletBalance < 1500) {
-                          alert("❌ Insufficient Balance! Please fund your wallet via Paystack first to upgrade.");
+                        if (!currentUser.hasPin) {
+                          alert("Please set up a Transaction PIN before completing your upgrade request.");
+                          setChangePinModalOpen(true);
+                          setUpgradeModalOpen(false);
+                          return;
+                        }
+                        const pin = window.prompt("Please enter your 4-digit Transaction PIN to confirm the upgrade:");
+                        if (pin === null) return;
+                        if (!pin.trim()) {
+                          alert("PIN is required.");
                           return;
                         }
 
                         setUpgradeLoading(true);
-                        setTimeout(() => {
-                          setUpgradeLoading(false);
-                          const newBalance = currentUser.walletBalance - 1500;
-                          
-                          setCurrentUser(curr => ({
-                            ...curr,
-                            walletBalance: newBalance,
-                            category: 'Super User'
-                          }));
 
-                          setSubscribers(prev => prev.map(s => {
-                            if (s.email === currentUser.email) {
-                              return { ...s, walletBalance: newBalance, category: 'Super User' };
+                        if (apiStatus === 'offline' || apiStatus === 'sandbox') {
+                          setTimeout(() => {
+                            setUpgradeLoading(false);
+                            setCurrentUser(prev => ({
+                              ...prev,
+                              walletBalance: prev.walletBalance - 1500,
+                              category: 'Premium User'
+                            }));
+                            setSubscribers(prev => prev.map(s => {
+                              if (s.email === currentUser.email) {
+                                return { ...s, walletBalance: s.walletBalance - 1500, category: 'Premium User' };
+                              }
+                              return s;
+                            }));
+                            alert("🎉 Upgrade successful! You are now a Premium User in Sandbox mode.");
+                            setUpgradeModalOpen(false);
+                          }, 1000);
+                          return;
+                        }
+
+                        api.upgrade(pin)
+                          .then(res => {
+                            setUpgradeLoading(false);
+                            if (res.success) {
+                              alert("🎉 " + (res.message || "Upgrade request submitted successfully!"));
+                              if (handleGlobalRefresh) {
+                                handleGlobalRefresh();
+                              }
+                              setUpgradeModalOpen(false);
+                            } else {
+                              alert("❌ " + (res.error || "Failed to upgrade."));
                             }
-                            return s;
-                          }));
-
-                          const upgradeTx: Transaction = {
-                            id: `tx-sup-${Math.floor(1000 + Math.random() * 9000)}`,
-                            type: 'Admin Transfer',
-                            productName: 'Super User Tier Activation',
-                            amount: 1500,
-                            phoneOrMeter: currentUser.phone,
-                            status: 'Completed',
-                            date: new Date().toISOString(),
-                            reference: `SUP-${Math.floor(10000000 + Math.random() * 90000000)}`,
-                            disputeRaised: false,
-                          };
-
-                          setTransactions(prev => [upgradeTx, ...prev]);
-                          setUpgradeModalOpen(false);
-                          alert("🎉 Congratulations! You have successfully upgraded to Super User level. All VTU and utility rates have been instantly updated to agent discount rates!");
-                        }, 1500);
+                          })
+                          .catch(err => {
+                            setUpgradeLoading(false);
+                            alert("❌ " + (err.message || "Error upgrading account."));
+                          });
                       }}
                       className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-all shadow-md shadow-sky-500/10 cursor-pointer"
                     >
-                      Pay ₦1,500 VTU License Fee & Activate
+                      {upgradeLoading ? 'Processing Request...' : 'Pay License Fee & Request Upgrade'}
                     </button>
                   </div>
                 )}
