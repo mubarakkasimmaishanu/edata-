@@ -44,7 +44,7 @@ export const INITIAL_SUBSCRIBERS: UserProfile[] = [
     email: "aisha.y@gmail.com",
     phone: "08051112223",
     walletBalance: 87200.00,
-    category: 'Super User',
+    category: 'Premium User',
     bvn: '99988877766',
     nin: '55544433322',
     isVerified: true,
@@ -67,31 +67,31 @@ export const INITIAL_SUBSCRIBERS: UserProfile[] = [
 
 export const INITIAL_PRODUCTS: ProductItem[] = [
   // Airtime
-  { id: 'art-mtn', category: 'Airtime', name: 'MTN Airtime VTU', operator: 'MTN', priceNormal: 100, priceReferred: 98, priceSuper: 96, active: true, description: 'Discounted airtime topup' },
-  { id: 'art-glo', category: 'Airtime', name: 'Glo Airtime VTU', operator: 'Glo', priceNormal: 100, priceReferred: 97, priceSuper: 95, active: true, description: 'Discounted airtime topup' },
-  { id: 'art-airtel', category: 'Airtime', name: 'Airtel Airtime VTU', operator: 'Airtel', priceNormal: 100, priceReferred: 98, priceSuper: 96, active: true, description: 'Discounted airtime topup' },
-  { id: 'art-9mobile', category: 'Airtime', name: '9mobile Airtime VTU', operator: '9mobile', priceNormal: 100, priceReferred: 96, priceSuper: 94, active: true, description: 'Discounted airtime topup' },
+  { id: 'art-mtn', category: 'Airtime', name: 'MTN Airtime VTU', operator: 'MTN', priceNormal: 100, priceReferred: 98, pricePremium: 96, active: true, description: 'Discounted airtime topup' },
+  { id: 'art-glo', category: 'Airtime', name: 'Glo Airtime VTU', operator: 'Glo', priceNormal: 100, priceReferred: 97, pricePremium: 95, active: true, description: 'Discounted airtime topup' },
+  { id: 'art-airtel', category: 'Airtime', name: 'Airtel Airtime VTU', operator: 'Airtel', priceNormal: 100, priceReferred: 98, pricePremium: 96, active: true, description: 'Discounted airtime topup' },
+  { id: 'art-9mobile', category: 'Airtime', name: '9mobile Airtime VTU', operator: '9mobile', priceNormal: 100, priceReferred: 96, pricePremium: 94, active: true, description: 'Discounted airtime topup' },
   
   // Data
-  { id: 'dat-mtn-1gb', category: 'Data', name: 'MTN 1GB (SME) - 30 Days', operator: 'MTN', priceNormal: 290, priceReferred: 275, priceSuper: 265, active: true, description: 'High speed SME data bundle' },
-  { id: 'dat-mtn-2gb', category: 'Data', name: 'MTN 2GB (SME) - 30 Days', operator: 'MTN', priceNormal: 580, priceReferred: 550, priceSuper: 530, active: true, description: 'High speed SME data bundle' },
-  { id: 'dat-glo-1gb', category: 'Data', name: 'Glo 1.35GB - 30 Days', operator: 'Glo', priceNormal: 480, priceReferred: 460, priceSuper: 440, active: true, description: 'Standard Glo mobile bundle' },
-  { id: 'dat-airtel-1gb', category: 'Data', name: 'Airtel 1GB (SME) - 30 Days', operator: 'Airtel', priceNormal: 310, priceReferred: 295, priceSuper: 280, active: true, description: 'SME dynamic data package' },
-  { id: 'dat-9mobile-1gb', category: 'Data', name: '9mobile 1GB - 30 Days', operator: '9mobile', priceNormal: 450, priceReferred: 430, priceSuper: 410, active: true, description: 'Premium 9mobile bandwidth' },
+  { id: 'dat-mtn-1gb', category: 'Data', name: 'MTN 1GB (SME) - 30 Days', operator: 'MTN', priceNormal: 290, priceReferred: 275, pricePremium: 265, active: true, description: 'High speed SME data bundle' },
+  { id: 'dat-mtn-2gb', category: 'Data', name: 'MTN 2GB (SME) - 30 Days', operator: 'MTN', priceNormal: 580, priceReferred: 550, pricePremium: 530, active: true, description: 'High speed SME data bundle' },
+  { id: 'dat-glo-1gb', category: 'Data', name: 'Glo 1.35GB - 30 Days', operator: 'Glo', priceNormal: 480, priceReferred: 460, pricePremium: 440, active: true, description: 'Standard Glo mobile bundle' },
+  { id: 'dat-airtel-1gb', category: 'Data', name: 'Airtel 1GB (SME) - 30 Days', operator: 'Airtel', priceNormal: 310, priceReferred: 295, pricePremium: 280, active: true, description: 'SME dynamic data package' },
+  { id: 'dat-9mobile-1gb', category: 'Data', name: '9mobile 1GB - 30 Days', operator: '9mobile', priceNormal: 450, priceReferred: 430, pricePremium: 410, active: true, description: 'Premium 9mobile bandwidth' },
 
   // Electricity
-  { id: 'elec-ikeja', category: 'Electricity', name: 'Ikeja Electricity Prepaid', operator: 'Ikeja Disco', priceNormal: 1000, priceReferred: 1000, priceSuper: 995, active: true, description: 'IKEDC token instant delivery' },
-  { id: 'elec-eko', category: 'Electricity', name: 'Eko Electricity Prepaid', operator: 'Eko Disco', priceNormal: 1000, priceReferred: 1000, priceSuper: 995, active: true, description: 'EKEDC prepaid tokens' },
-  { id: 'elec-abuja', category: 'Electricity', name: 'Abuja Electricity Prepaid', operator: 'AEDC', priceNormal: 1000, priceReferred: 1000, priceSuper: 995, active: true, description: 'AEDC prepaid system integration' },
+  { id: 'elec-ikeja', category: 'Electricity', name: 'Ikeja Electricity Prepaid', operator: 'Ikeja Disco', priceNormal: 1000, priceReferred: 1000, pricePremium: 995, active: true, description: 'IKEDC token instant delivery' },
+  { id: 'elec-eko', category: 'Electricity', name: 'Eko Electricity Prepaid', operator: 'Eko Disco', priceNormal: 1000, priceReferred: 1000, pricePremium: 995, active: true, description: 'EKEDC prepaid tokens' },
+  { id: 'elec-abuja', category: 'Electricity', name: 'Abuja Electricity Prepaid', operator: 'AEDC', priceNormal: 1000, priceReferred: 1000, pricePremium: 995, active: true, description: 'AEDC prepaid system integration' },
 
   // Cable TV
-  { id: 'cab-dstv', category: 'Cable TV', name: 'DSTV Access Package', operator: 'DSTV', priceNormal: 3500, priceReferred: 3450, priceSuper: 3400, active: true, description: 'Instant cable TV activation' },
-  { id: 'cab-gotv', category: 'Cable TV', name: 'GOTV Max Package', operator: 'GOTV', priceNormal: 4850, priceReferred: 4800, priceSuper: 4750, active: true, description: 'GOTV entertainment bundle' },
-  { id: 'cab-startimes', category: 'Cable TV', name: 'Startimes Nova', operator: 'Startimes', priceNormal: 1500, priceReferred: 1470, priceSuper: 1450, active: true, description: 'Nova basic access' },
+  { id: 'cab-dstv', category: 'Cable TV', name: 'DSTV Access Package', operator: 'DSTV', priceNormal: 3500, priceReferred: 3450, pricePremium: 3400, active: true, description: 'Instant cable TV activation' },
+  { id: 'cab-gotv', category: 'Cable TV', name: 'GOTV Max Package', operator: 'GOTV', priceNormal: 4850, priceReferred: 4800, pricePremium: 4750, active: true, description: 'GOTV entertainment bundle' },
+  { id: 'cab-startimes', category: 'Cable TV', name: 'Startimes Nova', operator: 'Startimes', priceNormal: 1500, priceReferred: 1470, pricePremium: 1450, active: true, description: 'Nova basic access' },
 
   // Exam Tokens
-  { id: 'exm-waec', category: 'Exam Token', name: 'WAEC Result Checker', operator: 'WAEC', priceNormal: 3200, priceReferred: 3150, priceSuper: 3100, active: true, description: 'WAEC e-pin card token' },
-  { id: 'exm-neco', category: 'Exam Token', name: 'NECO Token Pin', operator: 'NECO', priceNormal: 1200, priceReferred: 1180, priceSuper: 1150, active: true, description: 'NECO result checking access pin' }
+  { id: 'exm-waec', category: 'Exam Token', name: 'WAEC Result Checker', operator: 'WAEC', priceNormal: 3200, priceReferred: 3150, pricePremium: 3100, active: true, description: 'WAEC e-pin card token' },
+  { id: 'exm-neco', category: 'Exam Token', name: 'NECO Token Pin', operator: 'NECO', priceNormal: 1200, priceReferred: 1180, pricePremium: 1150, active: true, description: 'NECO result checking access pin' }
 ];
 
 export const MARKETER_LEADERS: MarketerLeader[] = [

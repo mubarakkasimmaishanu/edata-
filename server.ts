@@ -58,7 +58,7 @@ app.post('/api/eDataAI', async (req, res) => {
 I can guide you through using the eData platform:
 - **Wallet Funding**: Use Paystack, Flutterwave, Payvessel, or Monnify to fund your balance immediately.
 - **Biometric Controls**: Turn on fingerprint checks inside your profile for instant multi-factor transaction validation.
-- **Referrals**: Upgrade to Super User or LGA/State Leader levels to earn up to 1% direct cash commissions on downline transactions!`
+- **Referrals**: Upgrade to Premium User or LGA/State Leader levels to earn up to 1% direct cash commissions on downline transactions!`
       });
     }
 
@@ -121,8 +121,8 @@ I can guide you through using the eData platform:
       
       Use the following context to answers the user's queries concisely and with a highly helpful fintech-expert tone:
       - Users fund their wallets via Paystack, Flutterwave, Monnify, or Payvessel gateways, or BVN/NIN verified direct account.
-      - Users are categorized into: Normal User (default), Referred User (gets 1% transaction discount, assigned automatically when using referral codes), or Super User (onboarded specifically by Marketers under LGA/State/Regional hierarchies).
-      - LGA Leaders earn on Super Users. State Leaders accumulate results under LGA leaders, Regional Leaders under State leaders, and National Leaders globally.
+      - Users are categorized into: Normal User (default), Referred User (gets 1% transaction discount, assigned automatically when using referral codes), or Premium User (onboarded specifically by Marketers under LGA/State/Regional hierarchies).
+      - LGA Leaders earn on Premium Users. State Leaders accumulate results under LGA leaders, Regional Leaders under State leaders, and National Leaders globally.
       - For security, passwords & PINs are securely hashed (Argon2/bcrypt) and stored. We never display PINs or passwords in plain text.
       - If users have transaction disputes, they can raise a dispute directly from the transactions screen in the mobile app, and admins can quickly review and credit refunds.
       

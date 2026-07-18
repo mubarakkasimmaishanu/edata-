@@ -1,18 +1,21 @@
 export interface UserProfile {
+  id?: number | string;
   name: string;
   email: string;
   phone: string;
   walletBalance: number;
-  category: 'Basic User' | 'Referred User' | 'Super User';
+  category: 'Basic User' | 'Referred User' | 'Premium User';
   bvn: string;
   nin: string;
   isVerified: boolean;
   pinCode: string;
   hasPin: boolean;
   promoCode?: string;
+  biometricsEnabled?: boolean;
+  hasPendingUpgrade?: boolean;
 }
 
-export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer';
+export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
 
 export interface Transaction {
   id: string;
@@ -33,12 +36,12 @@ export interface Transaction {
 
 export interface ProductItem {
   id: string;
-  category: 'Airtime' | 'Data' | 'Electricity' | 'Cable' | 'Exam' | 'Cable TV' | 'Exam Token';
+  category: 'Airtime' | 'Data' | 'Electricity' | 'Cable' | 'Exam' | 'Cable TV' | 'Exam Token' | 'A2C';
   name: string;
   operator?: string;
   priceNormal: number;
   priceReferred: number;
-  priceSuper: number;
+  pricePremium: number;
   active: boolean;
   description: string;
 }
