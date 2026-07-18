@@ -49,7 +49,7 @@ export default function MobileSimulator({
   setApiStatus
 }: MobileSimulatorProps) {
   // Navigation states
-  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'ai_chat' | 'profile' | 'a2c'>('home');
+  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services'>('home');
 
 
   // Onboarding/Auth state variables
@@ -1363,10 +1363,10 @@ Thank you for using eData Mobile!
                     <div className="flex items-center gap-4">
                       {/* Headphone icon (AI Support link) */}
                       <button 
-                        type="button"
-                        onClick={() => setAppTab('ai_chat')}
+                        type="button" 
+                        onClick={() => setAppTab('support')}
                         className="relative p-1 hover:bg-slate-800 rounded-lg text-slate-300 transition-all cursor-pointer"
-                        title="AI Live Support Chat"
+                        title="Customer Support Desk"
                       >
                         <Headphones className="w-4 h-4" />
                       </button>
@@ -1406,7 +1406,7 @@ Thank you for using eData Mobile!
                           {appTab === 'exam' && 'Exam Token'}
                           {appTab === 'a2c' && 'Airtime to Cash'}
                           {appTab === 'history' && 'Transactions'}
-                          {appTab === 'ai_chat' && 'AI Support'}
+                          {appTab === 'support' && 'Customer Support'}
                           {appTab === 'profile' && 'My Profile'}
                           {appTab === 'services' && 'All Services'}
                         </h3>
@@ -1868,53 +1868,7 @@ Thank you for using eData Mobile!
                       />
                     </div>
 
-                    {/* Safety Shield */}
-                    <div className="bg-gradient-to-br from-sky-50 to-sky-100/30 border border-sky-100 rounded-2xl p-4 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-sky-600" /> eData AI Safety Shield
-                        </span>
-                        {scanState === 'success' && (
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                          }`}>
-                            Risk: {riskScore}/100
-                          </span>
-                        )}
-                      </div>
 
-                      {scanState === 'idle' && (
-                        <div className="space-y-2">
-                          <p className="text-[9px] text-slate-500 leading-normal">
-                            Run our real-time AI security engine to verify target validity, routing paths, and safeguard transactions.
-                          </p>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setSelectedCategory('Airtime');
-                              handleAISecurityScan();
-                            }}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-lg text-[9px] transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Scan Transaction
-                          </button>
-                        </div>
-                      )}
-
-                      {scanState === 'scanning' && (
-                        <div className="flex items-center gap-2 py-1">
-                          <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span className="text-[10px] font-bold text-slate-600">Gemini checking routing protocols...</span>
-                        </div>
-                      )}
-
-                      {scanState === 'success' && (
-                        <div className="space-y-1">
-                          <p className="text-[9px] text-slate-600 leading-relaxed font-mono italic">"{riskAnalysis}"</p>
-                          <p className="text-[8px] text-slate-400 font-bold">Safety Score calculated via Gemini 3.5 Flash</p>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Promo Code Input Segment */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
@@ -2111,53 +2065,7 @@ Thank you for using eData Mobile!
                       />
                     </div>
 
-                    {/* Safety Shield */}
-                    <div className="bg-gradient-to-br from-sky-50 to-sky-100/30 border border-sky-100 rounded-2xl p-4 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-sky-600" /> eData AI Safety Shield
-                        </span>
-                        {scanState === 'success' && (
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                          }`}>
-                            Risk: {riskScore}/100
-                          </span>
-                        )}
-                      </div>
 
-                      {scanState === 'idle' && (
-                        <div className="space-y-2">
-                          <p className="text-[9px] text-slate-500 leading-normal">
-                            Run our real-time AI security engine to verify target validity, routing paths, and safeguard transactions.
-                          </p>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setSelectedCategory('Data');
-                              handleAISecurityScan();
-                            }}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-lg text-[9px] transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Scan Transaction
-                          </button>
-                        </div>
-                      )}
-
-                      {scanState === 'scanning' && (
-                        <div className="flex items-center gap-2 py-1">
-                          <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span className="text-[10px] font-bold text-slate-600">Gemini checking routing protocols...</span>
-                        </div>
-                      )}
-
-                      {scanState === 'success' && (
-                        <div className="space-y-1">
-                          <p className="text-[9px] text-slate-600 leading-relaxed font-mono italic">"{riskAnalysis}"</p>
-                          <p className="text-[8px] text-slate-400 font-bold">Safety Score calculated via Gemini 3.5 Flash</p>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Promo Code Input Segment */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
@@ -2307,50 +2215,7 @@ Thank you for using eData Mobile!
                       />
                     </div>
 
-                    {/* Safety Shield */}
-                    <div className="bg-gradient-to-br from-sky-50 to-sky-100/30 border border-sky-100 rounded-2xl p-4 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-sky-600" /> eData AI Safety Shield
-                        </span>
-                        {scanState === 'success' && (
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                          }`}>
-                            Risk: {riskScore}/100
-                          </span>
-                        )}
-                      </div>
 
-                      {scanState === 'idle' && (
-                        <div className="space-y-2">
-                          <p className="text-[9px] text-slate-500 leading-normal">
-                            Run our real-time AI security engine to verify target validity, routing paths, and safeguard transactions.
-                          </p>
-                          <button 
-                            type="button"
-                            onClick={handleAISecurityScan}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-lg text-[9px] transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Scan Transaction
-                          </button>
-                        </div>
-                      )}
-
-                      {scanState === 'scanning' && (
-                        <div className="flex items-center gap-2 py-1">
-                          <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span className="text-[10px] font-bold text-slate-600">Gemini checking routing protocols...</span>
-                        </div>
-                      )}
-
-                      {scanState === 'success' && (
-                        <div className="space-y-1">
-                          <p className="text-[9px] text-slate-600 leading-relaxed font-mono italic">"{riskAnalysis}"</p>
-                          <p className="text-[8px] text-slate-400 font-bold">Safety Score calculated via Gemini 3.5 Flash</p>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Promo Code Input Segment */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
@@ -2500,50 +2365,7 @@ Thank you for using eData Mobile!
                       />
                     </div>
 
-                    {/* Safety Shield */}
-                    <div className="bg-gradient-to-br from-sky-50 to-sky-100/30 border border-sky-100 rounded-2xl p-4 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-sky-600" /> eData AI Safety Shield
-                        </span>
-                        {scanState === 'success' && (
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                          }`}>
-                            Risk: {riskScore}/100
-                          </span>
-                        )}
-                      </div>
 
-                      {scanState === 'idle' && (
-                        <div className="space-y-2">
-                          <p className="text-[9px] text-slate-500 leading-normal">
-                            Run our real-time AI security engine to verify target validity, routing paths, and safeguard transactions.
-                          </p>
-                          <button 
-                            type="button"
-                            onClick={handleAISecurityScan}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-lg text-[9px] transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Scan Transaction
-                          </button>
-                        </div>
-                      )}
-
-                      {scanState === 'scanning' && (
-                        <div className="flex items-center gap-2 py-1">
-                          <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span className="text-[10px] font-bold text-slate-600">Gemini checking routing protocols...</span>
-                        </div>
-                      )}
-
-                      {scanState === 'success' && (
-                        <div className="space-y-1">
-                          <p className="text-[9px] text-slate-600 leading-relaxed font-mono italic">"{riskAnalysis}"</p>
-                          <p className="text-[8px] text-slate-400 font-bold">Safety Score calculated via Gemini 3.5 Flash</p>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Promo Code Input Segment */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
@@ -2816,50 +2638,7 @@ Thank you for using eData Mobile!
                       />
                     </div>
 
-                    {/* Safety Shield */}
-                    <div className="bg-gradient-to-br from-sky-50 to-sky-100/30 border border-sky-100 rounded-2xl p-4 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5 text-sky-600" /> eData AI Safety Shield
-                        </span>
-                        {scanState === 'success' && (
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            riskScore > 50 ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
-                          }`}>
-                            Risk: {riskScore}/100
-                          </span>
-                        )}
-                      </div>
 
-                      {scanState === 'idle' && (
-                        <div className="space-y-2">
-                          <p className="text-[9px] text-slate-500 leading-normal">
-                            Run our real-time AI security engine to verify target validity, routing paths, and safeguard transactions.
-                          </p>
-                          <button 
-                            type="button"
-                            onClick={handleAISecurityScan}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-lg text-[9px] transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Scan Transaction
-                          </button>
-                        </div>
-                      )}
-
-                      {scanState === 'scanning' && (
-                        <div className="flex items-center gap-2 py-1">
-                          <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span className="text-[10px] font-bold text-slate-600">Gemini checking routing protocols...</span>
-                        </div>
-                      )}
-
-                      {scanState === 'success' && (
-                        <div className="space-y-1">
-                          <p className="text-[9px] text-slate-600 leading-relaxed font-mono italic">"{riskAnalysis}"</p>
-                          <p className="text-[8px] text-slate-400 font-bold">Safety Score calculated via Gemini 3.5 Flash</p>
-                        </div>
-                      )}
-                    </div>
 
                     {/* Promo Code Input Segment */}
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2 mt-2">
@@ -3079,59 +2858,91 @@ Thank you for using eData Mobile!
                 )}
 
                 {/* 3. AI CHAT COPILOT TAB VIEW */}
-                {appTab === 'ai_chat' && (
-                  <div className="flex-1 flex flex-col justify-between h-[510px]">
+                {/* 3. CUSTOMER SUPPORT TAB VIEW */}
+                {appTab === 'support' && (
+                  <div className="flex-1 flex flex-col justify-between h-[510px] space-y-3.5">
                     <div className="border-b border-slate-100 pb-2 flex items-center justify-between shrink-0">
                       <div>
-                        <h3 className="text-xs font-bold text-slate-900 leading-none">eData Copilot</h3>
-                        <span className="text-[8px] text-sky-600 font-bold">Powered by Gemini AI</span>
+                        <h3 className="text-xs font-bold text-slate-900 leading-none">Customer Support</h3>
+                        <span className="text-[8px] text-sky-600 font-bold">Quick help desk and ticketing system</span>
                       </div>
-                      <span className="w-2 h-2 bg-sky-500 rounded-full animate-ping" />
+                      <Headphones className="w-4 h-4 text-sky-600" />
                     </div>
 
-                    {/* Message threads */}
-                    <div className="flex-1 overflow-y-auto py-2 space-y-3 pr-1 text-[11px] leading-relaxed">
-                      {chatHistory.map((item, idx) => (
-                        <div 
-                          key={idx}
-                          className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`p-2.5 rounded-2xl max-w-[85%] shadow-sm ${
-                            item.role === 'user' 
-                              ? 'bg-sky-600 text-white rounded-tr-none' 
-                              : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
-                          }`}>
-                            <p className="whitespace-pre-wrap">{item.content}</p>
-                          </div>
+                    <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-none">
+                      {/* Direct Channels */}
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Official Channels</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            onClick={() => alert("Redirecting to WhatsApp support line (+234 809 123 4567)...")}
+                            className="bg-white border border-slate-200 hover:bg-slate-50 p-2.5 rounded-xl text-left transition-all active:scale-95"
+                          >
+                            <span className="text-[10px] font-bold text-slate-800 block">WhatsApp Chat</span>
+                            <span className="text-[7.5px] text-sky-600 block mt-0.5">Instant Chat &rarr;</span>
+                          </button>
+                          <button 
+                            onClick={() => alert("Initiating phone call support (+234 800-MY-EDATA)...")}
+                            className="bg-white border border-slate-200 hover:bg-slate-50 p-2.5 rounded-xl text-left transition-all active:scale-95"
+                          >
+                            <span className="text-[10px] font-bold text-slate-800 block">Call Helpline</span>
+                            <span className="text-[7.5px] text-sky-600 block mt-0.5">Toll Free Call &rarr;</span>
+                          </button>
                         </div>
-                      ))}
+                      </div>
 
-                      {chatLoading && (
-                        <div className="flex justify-start">
-                          <div className="bg-white text-slate-500 border border-slate-100 p-2.5 rounded-2xl rounded-tl-none flex items-center gap-2">
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-600" />
-                            <span>Thinking...</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Chat inputs */}
-                    <div className="pt-2 border-t border-slate-100 flex gap-1.5 shrink-0">
-                      <input 
-                        type="text" 
-                        placeholder="Ask anything about eData..." 
-                        value={chatMessage}
-                        onChange={(e) => setChatMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800"
-                      />
-                      <button 
-                        onClick={handleSendChatMessage}
-                        className="bg-slate-900 hover:bg-slate-800 text-white p-2 rounded-xl transition-all"
+                      {/* Ticketing Form */}
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          alert("🎉 Support Ticket created successfully! Our agents will contact you at: " + currentUser.email);
+                          setChatMessage('');
+                        }}
+                        className="bg-white border border-slate-100 rounded-xl p-3.5 space-y-2.5 shadow-sm"
                       >
-                        <PaperPlane className="w-3.5 h-3.5" />
-                      </button>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Create Support Ticket</span>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-bold text-slate-500 uppercase">Issue Category</label>
+                          <select className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-800 focus:outline-none">
+                            <option>Failed Transaction / Value Not Received</option>
+                            <option>Wallet Funding / Bank Transfer Issue</option>
+                            <option>Reseller License / Upgrade Problem</option>
+                            <option>Account Profile / Biometric Reset</option>
+                            <option>Other Complaints & Inquiries</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-bold text-slate-500 uppercase">Message Details</label>
+                          <textarea 
+                            required
+                            rows={3}
+                            placeholder="Please describe your issue or transaction reference..." 
+                            value={chatMessage}
+                            onChange={(e) => setChatMessage(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-[10px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500/20"
+                          ></textarea>
+                        </div>
+                        <button 
+                          type="submit"
+                          className="w-full bg-sky-600 hover:bg-sky-700 text-white text-[9.5px] font-bold py-1.5 rounded-lg transition-all active:scale-95"
+                        >
+                          Submit Ticket
+                        </button>
+                      </form>
+
+                      {/* Dispute Direct Link */}
+                      <div className="bg-sky-50 border border-sky-100 rounded-xl p-3 flex justify-between items-center">
+                        <div className="space-y-0.5">
+                          <h4 className="text-[9.5px] font-bold text-sky-800">Need to dispute a transaction?</h4>
+                          <p className="text-[7.5px] text-sky-600 leading-normal">Open your recent transactions to raise disputes instantly.</p>
+                        </div>
+                        <button 
+                          onClick={() => setAppTab('history')}
+                          className="bg-sky-600 text-white text-[8px] font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all active:scale-95"
+                        >
+                          Disputes
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3383,13 +3194,12 @@ Thank you for using eData Mobile!
               }`}>
                 {[
                   { id: 'home', icon: Smartphone, label: 'Home' },
-                  { id: 'finance', icon: DollarSign, label: 'Finance' },
-                  { id: 'rewards', icon: Gift, label: 'Rewards' },
-                  { id: 'cards', icon: CreditCard, label: 'Cards' },
+                  { id: 'services', icon: Layers, label: 'Services' },
+                  { id: 'support', icon: Headphones, label: 'Support' },
                   { id: 'profile', icon: User, label: 'Profile' }
                 ].map(tab => {
                   const isActive = tab.id === 'home'
-                    ? ['home', 'airtime', 'data', 'electricity', 'cable', 'exam', 'a2c', 'history', 'ai_chat', 'services'].includes(appTab)
+                    ? ['home', 'airtime', 'data', 'electricity', 'cable', 'exam', 'a2c', 'history'].includes(appTab)
                     : appTab === tab.id;
                   
                   return (
@@ -3397,13 +3207,7 @@ Thank you for using eData Mobile!
                       key={tab.id}
                       type="button"
                       onClick={() => {
-                        if (tab.id === 'home') {
-                          setAppTab('home');
-                        } else if (tab.id === 'profile') {
-                          setAppTab('profile');
-                        } else {
-                          alert(`${tab.label} dashboard module is active under local sandbox demo modes.`);
-                        }
+                        setAppTab(tab.id as any);
                       }}
                       className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
                         isActive 
