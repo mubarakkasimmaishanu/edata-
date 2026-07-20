@@ -9,13 +9,14 @@ import {
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
   X, Zap, Shield, LogOut, ChevronRight, Fingerprint
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, setAuthToken } from '../services/api';
 import { jsPDF } from 'jspdf';
 import { DEFAULT_USER } from '../data';
 import { useToast } from './Toast';
 import BottomSheet from './BottomSheet';
 import ConfirmDialog from './ConfirmDialog';
 import ServiceForm from './ServiceForm';
+import edataLogo from '../assets/edata_logo.png';
 
 
 interface MobileSimulatorProps {
@@ -379,18 +380,22 @@ export default function MobileSimulator({
   // ─── Login Handler ───
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authEmail || !authPassword) {
+      setLoginError('Email and password are required.');
+      return;
+    }
     setLoginLoading(true);
     setLoginError('');
     try {
       const res = await api.login(authEmail, authPassword);
       if (res.success && res.data?.token) {
-        localStorage.setItem('edata_sandbox', 'false');
+        setAuthToken(res.data.token);
         if (setApiStatus) setApiStatus('connected');
         if (handleLoginSuccess) handleLoginSuccess(res.data.token);
         setAuthPassword('');
         setLoginError('');
       } else {
-        setLoginError(res.error || 'Invalid credentials.');
+        setLoginError(res.error || 'Invalid email or password.');
       }
     } catch (err: any) {
       setLoginError(err.message || 'Invalid email or password.');
@@ -605,13 +610,20 @@ export default function MobileSimulator({
         {currentScreen === 'auth' && (
           <div className="flex-1 flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-sky-50/30 animate-fade-in">
             <div className="px-6 pt-10 pb-6 space-y-6">
-              {/* Logo */}
-              <div className="text-center space-y-3">
-                <div className="inline-flex bg-gradient-to-br from-sky-500 to-sky-700 text-white p-3.5 rounded-2xl shadow-lg shadow-sky-500/25 animate-float">
-                  <Zap className="w-7 h-7" />
+              {/* Logo Header */}
+              <div className="text-center space-y-3 pt-2">
+                <div className="inline-flex relative items-center justify-center">
+                  <div className="absolute inset-0 bg-sky-500/25 blur-2xl rounded-full animate-pulse" />
+                  <div className="relative bg-white border-2 border-sky-100/80 p-3 rounded-3xl shadow-xl shadow-sky-500/20 ring-4 ring-sky-500/10 transition-transform duration-300 hover:scale-105">
+                    <img src={edataLogo} alt="eData Official Logo" className="w-16 h-16 object-contain rounded-2xl" />
+                  </div>
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">eData Mobile</h1>
-                <p className="text-sm text-slate-500 font-medium">Instant utility payments, lightning fast.</p>
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-1 font-display">
+                    <span className="text-sky-600 font-extrabold">e</span><span className="font-extrabold">Data</span>
+                  </h1>
+                  <p className="text-xs font-semibold text-slate-500 tracking-wide mt-1">Instant VTU & Utility Payment Platform</p>
+                </div>
               </div>
 
 
@@ -646,21 +658,11 @@ export default function MobileSimulator({
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">How did you find us?</label>
-                    <select value={regMode} onChange={(e) => { setRegMode(e.target.value as any); if (e.target.value === 'self') setAuthPromo(''); }}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800 appearance-none">
-                      <option value="self">I navigated here by myself (Self-Registered)</option>
-                      <option value="referral">Joined through a Referral Link / Code</option>
-                    </select>
+                    <label className="text-xs font-semibold text-slate-500 block">Referral Code <span className="text-slate-400 font-normal">(Optional)</span></label>
+                    <input type="text" value={authPromo} onChange={(e) => setAuthPromo(e.target.value)}
+                      placeholder="e.g. REF-58291 or referrer email"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
                   </div>
-                  {regMode === 'referral' && (
-                    <div className="space-y-1.5 animate-slide-down">
-                      <label className="text-xs font-semibold text-slate-500 block">Referral Code</label>
-                      <input type="text" value={authPromo} onChange={(e) => setAuthPromo(e.target.value)}
-                        placeholder="e.g. REF-58291"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
-                    </div>
-                  )}
                   <label className="flex items-start gap-2.5 pt-1">
                     <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
                       className="mt-0.5 accent-sky-600 rounded w-4 h-4" />
@@ -731,17 +733,22 @@ export default function MobileSimulator({
                           firstname: res.data.user.firstname || 'Google',
                           lastname: res.data.user.lastname || 'User',
                           phone: res.data.user.phone || '',
-                          user_level: res.data.user.user_level,
-                          hasPin: res.data.user.has_pin
+                          walletBalance: res.data.user.walletBalance || 0,
+                          category: res.data.user.category || 'Basic User',
+                          isVerified: true,
+                          hasPin: res.data.user.hasPin || false,
                         };
                         setCurrentUser(loggedUser);
                         localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
-                        if (handleLoginSuccess) handleLoginSuccess(res.data.token);
-                        return;
+                        if (handleLoginSuccess) handleLoginSuccess(res.data.accessToken);
+                        toast.success(`Welcome back, ${loggedUser.firstname}!`);
+                      } else {
+                        toast.error(res.error || 'Google Authentication failed.');
                       }
-                    } catch (e: any) {
-                      console.warn('Google live auth fallback to sandbox:', e.message);
+                    } catch (err: any) {
+                      toast.error(err.message || 'Google Auth service error.');
                     }
+                    return;
                   }
                   localStorage.setItem('edata_sandbox', 'true');
                   const match = subscribers.find(s => s.email === DEFAULT_USER.email) || DEFAULT_USER;
@@ -749,12 +756,15 @@ export default function MobileSimulator({
                   localStorage.setItem('edata_current_user', JSON.stringify(match));
                   if (handleLoginSuccess) handleLoginSuccess('google-sandbox-token');
                 }}
-                className="w-full bg-white border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                className="w-full bg-white border border-slate-250 hover:border-slate-350 text-slate-750 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-3 hover:bg-slate-50/80 transition-spring shadow-sm active:scale-[0.98] btn-sheen"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.466 0-6.277-2.81-6.277-6.277 0-3.466 2.81-6.277 6.277-6.277 1.5 0 2.87.532 3.945 1.417l2.96-2.96C18.67 1.956 15.65 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c5.804 0 10.88-4.144 10.88-11.24 0-.616-.062-1.217-.183-1.801l-10.7-.154z"/>
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                Continue with Google
+                <span>Continue with Google</span>
               </button>
             </div>
           </div>
