@@ -13,6 +13,7 @@ export interface UserProfile {
   promoCode?: string;
   biometricsEnabled?: boolean;
   hasPendingUpgrade?: boolean;
+  upgradeFee?: number;
 }
 
 export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
