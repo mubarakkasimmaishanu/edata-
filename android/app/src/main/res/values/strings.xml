@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">eData</string>
+    <string name="title_activity_main">eData</string>
+    <string name="package_name">com.edata.mobile</string>
+    <string name="custom_url_scheme">com.edata.mobile</string>
+</resources>

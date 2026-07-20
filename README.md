@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# eData Mobile App Suite
 
-# Run and deploy your AI Studio app
+The high-fidelity mobile application suite for the eData platform. Configured natively to sync with live backend core endpoints and bundle directly to Android platforms.
 
-This contains everything you need to run your app locally.
+## Development Workflow
 
-View your app in AI Studio: https://ai.studio/apps/49575916-8458-4e86-ba65-4386ab64b113
+### Prerequisites
+- **Node.js** (v18+)
+- **Android Studio** (for building Gradle packages and signing APKs)
 
-## Run Locally
+### 1. Run the Development Server
+Install dependencies and launch the local developer portal:
+```bash
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+### 2. Build Web Distribution Assets
+Compile the static web assets inside the `dist/` directory:
+```bash
+npm run build
+```
 
+### 3. Sync and Package with Capacitor
+Synchronize compiled production builds into the native Android platform code:
+```bash
+npm run cap:sync
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 4. Open in Android Studio
+Open the generated native Gradle project wrapper directly inside Android Studio:
+```bash
+npm run cap:open
+```
+Once opened in Android Studio, use **Build > Build Bundle(s) / APK(s) > Build APK** or **Generate Signed Bundle / APK** to package your production release app.
