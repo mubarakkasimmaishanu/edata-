@@ -132,10 +132,14 @@ export default function App() {
       setApiStatus('connected');
       setLastSynced(new Date().toLocaleTimeString());
       setCurrentScreen('app');
-    } catch (err) {
-      console.error('API Sync Error:', err);
+    } catch (err: any) {
+      if (err?.message?.includes('401') || err?.message?.toLowerCase().includes('unauthorized')) {
+        setAuthToken(null);
+        setCurrentScreen('auth');
+      } else {
+        console.warn('API Sync Notice:', err?.message || err);
+      }
       setApiStatus('offline');
-      setCurrentScreen('auth');
     } finally {
       setIsSyncing(false);
     }
@@ -169,6 +173,7 @@ export default function App() {
   };
 
   const handleLoginSuccess = (token: string) => {
+    setAuthToken(token);
     fetchAllData();
   };
 
