@@ -6,7 +6,7 @@ import {
   User, Lock, Key, Eye, Flame, ShieldAlert,
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
-  History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift,
+  History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
   X, Zap, Shield, LogOut, ChevronRight, Fingerprint
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -32,8 +32,8 @@ interface MobileSimulatorProps {
   handleLogout?: () => void;
   currentScreen: 'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app';
   setCurrentScreen: (screen: 'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app') => void;
-  apiStatus: 'connected' | 'offline' | 'sandbox';
-  setApiStatus?: (status: 'connected' | 'offline' | 'sandbox') => void;
+  apiStatus: 'connected' | 'offline';
+  setApiStatus?: (status: 'connected' | 'offline') => void;
 }
 
 // ─── Demo Contacts ───
@@ -130,10 +130,85 @@ export default function MobileSimulator({
     onConfirm: () => void;
   }>({ title: '', onConfirm: () => {} });
 
-  // ─── Validate Number State ───
+  // ─── Validate & Purchase State ───
   const [isValidatingNumber, setIsValidatingNumber] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [validationError, setValidationError] = useState('');
+
+  // ─── Forgot Password / PIN State ───
+  const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+
+  const [forgotPinModalOpen, setForgotPinModalOpen] = useState(false);
+  const [forgotPinStep, setForgotPinStep] = useState<'request' | 'verify'>('request');
+  const [forgotPinCode, setForgotPinCode] = useState('');
+  const [forgotPinNew, setForgotPinNew] = useState('');
+  const [forgotPinConfirm, setForgotPinConfirm] = useState('');
+  const [forgotPinLoading, setForgotPinLoading] = useState(false);
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      toast.warning('Please enter your email address.');
+      return;
+    }
+    setForgotPasswordLoading(true);
+    try {
+      const res = await api.forgotPassword(forgotPasswordEmail);
+      toast.success(res.message || 'Password reset instructions sent to your email.');
+      setForgotPasswordModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Error sending password reset request.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const handleForgotPinRequest = async () => {
+    setForgotPinLoading(true);
+    try {
+      const res = await api.forgotPinRequest();
+      toast.success(res.message || 'Verification code sent to your email.');
+      setForgotPinStep('verify');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send verification code.');
+    } finally {
+      setForgotPinLoading(false);
+    }
+  };
+
+  const handleForgotPinVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPinCode || forgotPinCode.length < 4) {
+      toast.warning('Please enter the verification code sent to your email.');
+      return;
+    }
+    if (forgotPinNew.length !== 4) {
+      toast.warning('New PIN must be exactly 4 digits.');
+      return;
+    }
+    if (forgotPinNew !== forgotPinConfirm) {
+      toast.error('New PINs do not match.');
+      return;
+    }
+    setForgotPinLoading(true);
+    try {
+      const res = await api.forgotPinVerify(forgotPinCode, forgotPinNew, forgotPinConfirm);
+      toast.success(res.message || 'Transaction PIN reset successfully!');
+      setCurrentUser((curr: UserProfile) => ({ ...curr, hasPin: true, pinCode: forgotPinNew }));
+      setForgotPinModalOpen(false);
+      setForgotPinCode('');
+      setForgotPinNew('');
+      setForgotPinConfirm('');
+      setForgotPinStep('request');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset PIN.');
+    } finally {
+      setForgotPinLoading(false);
+    }
+  };
 
   // ─── Helper: Show confirm dialog ───
   const showConfirm = (config: typeof confirmConfig) => {
@@ -206,15 +281,6 @@ export default function MobileSimulator({
     setCustomerName('');
     setValidationError('');
 
-    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-      setTimeout(() => {
-        setIsValidatingNumber(false);
-        setCustomerName('USMAN ANNUR MUSTAPHA');
-        toast.success('Subscriber verified successfully.');
-      }, 1000);
-      return;
-    }
-
     try {
       const res = await api.validateMeterOrSmartcard(selectedProduct.id, targetNumber);
       setIsValidatingNumber(false);
@@ -228,7 +294,7 @@ export default function MobileSimulator({
     } catch (err: any) {
       setIsValidatingNumber(false);
       setValidationError(err.message || 'Verification error.');
-      toast.error('Verification failed. Please try again.');
+      toast.error(err.message || 'Verification failed. Please try again.');
     }
   };
 
@@ -244,45 +310,70 @@ export default function MobileSimulator({
   };
 
   // ─── Confirm Purchase After PIN ───
-  const handleConfirmPurchase = () => {
-    const correctPin = currentUser.pinCode || '1234';
-    if (pinInput !== correctPin) {
-      toast.error('Incorrect PIN. Please try again.');
+  const handleConfirmPurchase = async () => {
+    if (!pinInput || pinInput.length !== 4) {
+      toast.warning('Please enter your 4-digit PIN.');
       return;
     }
 
     const basePrice = parseFloat(checkoutAmount || '0');
     const finalPrice = Math.max(0, basePrice - promoDiscount);
 
-    if (selectedCategory !== 'A2C') {
-      const newBalance = currentUser.walletBalance - finalPrice;
-      setCurrentUser((curr: UserProfile) => ({ ...curr, walletBalance: newBalance }));
-      setSubscribers((prev: UserProfile[]) => prev.map(s => {
-        if (s.email === currentUser.email) return { ...s, walletBalance: newBalance };
-        return s;
-      }));
+    if (apiStatus === 'connected') {
+      setIsPurchasing(true);
+      try {
+        let serviceId = selectedProduct?.id;
+        let planId: string | undefined = undefined;
+
+        if (String(serviceId).startsWith('plan-')) {
+          const parts = String(serviceId).split('-');
+          planId = parts[1];
+          serviceId = parts[2];
+        }
+
+        const res = await api.purchase({
+          service_id: serviceId || '1',
+          amount: finalPrice,
+          target_number: targetNumber,
+          transaction_pin: pinInput,
+          plan_id: planId,
+          promo_id: appliedPromo ? 1 : undefined,
+          bank_name: a2cBank,
+          account_number: a2cAccount,
+        });
+
+        setIsPurchasing(false);
+        setPinSheetOpen(false);
+
+        if (res.success && res.data) {
+          toast.success(`₦${finalPrice.toLocaleString()} payment processed successfully!`);
+          if (appliedPromo) { setAppliedPromo(''); setPromoDiscount(0); setPromoCodeInput(''); }
+          if (handleGlobalRefresh) handleGlobalRefresh();
+
+          const newTx: Transaction = {
+            id: res.data.reference || `EDAT-${Date.now()}`,
+            type: selectedCategory === 'A2C' ? 'A2C' : selectedCategory === 'Exam' ? 'Exam Token' : selectedCategory === 'Cable' ? 'Cable TV' : selectedCategory,
+            productName: selectedProduct?.name || `${selectedCategory} purchase`,
+            amount: finalPrice,
+            phoneOrMeter: targetNumber,
+            reference: res.data.reference,
+            operator: detectedOperator || selectedProduct?.operator,
+            status: res.data.status || 'Completed',
+            date: new Date().toISOString(),
+            disputeRaised: false,
+          };
+          setActiveReceipt(newTx);
+        } else {
+          toast.error(res.error || 'Payment failed.');
+        }
+      } catch (err: any) {
+        setIsPurchasing(false);
+        toast.error(err.message || 'Error processing payment request.');
+      }
+      return;
     }
 
-    const newTx: Transaction = {
-      id: `tx-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: selectedCategory === 'A2C' ? 'A2C' : selectedCategory === 'Exam' ? 'Exam Token' : selectedCategory === 'Cable' ? 'Cable TV' : selectedCategory,
-      productName: selectedProduct?.name || `${selectedCategory} purchase`,
-      amount: finalPrice,
-      phoneOrMeter: targetNumber,
-      reference: `EDAT-${Math.floor(100000 + Math.random() * 900000)}`,
-      operator: detectedOperator || selectedProduct?.operator,
-      status: 'Completed',
-      date: new Date().toISOString(),
-      disputeRaised: false,
-    };
-
-    setTransactions((prev: Transaction[]) => [newTx, ...prev]);
-    setPinSheetOpen(false);
-    setActiveReceipt(newTx);
-
-    if (appliedPromo) { setAppliedPromo(''); setPromoDiscount(0); setPromoCodeInput(''); }
-
-    toast.success(`₦${finalPrice.toLocaleString()} payment completed successfully!`);
+    toast.error('API connection required to execute purchase.');
   };
 
   // ─── Login Handler ───
@@ -302,25 +393,8 @@ export default function MobileSimulator({
         setLoginError(res.error || 'Invalid credentials.');
       }
     } catch (err: any) {
-      const isConnectionError = !err.status || err.message?.toLowerCase().includes('failed to fetch') || err.message?.toLowerCase().includes('network error') || err.message?.toLowerCase().includes('failed with status');
-      if (isConnectionError) {
-        const match = subscribers.find(s => s.email.toLowerCase() === authEmail.toLowerCase());
-        if (match) {
-          localStorage.setItem('edata_sandbox', 'true');
-          if (setApiStatus) setApiStatus('sandbox');
-          setCurrentUser(match);
-          localStorage.setItem('edata_current_user', JSON.stringify(match));
-          setAuthPassword('');
-          setLoginError('');
-          if (handleLoginSuccess) handleLoginSuccess('mock-sandbox-token');
-          toast.info('Backend offline. Running in Sandbox Mode.');
-        } else {
-          setLoginError('Backend offline. Email not found in sandbox registry.');
-        }
-      } else {
-        setLoginError(err.message || 'Invalid credentials.');
-      }
-    } fill_in: {
+      setLoginError(err.message || 'Invalid email or password.');
+    } finally {
       setLoginLoading(false);
     }
   };
@@ -362,20 +436,9 @@ export default function MobileSimulator({
       category: regMode === 'referral' ? 'Referred User' : 'Basic User',
       bvn: '', nin: '', isVerified: false, pinCode: '', hasPin: false, promoCode: authPromo,
     };
-    if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-      localStorage.setItem('edata_sandbox', 'true');
-      setSubscribers((prev: UserProfile[]) => {
-        if (!prev.find(s => s.email.toLowerCase() === authEmail.toLowerCase())) return [...prev, newUserObj];
-        return prev;
-      });
-      setCurrentUser(newUserObj);
-      localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
-      toast.success('Account created! Set up your PIN when making your first purchase.');
-    } else {
-      toast.info('API mode active. Please sign up via the web app first.');
-    }
+    toast.success('Registration setup completed! Please log in to your account.');
     setRegPassword(''); setRegConfirmPassword('');
-    setCurrentScreen('app');
+    setCurrentScreen('auth');
   };
 
   // ─── KYC Handler ───
@@ -383,23 +446,7 @@ export default function MobileSimulator({
     setKycLoading(true);
     setTimeout(() => {
       setKycLoading(false);
-      const newUserObj: UserProfile = {
-        name: authName, email: authEmail, phone: authPhone, walletBalance: 0,
-        category: regMode === 'referral' ? 'Referred User' : 'Basic User',
-        bvn: bvnInput || '11111111111', nin: ninInput || '22222222222',
-        isVerified: true, pinCode: '', hasPin: false, promoCode: authPromo,
-      };
-      if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-        localStorage.setItem('edata_sandbox', 'true');
-        setSubscribers((prev: UserProfile[]) => {
-          if (!prev.find(s => s.email.toLowerCase() === authEmail.toLowerCase())) return [...prev, newUserObj];
-          return prev;
-        });
-        setCurrentUser(newUserObj);
-        localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
-      } else {
-        setCurrentUser((curr: UserProfile) => ({ ...curr, isVerified: true }));
-      }
+      setCurrentUser((curr: UserProfile) => ({ ...curr, isVerified: true }));
       setCurrentScreen('app');
       toast.success('Identity verified successfully!');
     }, 1500);
@@ -567,16 +614,7 @@ export default function MobileSimulator({
                 <p className="text-sm text-slate-500 font-medium">Instant utility payments, lightning fast.</p>
               </div>
 
-              {/* Sandbox Notice */}
-              {apiStatus === 'offline' && (
-                <div className="bg-sky-50 border border-sky-100 text-sky-700 p-3.5 rounded-2xl text-xs space-y-1 animate-slide-down">
-                  <div className="flex items-center gap-2 font-bold">
-                    <Info className="w-4 h-4 shrink-0 text-sky-500" />
-                    <span>Running in Sandbox Mode</span>
-                  </div>
-                  <p className="text-sky-600/80 ml-6">Try <strong>usmanannur58@gmail.com</strong> / <strong>1234</strong> or create a new account.</p>
-                </div>
-              )}
+
 
               {/* Tab Switcher */}
               <div className="bg-slate-100 p-1 rounded-2xl flex relative">
@@ -650,7 +688,13 @@ export default function MobileSimulator({
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800 disabled:opacity-60" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Password</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-slate-500 block">Password</label>
+                      <button type="button" onClick={() => { setForgotPasswordEmail(authEmail); setForgotPasswordModalOpen(true); }}
+                        className="text-xs text-sky-600 font-bold hover:underline">
+                        Forgot Password?
+                      </button>
+                    </div>
                     <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)}
                       placeholder="••••••••" disabled={loginLoading}
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800 disabled:opacity-60" />
@@ -675,14 +719,35 @@ export default function MobileSimulator({
                 <div className="flex-grow border-t border-slate-200" />
               </div>
               <button
-                onClick={() => {
-                  if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-                    localStorage.setItem('edata_sandbox', 'true');
-                    const match = subscribers.find(s => s.email === DEFAULT_USER.email) || DEFAULT_USER;
-                    setCurrentUser(match);
-                    localStorage.setItem('edata_current_user', JSON.stringify(match));
-                    if (handleLoginSuccess) handleLoginSuccess('google-sandbox-token');
-                  } else { setCurrentScreen('app'); }
+                onClick={async () => {
+                  if (apiStatus === 'connected') {
+                    try {
+                      const res = await api.googleAuth({ email: authEmail || DEFAULT_USER.email });
+                      if (res.success && res.data) {
+                        const loggedUser = {
+                          ...DEFAULT_USER,
+                          id: res.data.user.id,
+                          email: res.data.user.email,
+                          firstname: res.data.user.firstname || 'Google',
+                          lastname: res.data.user.lastname || 'User',
+                          phone: res.data.user.phone || '',
+                          user_level: res.data.user.user_level,
+                          hasPin: res.data.user.has_pin
+                        };
+                        setCurrentUser(loggedUser);
+                        localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
+                        if (handleLoginSuccess) handleLoginSuccess(res.data.token);
+                        return;
+                      }
+                    } catch (e: any) {
+                      console.warn('Google live auth fallback to sandbox:', e.message);
+                    }
+                  }
+                  localStorage.setItem('edata_sandbox', 'true');
+                  const match = subscribers.find(s => s.email === DEFAULT_USER.email) || DEFAULT_USER;
+                  setCurrentUser(match);
+                  localStorage.setItem('edata_current_user', JSON.stringify(match));
+                  if (handleLoginSuccess) handleLoginSuccess('google-sandbox-token');
                 }}
                 className="w-full bg-white border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
               >
@@ -1507,16 +1572,23 @@ export default function MobileSimulator({
               <input type="password" maxLength={4} value={pinInput}
                 onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
-                className="bg-slate-50 border-2 border-slate-200 tracking-[0.5em] text-center text-xl font-bold rounded-2xl w-28 py-3 input-focus" />
+                className="bg-slate-50 border-2 border-slate-200 tracking-[0.5em] text-center text-xl font-bold rounded-2xl w-32 py-3.5 input-focus text-slate-800 font-mono" />
+            </div>
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs text-slate-400 font-medium">4-Digit Security PIN</span>
+              <button type="button" onClick={() => { setPinSheetOpen(false); setForgotPinStep('request'); setForgotPinModalOpen(true); }}
+                className="text-xs text-sky-600 font-bold hover:underline">
+                Forgot PIN?
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => { setPinInput(currentUser.pinCode || '1234'); setTimeout(() => handleConfirmPurchase(), 100); }}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-smooth border border-slate-200/50 font-display">
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-smooth border border-slate-200/50">
                 🧬 Biometric
               </button>
               <button onClick={handleConfirmPurchase}
-                className="bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold transition-smooth font-display">
-                Verify PIN
+                className="bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen">
+                Verify PIN & Pay
               </button>
             </div>
           </div>
@@ -1657,35 +1729,48 @@ export default function MobileSimulator({
           )}
         </BottomSheet>
 
-        {/* Change PIN */}
+        {/* Change / Create PIN */}
         <BottomSheet open={changePinModalOpen} onClose={() => setChangePinModalOpen(false)}
-          title={currentUser.hasPin ? 'Change Transaction PIN' : 'Set Transaction PIN'} subtitle="Authorize purchases safely">
+          title={currentUser.hasPin ? 'Change Transaction PIN' : 'Create Transaction PIN'}
+          subtitle={currentUser.hasPin ? 'Update your secret 4-digit PIN' : 'Create & confirm your secret 4-digit PIN'}>
           <div className="space-y-4 text-left">
             {currentUser.hasPin && (
               <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Current PIN</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Current PIN</span>
+                  <button type="button" onClick={() => { setChangePinModalOpen(false); setForgotPinStep('request'); setForgotPinModalOpen(true); }}
+                    className="text-xs text-sky-600 font-bold hover:underline">
+                    Forgot PIN?
+                  </button>
+                </div>
                 <input type="password" maxLength={4} value={oldPin} onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800" placeholder="••••" />
+                  className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono" placeholder="••••" />
               </div>
             )}
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">New PIN</span>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                {currentUser.hasPin ? 'New 4-Digit PIN' : 'Create 4-Digit PIN'}
+              </span>
               <input type="password" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800" placeholder="••••" />
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono" placeholder="••••" />
             </div>
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Confirm PIN</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Confirm 4-Digit PIN</span>
+                {newPin && confirmNewPin && (
+                  <span className={`text-[10px] font-bold ${newPin === confirmNewPin ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {newPin === confirmNewPin ? '✓ PINs Match' : '✗ PINs Do Not Match'}
+                  </span>
+                )}
+              </div>
               <input type="password" maxLength={4} value={confirmNewPin} onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800" placeholder="••••" />
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono" placeholder="••••" />
             </div>
             <button type="button" onClick={() => {
               if (newPin.length !== 4) { toast.warning('PIN must be exactly 4 digits.'); return; }
               if (newPin !== confirmNewPin) { toast.error('PINs do not match.'); return; }
-              if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-                setCurrentUser((prev: UserProfile) => ({ ...prev, hasPin: true, pinCode: newPin }));
-                setSubscribers((prev: UserProfile[]) => prev.map(s => s.email === currentUser.email ? { ...s, hasPin: true, pinCode: newPin } : s));
-                setChangePinModalOpen(false); setOldPin(''); setNewPin(''); setConfirmNewPin('');
-                toast.success('Transaction PIN updated!');
+              if (apiStatus === 'offline') {
+                toast.error('API connection required to change PIN.');
                 return;
               }
               if (currentUser.hasPin) {
@@ -1700,41 +1785,93 @@ export default function MobileSimulator({
                 }).catch(err => toast.error(err.message || 'Error setting PIN.'));
               }
             }}
-              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl text-sm transition-spring active:scale-[0.98]">
-              Save PIN Changes
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen">
+              {currentUser.hasPin ? 'Save PIN Changes' : 'Create & Save PIN'}
             </button>
           </div>
         </BottomSheet>
 
-        {/* Change Password */}
-        <BottomSheet open={changePasswordModalOpen} onClose={() => setChangePasswordModalOpen(false)} title="Change Password" subtitle="Update account login credentials font-display">
-          <div className="space-y-4 text-left">
+        {/* Forgot Password BottomSheet */}
+        <BottomSheet open={forgotPasswordModalOpen} onClose={() => setForgotPasswordModalOpen(false)}
+          title="Reset Account Password" subtitle="Enter your email to receive a password reset code">
+          <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-left">
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Current Password</span>
-              <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-semibold text-sm input-focus text-slate-800" placeholder="••••••••" />
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input type="email" required value={forgotPasswordEmail} onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  placeholder="you@email.com" disabled={forgotPasswordLoading}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm input-focus text-slate-800 font-medium" />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">New Password</span>
-              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-semibold text-sm input-focus text-slate-800" placeholder="Min. 6 characters" />
-            </div>
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Confirm Password</span>
-              <input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-semibold text-sm input-focus text-slate-800" placeholder="Confirm new password" />
-            </div>
-            <button type="button" onClick={() => {
-              if (!currentPassword) { toast.warning('Enter your current password.'); return; }
-              if (newPassword.length < 6) { toast.warning('New password must be at least 6 characters.'); return; }
-              if (newPassword !== confirmNewPassword) { toast.error('Passwords do not match.'); return; }
-              setChangePasswordModalOpen(false);
-              toast.success('Password updated successfully!');
-            }}
-              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring active:scale-[0.98] btn-sheen font-display">
-              Update Password
+            <button type="submit" disabled={forgotPasswordLoading}
+              className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
+              {forgotPasswordLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending Reset Code...</> : 'Send Password Reset Code'}
             </button>
-          </div>
+          </form>
+        </BottomSheet>
+
+        {/* Forgot PIN BottomSheet */}
+        <BottomSheet open={forgotPinModalOpen} onClose={() => setForgotPinModalOpen(false)}
+          title="Reset Transaction PIN" subtitle={forgotPinStep === 'request' ? 'Request 6-digit email verification code' : 'Enter code & create new 4-digit PIN'}>
+          {forgotPinStep === 'request' ? (
+            <div className="space-y-4 text-left">
+              <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sky-700 font-bold text-xs">
+                  <Mail className="w-4 h-4 text-sky-500" />
+                  <span>Email Verification Required</span>
+                </div>
+                <p className="text-xs text-sky-600/90 leading-relaxed font-medium">
+                  We will send a 6-digit security verification code to your email address ({currentUser.email || 'your registered email'}).
+                </p>
+              </div>
+              <button type="button" onClick={handleForgotPinRequest} disabled={forgotPinLoading}
+                className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
+                {forgotPinLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending Code...</> : 'Send Verification Code'}
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPinVerify} className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Verification Code (from Email)</label>
+                <input type="text" maxLength={6} required value={forgotPinCode}
+                  onChange={(e) => setForgotPinCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6-digit OTP code"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold font-mono tracking-widest text-center input-focus text-slate-800" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Create New 4-Digit PIN</label>
+                <input type="password" maxLength={4} required value={forgotPinNew}
+                  onChange={(e) => setForgotPinNew(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold font-mono tracking-[0.5em] text-center input-focus text-slate-800" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Confirm New 4-Digit PIN</label>
+                  {forgotPinNew && forgotPinConfirm && (
+                    <span className={`text-[10px] font-bold ${forgotPinNew === forgotPinConfirm ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {forgotPinNew === forgotPinConfirm ? '✓ PINs Match' : '✗ PINs Do Not Match'}
+                    </span>
+                  )}
+                </div>
+                <input type="password" maxLength={4} required value={forgotPinConfirm}
+                  onChange={(e) => setForgotPinConfirm(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold font-mono tracking-[0.5em] text-center input-focus text-slate-800" />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForgotPinStep('request')}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-3.5 rounded-2xl text-xs transition-smooth">
+                  Back
+                </button>
+                <button type="submit" disabled={forgotPinLoading}
+                  className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
+                  {forgotPinLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Resetting PIN...</> : 'Reset Transaction PIN'}
+                </button>
+              </div>
+            </form>
+          )}
         </BottomSheet>
 
         {/* Upgrade Modal */}
@@ -1777,26 +1914,9 @@ export default function MobileSimulator({
                 const upgradeFee = currentUser.upgradeFee || 5000;
                 setUpgradeLoading(true);
                 
-                if (apiStatus === 'offline' || apiStatus === 'sandbox') {
-                  setTimeout(() => {
-                    setUpgradeLoading(false);
-                    if (currentUser.walletBalance < upgradeFee) {
-                      toast.error(`Insufficient wallet balance. You need ₦${upgradeFee.toLocaleString()} to upgrade.`);
-                      return;
-                    }
-                    setCurrentUser((prev: UserProfile) => ({ 
-                      ...prev, 
-                      walletBalance: prev.walletBalance - upgradeFee, 
-                      category: 'Premium User' 
-                    }));
-                    setSubscribers((prev: UserProfile[]) => prev.map(s => s.email === currentUser.email ? { 
-                      ...s, 
-                      walletBalance: s.walletBalance - upgradeFee, 
-                      category: 'Premium User' 
-                    } : s));
-                    toast.success('Congratulations! Upgrade successful. Sandbox premium reseller privileges are now active.');
-                    setUpgradeModalOpen(false);
-                  }, 1200);
+                if (apiStatus === 'offline') {
+                  setUpgradeLoading(false);
+                  toast.error('API connection required for reseller upgrade.');
                   return;
                 }
                 
@@ -1814,7 +1934,7 @@ export default function MobileSimulator({
                   toast.error(err.message || 'Upgrade error.');
                 });
               }}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen font-display">
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen">
                 Pay ₦{(currentUser.upgradeFee || 5000).toLocaleString()} & Upgrade
               </button>
             </div>

@@ -45,6 +45,18 @@ export const api = {
     return data;
   },
 
+  async googleAuth(params: { id_token?: string; email?: string; name?: string }) {
+    const data = await request('/google-auth', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (data.success && data.data?.token) {
+      setAuthToken(data.data.token);
+    }
+    return data;
+  },
+
+
   async getProfile() {
     return request('/profile');
   },
@@ -116,4 +128,26 @@ export const api = {
       body: JSON.stringify({ current_pin: currentPin, new_pin: newPin, confirm_pin: confirmPin }),
     });
   },
+
+  async forgotPassword(email: string) {
+    return request('/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async forgotPinRequest() {
+    return request('/forgot-pin', {
+      method: 'POST',
+      body: JSON.stringify({ step: 'request' }),
+    });
+  },
+
+  async forgotPinVerify(code: string, newPin: string, confirmPin: string) {
+    return request('/forgot-pin', {
+      method: 'POST',
+      body: JSON.stringify({ step: 'verify', code, new_pin: newPin, confirm_pin: confirmPin }),
+    });
+  },
 };
+
