@@ -149,5 +149,34 @@ export const api = {
       body: JSON.stringify({ step: 'verify', code, new_pin: newPin, confirm_pin: confirmPin }),
     });
   },
+
+  async signupRequest(email: string, referralCode?: string) {
+    return request('/signup-request', {
+      method: 'POST',
+      body: JSON.stringify({ email, referral_code: referralCode }),
+    });
+  },
+
+  async signupVerify(email: string, code: string) {
+    return request('/signup-verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    });
+  },
+
+  async signupComplete(email: string, code: string, password: string, confirmPassword?: string, transactionPin?: string, referralCode?: string) {
+    return request('/signup-complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        code,
+        password,
+        confirm_password: confirmPassword || password,
+        transaction_pin: transactionPin,
+        referral_code: referralCode,
+      }),
+    });
+  },
 };
+
 

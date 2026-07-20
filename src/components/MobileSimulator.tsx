@@ -406,27 +406,72 @@ export default function MobileSimulator({
   };
 
   // ─── Register Handler ───
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!acceptTerms) {
       toast.warning('Please accept the terms and conditions.');
       return;
     }
+    if (!authEmail || !authEmail.includes('@')) {
+      toast.warning('Please enter a valid email address.');
+      return;
+    }
+
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.signupRequest(authEmail, authPromo);
+        if (res.success) {
+          toast.success(res.message || 'Verification code sent to your email!');
+          if (res.otp) {
+            toast.info(`Localhost OTP Code: ${res.otp}`);
+          }
+          setCurrentScreen('otp');
+        } else {
+          toast.error(res.error || 'Failed to send verification code.');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Error requesting registration verification code.');
+      }
+      return;
+    }
+
+    // Localhost Sandbox Fallback
+    toast.success(`Verification code sent to ${authEmail}`);
+    toast.info('Sandbox OTP Code: 123456');
     setCurrentScreen('otp');
   };
 
   // ─── OTP Handler ───
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otpCode.length < 4) {
-      setVerificationError('Please enter a valid 4-digit code.');
+      setVerificationError('Please enter the verification code sent to your email.');
       return;
     }
+
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.signupVerify(authEmail, otpCode);
+        if (res.success) {
+          setVerificationError('');
+          toast.success('Email verified successfully!');
+          setCurrentScreen('password_create');
+        } else {
+          setVerificationError(res.error || 'Incorrect verification code.');
+          toast.error(res.error || 'Verification failed.');
+        }
+      } catch (err: any) {
+        setVerificationError(err.message || 'OTP verification error.');
+      }
+      return;
+    }
+
+    // Localhost Sandbox Fallback
     setVerificationError('');
     setCurrentScreen('password_create');
   };
 
   // ─── Register Password Handler ───
-  const handleRegisterPasswordSubmit = (e: React.FormEvent) => {
+  const handleRegisterPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (regPassword.length < 6) {
       toast.warning('Password must be at least 6 characters.');
@@ -436,15 +481,49 @@ export default function MobileSimulator({
       toast.error('Passwords do not match.');
       return;
     }
+
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', authPromo);
+        if (res.success && res.data) {
+          const newUserObj: UserProfile = {
+            id: res.data.user.id,
+            name: authEmail.split('@')[0].toUpperCase(),
+            email: res.data.user.email,
+            phone: res.data.user.phone || '',
+            walletBalance: 0,
+            category: res.data.user.level_label || 'Basic User',
+            bvn: '', nin: '', isVerified: false,
+            pinCode: '', hasPin: res.data.user.has_pin || false,
+            promoCode: authPromo,
+          };
+          setCurrentUser(newUserObj);
+          localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
+          if (handleLoginSuccess) handleLoginSuccess(res.data.token);
+          toast.success(res.message || 'Registration completed successfully! Welcome to eData.');
+          setRegPassword(''); setRegConfirmPassword('');
+          setCurrentScreen('app');
+        } else {
+          toast.error(res.error || 'Registration failed.');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Registration completion error.');
+      }
+      return;
+    }
+
+    // Sandbox Fallback
     const newUserObj: UserProfile = {
       name: authEmail.split('@')[0].toUpperCase(),
       email: authEmail, phone: '', walletBalance: 0,
-      category: regMode === 'referral' ? 'Referred User' : 'Basic User',
+      category: authPromo ? 'Referred User' : 'Basic User',
       bvn: '', nin: '', isVerified: false, pinCode: '', hasPin: false, promoCode: authPromo,
     };
-    toast.success('Registration setup completed! Please log in to your account.');
+    setCurrentUser(newUserObj);
+    localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
+    toast.success('Registration setup completed! Welcome to eData.');
     setRegPassword(''); setRegConfirmPassword('');
-    setCurrentScreen('auth');
+    setCurrentScreen('app');
   };
 
   // ─── KYC Handler ───
@@ -780,12 +859,12 @@ export default function MobileSimulator({
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-slate-900">Verify Your Email</h2>
                 <p className="text-sm text-slate-500 font-medium">
-                  We sent a 4-digit code to <strong className="text-slate-800">{authEmail}</strong>
+                  We sent a 6-digit verification code to <strong className="text-slate-800">{authEmail}</strong>
                 </p>
               </div>
               <div className="space-y-4">
-                <div className="flex justify-center gap-3">
-                  {[0, 1, 2, 3].map(i => (
+                <div className="flex justify-center gap-2">
+                  {[0, 1, 2, 3, 4, 5].map(i => (
                     <input
                       key={i}
                       type="text"
@@ -796,7 +875,7 @@ export default function MobileSimulator({
                         const newCode = otpCode.split('');
                         newCode[i] = val;
                         setOtpCode(newCode.join(''));
-                        if (val && i < 3) {
+                        if (val && i < 5) {
                           const next = e.target.nextElementSibling as HTMLInputElement;
                           if (next) next.focus();
                         }
@@ -807,15 +886,26 @@ export default function MobileSimulator({
                           if (prev) prev.focus();
                         }
                       }}
-                      className="w-14 h-14 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold text-slate-900 input-focus"
+                      className="w-11 h-12 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-lg font-bold text-slate-900 input-focus font-mono"
                     />
                   ))}
                 </div>
                 {verificationError && (
                   <p className="text-rose-500 text-xs text-center font-semibold">{verificationError}</p>
                 )}
-                <p className="text-xs text-slate-400 text-center font-medium font-semibold">
-                  Didn't receive code? <button className="text-sky-600 font-semibold hover:underline">Resend</button>
+                <p className="text-xs text-slate-400 text-center font-medium">
+                  Didn't receive code?{' '}
+                  <button type="button" onClick={async () => {
+                    try {
+                      const res = await api.signupRequest(authEmail, authPromo);
+                      toast.success(res.message || 'Verification code resent!');
+                      if (res.otp) toast.info(`Localhost OTP Code: ${res.otp}`);
+                    } catch (err: any) {
+                      toast.error(err.message || 'Error resending code.');
+                    }
+                  }} className="text-sky-600 font-bold hover:underline">
+                    Resend Code
+                  </button>
                 </p>
               </div>
             </div>
