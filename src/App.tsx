@@ -10,7 +10,7 @@ export default function App() {
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEFAULT_USER);
-  const [apiStatus, setApiStatus] = useState<'connected' | 'offline' | 'sandbox'>('offline');
+  const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
   const [lastSynced, setLastSynced] = useState<string>('Never');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [currentScreen, setCurrentScreen] = useState<'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app'>('auth');
