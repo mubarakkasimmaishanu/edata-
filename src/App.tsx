@@ -3,7 +3,7 @@ import MobileSimulator from './components/MobileSimulator';
 import { ToastProvider } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
 import { UserProfile, ProductItem, Transaction } from './types';
-import { api, getAuthToken, setAuthToken, API_BASE_URL } from './services/api';
+import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 
 export default function App() {
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
@@ -127,6 +127,7 @@ export default function App() {
         hasPin: user.has_pin || false,
         hasPendingUpgrade: user.has_pending_upgrade || false,
         upgradeFee: user.premium_upgrade_fee || 5000,
+        photo: resolveImageUrl(user.photo) || null,
       });
 
       setApiStatus('connected');

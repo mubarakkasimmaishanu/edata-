@@ -14,6 +14,7 @@ export interface UserProfile {
   biometricsEnabled?: boolean;
   hasPendingUpgrade?: boolean;
   upgradeFee?: number;
+  photo?: string | null;
 }
 
 export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
@@ -55,4 +56,29 @@ export interface MarketerLeader {
   referrersCount: number;
   totalSales: number;
   earnings: number;
+}
+
+export interface AppNotification {
+  id: number | string;
+  title: string;
+  message: string;
+  image?: string | null;
+  target_group?: string;
+  created_at: string;
+  timestamp?: number;
+  is_read: boolean;
+  read_at?: string | null;
+}
+
+export interface VirtualAccount {
+  id?: number | string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+}
+
+export interface ManualBank {
+  bank_name: string;
+  account_name: string;
+  account_number: string;
 }

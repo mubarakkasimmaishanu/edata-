@@ -2,13 +2,20 @@ import React from 'react';
 import { ProductItem } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag } from 'lucide-react';
 
+import mtnIcon from '@/assets/icons/mtn.png';
+import airtelIcon from '@/assets/icons/airtel.png';
+import gloIcon from '@/assets/icons/glo.png';
+import nineMobileIcon from '@/assets/icons/9mobile.png';
+
 // ─── Network Provider Config ───
 const NETWORK_PROVIDERS = [
-  { name: 'MTN', color: 'bg-yellow-400 text-yellow-950', ring: 'ring-yellow-400/30 border-yellow-400', dot: 'bg-yellow-400' },
-  { name: 'Airtel', color: 'bg-red-600 text-white', ring: 'ring-red-500/30 border-red-500', dot: 'bg-red-500' },
-  { name: 'Glo', color: 'bg-green-600 text-white', ring: 'ring-green-500/30 border-green-500', dot: 'bg-green-500' },
-  { name: '9mobile', color: 'bg-teal-700 text-white', ring: 'ring-teal-500/30 border-teal-600', dot: 'bg-teal-500' },
+  { name: 'MTN', icon: mtnIcon, activeRing: 'ring-amber-400/50 border-amber-400 bg-amber-50/40' },
+  { name: 'Airtel', icon: airtelIcon, activeRing: 'ring-rose-500/50 border-rose-500 bg-rose-50/40' },
+  { name: 'Glo', icon: gloIcon, activeRing: 'ring-emerald-500/50 border-emerald-500 bg-emerald-50/40' },
+  { name: '9mobile', icon: nineMobileIcon, activeRing: 'ring-teal-600/50 border-teal-600 bg-teal-50/40' },
 ];
+
+const AIRTIME_SHORTCUTS = [100, 200, 300, 500, 1000, 2000];
 
 // A2C rate config
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
@@ -116,10 +123,10 @@ export default function ServiceForm(props: ServiceFormProps) {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* ─── Network Selector ─── */}
+      {/* ─── 1. Network Selector (with Official Images) ─── */}
       {showNetworkSelector && (
         <div>
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2.5">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
             Select Network
           </label>
           <div className="grid grid-cols-4 gap-2.5">
@@ -137,22 +144,29 @@ export default function ServiceForm(props: ServiceFormProps) {
                       setA2cPayout(parseFloat(checkoutAmount || '0') * rate);
                     }
                   }}
-                  className={`py-2.5 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-spring relative ${
+                  className={`py-2 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all relative ${
                     isSelected
-                      ? `${net.ring} ring-2 bg-white scale-[1.02] shadow-sm`
+                      ? `${net.activeRing} ring-2 scale-[1.02] shadow-sm`
                       : 'border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
-                      <Check className="w-3 h-3 text-emerald-500" />
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-white">
+                      <Check className="w-3 h-3 text-white stroke-[3]" />
                     </div>
                   )}
-                  <span className={`px-2 py-1 rounded-lg text-[11px] font-extrabold w-full text-center ${net.color}`}>
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white border border-slate-100 shadow-2xs p-0.5">
+                    <img
+                      src={net.icon}
+                      alt={net.name}
+                      className="w-full h-full object-contain rounded-full"
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-800">
                     {net.name}
                   </span>
                   {isA2C && (
-                    <span className="text-[10px] text-slate-400 font-semibold">
+                    <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-full">
                       {((A2C_RATES[net.name.toLowerCase()] || 0.80) * 100).toFixed(0)}%
                     </span>
                   )}
@@ -163,7 +177,69 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Product Dropdown ─── */}
+      {/* ─── 2. Destination Input (Phone Number) ─── */}
+      <div className="space-y-1.5">
+        <div className="flex justify-between items-center">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            {inputLabel}
+          </label>
+          {showContactPicker && (
+            <button
+              onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
+              className="text-xs text-sky-600 font-semibold hover:text-sky-700 flex items-center gap-1 transition-colors active:scale-95"
+            >
+              <Phone className="w-3 h-3" /> Contacts
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
+            {inputIcon}
+          </div>
+          <input
+            type="text"
+            placeholder={inputPlaceholder}
+            value={targetNumber}
+            maxLength={serviceType === 'exam' ? 11 : undefined}
+            onChange={(e) => {
+              setSelectedCategory(cat);
+              setTargetNumber(e.target.value.replace(/\D/g, ''));
+            }}
+            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-20 py-3 text-sm input-focus text-slate-800 font-medium"
+          />
+          {showNetworkSelector && detectedOperator && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+              {detectedOperator}
+            </span>
+          )}
+        </div>
+
+        {/* Verify Button (Electricity/Cable) */}
+        {showVerifyButton && (
+          <div className="flex items-center justify-between mt-2">
+            <button
+              type="button"
+              disabled={isValidatingNumber || !targetNumber || !selectedProduct}
+              onClick={handleValidateNumber}
+              className="text-xs text-sky-600 font-semibold hover:text-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+            >
+              {isValidatingNumber ? (
+                <><RefreshCw className="w-3 h-3 animate-spin" /> Verifying...</>
+              ) : (
+                <><Check className="w-3 h-3" /> Verify Subscriber</>
+              )}
+            </button>
+            {customerName && (
+              <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-lg">{customerName}</span>
+            )}
+            {validationError && (
+              <span className="text-xs text-rose-500 font-semibold">{validationError}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ─── 3. Data Plan Dropdown (or Airtime Amount) ─── */}
       {showProductDropdown && (
         <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
@@ -217,94 +293,66 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Destination Input ─── */}
-      <div className="space-y-1.5">
-        <div className="flex justify-between items-center">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            {inputLabel}
+      {/* ─── Amount Input & Quick Shortcuts (for Airtime / Electricity / A2C) ─── */}
+      {(amountEditable || isA2C) && (
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+            {isA2C ? 'Airtime Amount (₦)' : 'Amount (₦)'}
           </label>
-          {showContactPicker && (
-            <button
-              onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
-              className="text-xs text-sky-600 font-semibold hover:text-sky-700 flex items-center gap-1 transition-colors active:scale-95"
-            >
-              <Phone className="w-3 h-3" /> Contacts
-            </button>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₦</span>
+            <input
+              type="text"
+              disabled={!amountEditable && !isA2C}
+              placeholder="Enter amount"
+              value={checkoutAmount}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setSelectedCategory(cat);
+                setCheckoutAmount(val);
+                if (isA2C && setA2cPayout) {
+                  const rate = A2C_RATES[detectedOperator.toLowerCase()] || 0.80;
+                  setA2cPayout(parseFloat(val || '0') * rate);
+                }
+              }}
+              className={`w-full border border-slate-200 rounded-2xl pl-9 pr-4 py-3 text-sm input-focus text-slate-800 font-bold tabular-nums ${
+                !amountEditable && !isA2C ? 'bg-slate-50 text-slate-600' : 'bg-white'
+              }`}
+            />
+          </div>
+
+          {/* Quick Amount Shortcuts for Airtime */}
+          {serviceType === 'airtime' && (
+            <div className="pt-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                Quick Amount Shortcuts
+              </span>
+              <div className="grid grid-cols-6 gap-1.5">
+                {AIRTIME_SHORTCUTS.map((amt) => {
+                  const isSelected = checkoutAmount === amt.toString();
+                  return (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setCheckoutAmount(amt.toString());
+                      }}
+                      className={`py-1.5 px-1 rounded-xl text-[11px] font-extrabold transition-all text-center border ${
+                        isSelected
+                          ? 'bg-sky-600 text-white border-sky-600 shadow-sm scale-[1.02]'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 active:scale-95'
+                      }`}
+                    >
+                      ₦{amt.toLocaleString()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
-        <div className="relative">
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
-            {inputIcon}
-          </div>
-          <input
-            type="text"
-            placeholder={inputPlaceholder}
-            value={targetNumber}
-            maxLength={serviceType === 'exam' ? 11 : undefined}
-            onChange={(e) => {
-              setSelectedCategory(cat);
-              setTargetNumber(e.target.value.replace(/\D/g, ''));
-            }}
-            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-20 py-3 text-sm input-focus text-slate-800 font-medium"
-          />
-          {showNetworkSelector && detectedOperator && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg">
-              {detectedOperator}
-            </span>
-          )}
-        </div>
-
-        {/* Verify Button (Electricity/Cable) */}
-        {showVerifyButton && (
-          <div className="flex items-center justify-between mt-2">
-            <button
-              type="button"
-              disabled={isValidatingNumber || !targetNumber || !selectedProduct}
-              onClick={handleValidateNumber}
-              className="text-xs text-sky-600 font-semibold hover:text-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-            >
-              {isValidatingNumber ? (
-                <><RefreshCw className="w-3 h-3 animate-spin" /> Verifying...</>
-              ) : (
-                <><Check className="w-3 h-3" /> Verify Subscriber</>
-              )}
-            </button>
-            {customerName && (
-              <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-lg">{customerName}</span>
-            )}
-            {validationError && (
-              <span className="text-xs text-rose-500 font-semibold">{validationError}</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Amount Input ─── */}
-      <div className="space-y-1.5">
-        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-          {isA2C ? 'Airtime Amount (₦)' : 'Amount (₦)'}
-        </label>
-        <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₦</span>
-          <input
-            type="text"
-            disabled={!amountEditable && !isA2C}
-            value={checkoutAmount}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, '');
-              setSelectedCategory(cat);
-              setCheckoutAmount(val);
-              if (isA2C && setA2cPayout) {
-                const rate = A2C_RATES[detectedOperator.toLowerCase()] || 0.80;
-                setA2cPayout(parseFloat(val || '0') * rate);
-              }
-            }}
-            className={`w-full border border-slate-200 rounded-2xl pl-9 pr-4 py-3 text-sm input-focus text-slate-800 font-bold tabular-nums ${
-              !amountEditable && !isA2C ? 'bg-slate-50 text-slate-600' : 'bg-white'
-            }`}
-          />
-        </div>
-      </div>
+      )}
 
       {/* ─── A2C Payout Details ─── */}
       {isA2C && (
@@ -434,7 +482,7 @@ export default function ServiceForm(props: ServiceFormProps) {
         className={`w-full font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-spring active:scale-[0.97] mt-1 btn-sheen ${
           isA2C
             ? 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-rose-500/20'
-            : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
+            : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/20'
         }`}
       >
         {isA2C ? 'Convert Airtime to Cash' : `Pay ₦${finalPrice.toLocaleString()}`}

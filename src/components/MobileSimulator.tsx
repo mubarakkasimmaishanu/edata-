@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, Transaction, ProductItem } from '../types';
+import { UserProfile, Transaction, ProductItem, AppNotification, VirtualAccount, ManualBank } from '../types';
 import {
   Smartphone, Wifi, Battery, ChevronLeft, ArrowRight, ArrowDownLeft, Home,
   ArrowUpRight, Copy, Share2, HelpCircle, CheckCircle, AlertTriangle,
@@ -7,9 +7,9 @@ import {
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
-  X, Zap, Shield, LogOut, ChevronRight, Fingerprint
+  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera
 } from 'lucide-react';
-import { api, setAuthToken } from '../services/api';
+import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
 import { DEFAULT_USER } from '../data';
 import { useToast } from './Toast';
@@ -57,7 +57,23 @@ export default function MobileSimulator({
   const toast = useToast();
 
   // ─── Navigation ───
-  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services'>('home');
+  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services' | 'notifications'>('home');
+
+  // ─── Notifications System State ───
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 1,
+      title: 'Welcome to eData!',
+      message: 'Your account is active. Explore our lightning fast airtime, data bundles, and bill payment services.',
+      image: null,
+      target_group: 'all',
+      created_at: 'Just now',
+      is_read: false
+    }
+  ]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(1);
+  const [notificationFilter, setNotificationFilter] = useState<'all' | 'unread'>('all');
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
 
   // ─── Auth State ───
   const [isRegistering, setIsRegistering] = useState(false);
@@ -107,9 +123,25 @@ export default function MobileSimulator({
 
   // ─── Fund Wallet Modal ───
   const [fundModalOpen, setFundModalOpen] = useState(false);
-  const [fundAmountInput, setFundAmountInput] = useState('5000');
-  const [fundGateway, setFundGateway] = useState('Paystack');
+  const [fundTab, setFundTab] = useState<'virtual' | 'katpay' | 'manual'>('virtual');
   const [fundLoading, setFundLoading] = useState(false);
+  const [katpayAmountInput, setKatpayAmountInput] = useState('5000');
+  const [manualAmountInput, setManualAmountInput] = useState('5000');
+  const [manualRefInput, setManualRefInput] = useState('');
+  const [manualSenderInput, setManualSenderInput] = useState('');
+  const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([
+    {
+      bank_name: 'Moniepoint MFB',
+      account_number: '6301234567',
+      account_name: 'eData - ' + (currentUser.name || 'User')
+    }
+  ]);
+  const [manualBank, setManualBank] = useState<ManualBank>({
+    bank_name: 'Moniepoint Microfinance Bank',
+    account_name: 'eData Enterprise',
+    account_number: '6301234567'
+  });
+  const [katpayEnabled, setKatpayEnabled] = useState(true);
 
   // ─── Security Modals ───
   const [changePinModalOpen, setChangePinModalOpen] = useState(false);
@@ -140,7 +172,11 @@ export default function MobileSimulator({
 
   // ─── Forgot Password / PIN State ───
   const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState<'request' | 'verify'>('request');
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordCode, setForgotPasswordCode] = useState('');
+  const [forgotPasswordNew, setForgotPasswordNew] = useState('');
+  const [forgotPasswordConfirm, setForgotPasswordConfirm] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const [forgotPinModalOpen, setForgotPinModalOpen] = useState(false);
@@ -150,7 +186,7 @@ export default function MobileSimulator({
   const [forgotPinConfirm, setForgotPinConfirm] = useState('');
   const [forgotPinLoading, setForgotPinLoading] = useState(false);
 
-  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+  const handleForgotPasswordRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordEmail) {
       toast.warning('Please enter your email address.');
@@ -159,10 +195,45 @@ export default function MobileSimulator({
     setForgotPasswordLoading(true);
     try {
       const res = await api.forgotPassword(forgotPasswordEmail);
-      toast.success(res.message || 'Password reset instructions sent to your email.');
-      setForgotPasswordModalOpen(false);
+      toast.success(res.message || 'Verification code sent to your email.');
+      setForgotPasswordStep('verify');
     } catch (err: any) {
       toast.error(err.message || 'Error sending password reset request.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const handleForgotPasswordVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordCode || forgotPasswordCode.length < 6) {
+      toast.warning('Please enter the 6-digit verification code.');
+      return;
+    }
+    if (!forgotPasswordNew || forgotPasswordNew.length < 8) {
+      toast.warning('New password must be at least 8 characters long.');
+      return;
+    }
+    if (forgotPasswordNew !== forgotPasswordConfirm) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    setForgotPasswordLoading(true);
+    try {
+      const res = await api.resetPassword(forgotPasswordEmail, forgotPasswordCode, forgotPasswordNew, forgotPasswordConfirm);
+      if (res.success) {
+        toast.success(res.message || 'Password reset successfully!');
+        setForgotPasswordModalOpen(false);
+        setForgotPasswordEmail('');
+        setForgotPasswordCode('');
+        setForgotPasswordNew('');
+        setForgotPasswordConfirm('');
+        setForgotPasswordStep('request');
+      } else {
+        toast.error(res.error || 'Failed to reset password.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password.');
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -258,6 +329,84 @@ export default function MobileSimulator({
       }
     }
   }, [appTab, products]);
+
+  // ─── Fetch Notifications ───
+  const fetchNotifications = async () => {
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.getNotifications();
+        if (res.success && res.data) {
+          setNotifications(res.data.notifications || []);
+          setUnreadNotificationCount(res.data.unread_count || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (currentScreen === 'app') {
+      fetchNotifications();
+    }
+  }, [currentScreen, apiStatus, appTab]);
+
+  // ─── Fetch Wallet Funding Details & Virtual Accounts ───
+  const fetchWalletData = async () => {
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.getWallet();
+        if (res.success && res.data) {
+          if (res.data.virtual_accounts && res.data.virtual_accounts.length > 0) {
+            setVirtualAccounts(res.data.virtual_accounts);
+          }
+          if (res.data.manual_bank) {
+            setManualBank(res.data.manual_bank);
+          }
+          if (res.data.katpay_enabled !== undefined) {
+            setKatpayEnabled(res.data.katpay_enabled);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching wallet details:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (currentScreen === 'app') {
+      fetchWalletData();
+    }
+  }, [currentScreen, apiStatus, fundModalOpen]);
+
+  const handleMarkAsRead = async (id?: number | 'all') => {
+    if (apiStatus === 'connected') {
+      try {
+        const res = await api.markNotificationRead(id);
+        if (res.success) {
+          if (id === 'all' || !id) {
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+            setUnreadNotificationCount(0);
+            toast.success('All notifications marked as read.');
+          } else {
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+            setUnreadNotificationCount(res.unread_count ?? Math.max(0, unreadNotificationCount - 1));
+          }
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to mark as read.');
+      }
+    } else {
+      if (id === 'all' || !id) {
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        setUnreadNotificationCount(0);
+        toast.success('All notifications marked as read.');
+      } else {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+        setUnreadNotificationCount(prev => Math.max(0, prev - 1));
+      }
+    }
+  };
 
   // ─── Handle Promo Code Apply ───
   const handleApplyPromoCode = () => {
@@ -662,19 +811,19 @@ export default function MobileSimulator({
 
   const lastTx = transactions[0];
 
-  // ─── Service Icon Colors (differentiated) ───
+  // ─── Service Icon Colors (Unified Skyblue Palette) ───
   const serviceIcons = [
     { id: 'Airtime', icon: Phone, color: 'text-sky-600 bg-sky-50', tab: 'airtime' },
-    { id: 'Data', icon: Layers, color: 'text-violet-600 bg-violet-50', tab: 'data' },
-    { id: 'Cable TV', icon: Tv, color: 'text-rose-600 bg-rose-50', tab: 'cable' },
-    { id: 'Electricity', icon: Zap, color: 'text-amber-600 bg-amber-50', tab: 'electricity' },
-    { id: 'Refer & Earn', icon: Gift, color: 'text-emerald-600 bg-emerald-50', action: () => {
+    { id: 'Data', icon: Layers, color: 'text-sky-600 bg-sky-50', tab: 'data' },
+    { id: 'Cable TV', icon: Tv, color: 'text-sky-600 bg-sky-50', tab: 'cable' },
+    { id: 'Electricity', icon: Zap, color: 'text-sky-600 bg-sky-50', tab: 'electricity' },
+    { id: 'Refer & Earn', icon: Gift, color: 'text-sky-600 bg-sky-50', action: () => {
       navigator.clipboard.writeText(referralLink);
       toast.success('Referral link copied! Share it to earn rewards.');
     }},
-    { id: 'A2C Convert', icon: RefreshCw, color: 'text-orange-600 bg-orange-50', tab: 'a2c' },
-    { id: 'Exam Card', icon: BookOpen, color: 'text-indigo-600 bg-indigo-50', tab: 'exam' },
-    { id: 'More', icon: MoreHorizontal, color: 'text-slate-600 bg-slate-100', action: () => setAppTab('services') },
+    { id: 'A2C Convert', icon: RefreshCw, color: 'text-sky-600 bg-sky-50', tab: 'a2c' },
+    { id: 'Exam Card', icon: BookOpen, color: 'text-sky-600 bg-sky-50', tab: 'exam' },
+    { id: 'More', icon: MoreHorizontal, color: 'text-sky-600 bg-sky-50', action: () => setAppTab('services') },
   ];
 
   // ════════════════════════════════════════════
@@ -1030,8 +1179,12 @@ export default function MobileSimulator({
                 {appTab === 'home' ? (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-sky-500/25">
-                        {(currentUser.name || 'U').charAt(0)}
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-sky-500/25 overflow-hidden border border-white shrink-0">
+                        {currentUser.photo ? (
+                          <img src={currentUser.photo} className="w-full h-full object-cover" alt="Profile Avatar" />
+                        ) : (
+                          (currentUser.name || 'U').charAt(0)
+                        )}
                       </div>
                       <div>
                         <span className="text-xs text-slate-400 block font-semibold leading-none">Welcome back</span>
@@ -1045,11 +1198,13 @@ export default function MobileSimulator({
                         className="p-2 hover:bg-slate-50 rounded-xl text-slate-500 transition-smooth">
                         <Headphones className="w-[18px] h-[18px]" />
                       </button>
-                      <button type="button" onClick={() => setAppTab('history')}
+                      <button type="button" onClick={() => setAppTab('notifications')}
                         className="relative p-2 hover:bg-slate-50 rounded-xl text-slate-500 transition-smooth">
                         <Bell className="w-[18px] h-[18px]" />
-                        {transactions.length > 0 && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full border border-white" />
+                        {unreadNotificationCount > 0 && (
+                          <span className="absolute top-1 right-1 px-1 min-w-[15px] h-3.5 text-[9px] font-bold bg-rose-500 text-white rounded-full flex items-center justify-center border border-white">
+                            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                          </span>
                         )}
                       </button>
                     </div>
@@ -1073,6 +1228,7 @@ export default function MobileSimulator({
                           {appTab === 'support' && 'Support'}
                           {appTab === 'profile' && 'Profile'}
                           {appTab === 'services' && 'All Services'}
+                          {appTab === 'notifications' && 'Notifications'}
                         </h3>
                       </div>
                     </div>
@@ -1135,7 +1291,7 @@ export default function MobileSimulator({
                           </button>
                         </div>
                         <div className="flex justify-end mt-2">
-                          <button type="button" onClick={() => { setFundAmountInput('5000'); setFundGateway('Paystack'); setFundModalOpen(true); }}
+                          <button type="button" onClick={() => setFundModalOpen(true)}
                             className="bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold py-1.5 px-4 rounded-full transition-all backdrop-blur-sm border border-white/15 active:scale-95">
                             + Add Money
                           </button>
@@ -1444,8 +1600,62 @@ export default function MobileSimulator({
                 {appTab === 'profile' && (
                   <div className="space-y-4 animate-fade-in text-left">
                     <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                      <div className="w-14 h-14 bg-gradient-to-br from-sky-400 to-sky-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shadow-sky-500/20">
-                        {currentUser.name.charAt(0)}
+                      <div className="relative group shrink-0">
+                        <div className="w-14 h-14 bg-gradient-to-br from-sky-400 to-sky-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shadow-sky-500/20 overflow-hidden border border-slate-100">
+                          {currentUser.photo ? (
+                            <img src={currentUser.photo} className="w-full h-full object-cover" alt="Profile Avatar" />
+                          ) : (
+                            currentUser.name.charAt(0)
+                          )}
+                        </div>
+                        <label htmlFor="mobile-profile-photo-input" className="absolute -bottom-1 -right-1 w-6 h-6 bg-sky-600 hover:bg-sky-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md transition-transform active:scale-90 border border-white">
+                          <Camera className="w-3.5 h-3.5" />
+                        </label>
+                        <input
+                          id="mobile-profile-photo-input"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.warning('Photo must be less than 5MB.');
+                              e.target.value = '';
+                              return;
+                            }
+                            toast.info('Uploading profile photo...');
+                            const reader = new FileReader();
+                            reader.onload = async (event) => {
+                              const base64 = event.target?.result as string;
+                              if (!base64) return;
+
+                              // Instant preview
+                              setCurrentUser(prev => ({ ...prev, photo: base64 }));
+                              setSubscribers(prev => prev.map(s => s.email === currentUser.email ? { ...s, photo: base64 } : s));
+
+                              if (apiStatus === 'connected') {
+                                try {
+                                  const res = await api.uploadPhoto(base64);
+                                  if (res.success && res.data?.photo) {
+                                    setCurrentUser(prev => ({ ...prev, photo: res.data.photo }));
+                                    setSubscribers(prev => prev.map(s => s.email === currentUser.email ? { ...s, photo: res.data.photo } : s));
+                                    toast.success('Profile photo updated successfully!');
+                                  } else {
+                                    toast.error(res.error || 'Failed to sync photo to server.');
+                                  }
+                                } catch (err: any) {
+                                  console.error('Photo upload error:', err);
+                                  toast.error(err.message || 'Error syncing photo to server.');
+                                }
+                              } else {
+                                toast.success('Profile photo updated!');
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                            e.target.value = '';
+                          }}
+                        />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1564,11 +1774,11 @@ export default function MobileSimulator({
                       <div className="grid grid-cols-2 gap-3">
                         {[
                           { id: 'Airtime', name: 'Airtime VTU', icon: Phone, desc: 'Discounted VTU top-up', color: 'text-sky-600 bg-sky-50', tab: 'airtime' },
-                          { id: 'Data', name: 'Data Bundle', icon: Layers, desc: 'SME & Gifting bundles', color: 'text-violet-600 bg-violet-50', tab: 'data' },
-                          { id: 'Cable TV', name: 'Cable TV', icon: Tv, desc: 'DStv, GOtv, Startimes', color: 'text-rose-600 bg-rose-50', tab: 'cable' },
-                          { id: 'Electricity', name: 'Electricity', icon: Zap, desc: 'Prepaid & postpaid', color: 'text-amber-600 bg-amber-50', tab: 'electricity' },
-                          { id: 'A2C', name: 'Airtime to Cash', icon: RefreshCw, desc: 'Convert to cash', color: 'text-orange-600 bg-orange-50', tab: 'a2c' },
-                          { id: 'Exam', name: 'Exam Card', icon: BookOpen, desc: 'WAEC, NECO, NABTEB', color: 'text-indigo-600 bg-indigo-50', tab: 'exam' },
+                          { id: 'Data', name: 'Data Bundle', icon: Layers, desc: 'SME & Gifting bundles', color: 'text-sky-600 bg-sky-50', tab: 'data' },
+                          { id: 'Cable TV', name: 'Cable TV', icon: Tv, desc: 'DStv, GOtv, Startimes', color: 'text-sky-600 bg-sky-50', tab: 'cable' },
+                          { id: 'Electricity', name: 'Electricity', icon: Zap, desc: 'Prepaid & postpaid', color: 'text-sky-600 bg-sky-50', tab: 'electricity' },
+                          { id: 'A2C', name: 'Airtime to Cash', icon: RefreshCw, desc: 'Convert to cash', color: 'text-sky-600 bg-sky-50', tab: 'a2c' },
+                          { id: 'Exam', name: 'Exam Card', icon: BookOpen, desc: 'WAEC, NECO, NABTEB', color: 'text-sky-600 bg-sky-50', tab: 'exam' },
                         ].map(srv => (
                           <button key={srv.id} type="button"
                             onClick={() => { setSelectedCategory(srv.id as any); setAppTab(srv.tab as any); }}
@@ -1585,9 +1795,9 @@ export default function MobileSimulator({
                     <div>
                       <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 font-display">Wallet Operations</h4>
                       <div className="grid grid-cols-2 gap-3">
-                        <button type="button" onClick={() => { setFundAmountInput('5000'); setFundGateway('Paystack'); setFundModalOpen(true); }}
+                        <button type="button" onClick={() => setFundModalOpen(true)}
                           className="flex flex-col items-start p-3.5 rounded-2xl border border-slate-100 bg-white hover:border-slate-200 transition-smooth gap-2 active:scale-[0.98] shadow-sm text-left w-full">
-                          <div className="p-2 rounded-xl text-emerald-600 bg-emerald-50"><Coins className="w-4 h-4" /></div>
+                          <div className="p-2 rounded-xl text-sky-600 bg-sky-50"><Coins className="w-4 h-4" /></div>
                           <div><span className="text-xs font-bold text-slate-800 block">Fund Wallet</span><span className="text-[10px] text-slate-400 block font-semibold font-display">Instant deposits</span></div>
                         </button>
                         <button type="button" onClick={() => setUpgradeModalOpen(true)}
@@ -1613,6 +1823,122 @@ export default function MobileSimulator({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ═══ NOTIFICATIONS TAB ═══ */}
+                {appTab === 'notifications' && (
+                  <div className="flex-1 flex flex-col space-y-4 animate-fade-in text-left">
+                    {/* Filter Pills & Mark All Read Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setNotificationFilter('all')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            notificationFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                          }`}
+                        >
+                          All ({notifications.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotificationFilter('unread')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            notificationFilter === 'unread' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                          }`}
+                        >
+                          Unread ({unreadNotificationCount})
+                        </button>
+                      </div>
+
+                      {unreadNotificationCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsRead('all')}
+                          className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 bg-sky-50 px-3 py-1.5 rounded-xl border border-sky-100 transition-smooth"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Notifications Card List */}
+                    <div className="space-y-2.5">
+                      {(() => {
+                        const filteredList = notificationFilter === 'unread'
+                          ? notifications.filter(n => !n.is_read)
+                          : notifications;
+
+                        if (filteredList.length === 0) {
+                          return (
+                            <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center space-y-3 shadow-sm">
+                              <div className="w-12 h-12 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto text-sky-500">
+                                <Bell className="w-6 h-6" />
+                              </div>
+                              <h4 className="text-sm font-bold text-slate-800">No Notifications</h4>
+                              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                                {notificationFilter === 'unread'
+                                  ? 'You have read all your notifications!'
+                                  : 'You do not have any notifications yet. Updates and announcements will appear here.'}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return filteredList.map((notify) => (
+                          <div
+                            key={notify.id}
+                            onClick={() => {
+                              setSelectedNotification(notify);
+                              if (!notify.is_read) {
+                                handleMarkAsRead(Number(notify.id));
+                              }
+                            }}
+                            className={`bg-white border rounded-2xl p-4 transition-all shadow-sm cursor-pointer hover:border-sky-200 active:scale-[0.99] relative ${
+                              !notify.is_read ? 'border-sky-300 ring-1 ring-sky-100 bg-sky-50/20' : 'border-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              {resolveImageUrl(notify.image) ? (
+                                <img
+                                  src={resolveImageUrl(notify.image)!}
+                                  alt="Notification Image"
+                                  className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-100"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                  !notify.is_read ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20' : 'bg-slate-100 text-slate-400'
+                                }`}>
+                                  <Bell className="w-5 h-5" />
+                                </div>
+                              )}
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h4 className={`text-xs font-bold truncate ${!notify.is_read ? 'text-slate-900' : 'text-slate-700'}`}>
+                                    {notify.title}
+                                  </h4>
+                                  <span className="text-[10px] font-semibold text-slate-400 shrink-0">
+                                    {notify.created_at}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed font-normal">
+                                  {notify.message}
+                                </p>
+                              </div>
+
+                              {!notify.is_read && (
+                                <span className="w-2.5 h-2.5 bg-sky-500 rounded-full shrink-0 mt-1 shadow-sm shadow-sky-500/50" />
+                              )}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
@@ -1688,7 +2014,7 @@ export default function MobileSimulator({
                 🧬 Biometric
               </button>
               <button onClick={handleConfirmPurchase}
-                className="bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen">
+                className="bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen shadow-md shadow-sky-600/15">
                 Verify PIN & Pay
               </button>
             </div>
@@ -1740,7 +2066,7 @@ export default function MobileSimulator({
                     <Copy className="w-4 h-4" /> Copy Details
                   </button>
                   <button onClick={() => generatePDFReceipt(activeReceipt)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-smooth shadow-sm">
+                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-smooth shadow-sm btn-sheen">
                     <ArrowDownLeft className="w-4 h-4" /> PDF Receipt
                   </button>
                 </div>
@@ -1770,62 +2096,281 @@ export default function MobileSimulator({
         </BottomSheet>
 
         {/* Fund Wallet */}
-        <BottomSheet open={fundModalOpen} onClose={() => { if (!fundLoading) setFundModalOpen(false); }} title="Fund Wallet" subtitle="Secure payment checkout" preventClose={fundLoading}>
+        <BottomSheet open={fundModalOpen} onClose={() => { if (!fundLoading) setFundModalOpen(false); }} title="Fund Wallet" subtitle="Instant auto-credit & online checkout" preventClose={fundLoading}>
           {fundLoading ? (
             <div className="py-12 flex flex-col items-center justify-center space-y-3 font-display font-medium">
               <RefreshCw className="w-8 h-8 text-sky-500 animate-spin" />
-              <p className="text-sm font-semibold text-slate-700">Processing payment...</p>
+              <p className="text-sm font-bold text-slate-700">Connecting to Payment Gateway...</p>
+              <p className="text-xs text-slate-400">Please wait a moment</p>
             </div>
           ) : (
-            <div className="space-y-4 text-left">
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gateway</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['Paystack', 'Flutterwave', 'Monnify', 'Bank Transfer'] as const).map(gw => (
-                    <button key={gw} type="button" onClick={() => setFundGateway(gw)}
-                      className={`p-3 rounded-xl border text-xs font-bold text-center transition-smooth ${
-                        fundGateway === gw ? 'bg-sky-50 border-sky-400 text-sky-700 shadow-sm font-bold font-display' : 'bg-slate-50 border-slate-100 text-slate-650 hover:bg-slate-100'
-                      }`}>{gw}</button>
+            <div className="space-y-4 text-left font-display">
+              {/* Method Navigation Tabs */}
+              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setFundTab('virtual')}
+                  className={`py-2 px-1 text-center rounded-xl transition-all text-xs font-bold ${
+                    fundTab === 'virtual' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  ⚡ Auto Bank
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFundTab('katpay')}
+                  className={`py-2 px-1 text-center rounded-xl transition-all text-xs font-bold ${
+                    fundTab === 'katpay' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  💳 KatPay Online
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFundTab('manual')}
+                  className={`py-2 px-1 text-center rounded-xl transition-all text-xs font-bold ${
+                    fundTab === 'manual' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  🏛️ Manual Bank
+                </button>
+              </div>
+
+              {/* ═══ TAB 1: AUTOMATED VIRTUAL ACCOUNTS ═══ */}
+              {fundTab === 'virtual' && (
+                <div className="space-y-3 animate-fade-in">
+                  <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-start gap-2.5">
+                    <Zap className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-sky-900">Instant Auto-Credit Virtual Accounts</h4>
+                      <p className="text-[11px] text-sky-700 mt-0.5 font-medium leading-relaxed">
+                        Transfer money from any banking app (OPay, Kuda, GTB, etc.) to your account below. Your wallet balance is credited automatically within seconds!
+                      </p>
+                    </div>
+                  </div>
+
+                  {virtualAccounts.map((acc, index) => (
+                    <div key={index} className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 border border-slate-800 rounded-2xl p-4 text-white space-y-3 shadow-md relative overflow-hidden">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold uppercase text-sky-400 tracking-wider bg-sky-950/60 px-2.5 py-0.5 rounded-full border border-sky-800/40">
+                          {acc.bank_name || 'Dedicated Bank'}
+                        </span>
+                        <Zap className="w-4 h-4 text-emerald-400" />
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Account Number</span>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xl font-black font-mono tracking-wider text-slate-100">
+                            {acc.account_number}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(acc.account_number);
+                              toast.success(`Account number (${acc.account_number}) copied!`);
+                            }}
+                            className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-smooth border border-sky-500/30 active:scale-95"
+                          >
+                            <Copy className="w-3.5 h-3.5" /> Copy
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400 font-medium">Account Name:</span>
+                        <span className="font-bold text-slate-200">{acc.account_name}</span>
+                      </div>
+                    </div>
                   ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Amount (₦)</span>
-                <input type="text" value={fundAmountInput} onChange={(e) => setFundAmountInput(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-extrabold font-mono text-base input-focus text-slate-800" placeholder="5000" />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {['1000', '2000', '5000', '10000'].map(val => (
-                  <button key={val} type="button" onClick={() => setFundAmountInput(val)}
-                    className="bg-slate-100 hover:bg-slate-250 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-smooth border border-slate-200/30">
-                    ₦{parseInt(val).toLocaleString()}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchWalletData();
+                      toast.info('Refreshed virtual account list.');
+                    }}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-smooth flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh Accounts
                   </button>
-                ))}
-              </div>
-              <button type="button" onClick={() => {
-                const parsed = parseFloat(fundAmountInput);
-                if (isNaN(parsed) || parsed <= 0) { toast.warning('Enter a valid amount.'); return; }
-                setFundLoading(true);
-                setTimeout(() => {
-                  setFundLoading(false);
-                  const newBalance = currentUser.walletBalance + parsed;
-                  setCurrentUser((curr: UserProfile) => ({ ...curr, walletBalance: newBalance }));
-                  setSubscribers((prev: UserProfile[]) => prev.map(s => s.email === currentUser.email ? { ...s, walletBalance: newBalance } : s));
-                  const fundTx: Transaction = {
-                    id: `tx-fund-${Math.floor(1000 + Math.random() * 9000)}`, type: 'Wallet Funding',
-                    productName: `${fundGateway} gateway funding`, amount: parsed,
-                    phoneOrMeter: `Ref: ${fundGateway.substring(0, 3).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`,
-                    reference: `EDAT-FUND-${Math.floor(100000 + Math.random() * 900000)}`,
-                    status: 'Completed', date: new Date().toISOString(), disputeRaised: false,
-                  };
-                  setTransactions((prev: Transaction[]) => [fundTx, ...prev]);
-                  setFundModalOpen(false);
-                  toast.success(`₦${parsed.toLocaleString()} credited via ${fundGateway}!`);
-                }, 1200);
-              }}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen">
-                Process Payment (₦{parseFloat(fundAmountInput || '0').toLocaleString()})
-              </button>
+                </div>
+              )}
+
+              {/* ═══ TAB 2: KATPAY ONLINE CHECKOUT ═══ */}
+              {fundTab === 'katpay' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-start gap-2.5">
+                    <CreditCard className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-sky-900">KatPay Online Payment Gateway</h4>
+                      <p className="text-[11px] text-sky-700 mt-0.5 font-medium leading-relaxed">
+                        Pay online instantly via Debit Card, Bank Transfer, or USSD using KatPay's secure checkout.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Funding Amount (₦)</label>
+                    <input
+                      type="text"
+                      value={katpayAmountInput}
+                      onChange={(e) => setKatpayAmountInput(e.target.value.replace(/\D/g, ''))}
+                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl font-extrabold font-mono text-base input-focus text-slate-800"
+                      placeholder="5000"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {['1000', '2000', '5000', '10000'].map(val => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setKatpayAmountInput(val)}
+                        className={`py-2.5 rounded-xl text-xs font-bold transition-smooth border ${
+                          katpayAmountInput === val ? 'bg-sky-50 border-sky-400 text-sky-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        ₦{parseInt(val).toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={fundLoading}
+                    onClick={async () => {
+                      const amount = parseFloat(katpayAmountInput);
+                      if (isNaN(amount) || amount < 100) {
+                        toast.warning('Minimum funding amount via KatPay is ₦100.');
+                        return;
+                      }
+                      setFundLoading(true);
+                      try {
+                        const res = await api.initKatpay(amount);
+                        if (res.success && res.data?.checkout_url) {
+                          toast.success('KatPay checkout link generated!');
+                          window.open(res.data.checkout_url, '_blank');
+                          setFundModalOpen(false);
+                        } else {
+                          toast.error(res.error || 'Failed to initialize KatPay checkout link.');
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message || 'Error connecting to KatPay payment gateway.');
+                      } finally {
+                        setFundLoading(false);
+                      }
+                    }}
+                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2"
+                  >
+                    <CreditCard className="w-4 h-4" /> Pay Online with KatPay (₦{parseFloat(katpayAmountInput || '0').toLocaleString()})
+                  </button>
+                </div>
+              )}
+
+              {/* ═══ TAB 3: MANUAL BANK TRANSFER ═══ */}
+              {fundTab === 'manual' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Official Bank Account</span>
+                      <span className="text-[10px] font-extrabold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">Synced from Web</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Bank Name:</span>
+                        <span className="font-bold text-slate-800">{manualBank.bank_name}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Account Name:</span>
+                        <span className="font-bold text-slate-800">{manualBank.account_name}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Account Number:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-extrabold font-mono text-slate-900 text-sm">{manualBank.account_number}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(manualBank.account_number);
+                              toast.success(`Account number (${manualBank.account_number}) copied!`);
+                            }}
+                            className="p-1 hover:bg-slate-200 rounded-lg text-sky-600 transition-smooth"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const amount = parseFloat(manualAmountInput);
+                      if (isNaN(amount) || amount <= 0) {
+                        toast.warning('Please enter a valid amount.');
+                        return;
+                      }
+                      if (!manualRefInput.trim()) {
+                        toast.warning('Please enter transaction reference or sender account name.');
+                        return;
+                      }
+
+                      setFundLoading(true);
+                      try {
+                        const res = await api.submitManualDeposit(amount, manualRefInput, manualSenderInput);
+                        if (res.success) {
+                          toast.success(res.message || 'Deposit proof submitted! Pending admin review.');
+                          setManualRefInput('');
+                          setManualSenderInput('');
+                          setFundModalOpen(false);
+                        } else {
+                          toast.error(res.error || 'Failed to submit payment proof.');
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message || 'Error submitting payment proof.');
+                      } finally {
+                        setFundLoading(false);
+                      }
+                    }}
+                    className="space-y-3"
+                  >
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Amount Transferred (₦)</label>
+                      <input
+                        type="text"
+                        required
+                        value={manualAmountInput}
+                        onChange={(e) => setManualAmountInput(e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold font-mono text-sm input-focus text-slate-800"
+                        placeholder="5000"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Sender Account Name / Reference</label>
+                      <input
+                        type="text"
+                        required
+                        value={manualRefInput}
+                        onChange={(e) => setManualRefInput(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm input-focus text-slate-800 font-medium"
+                        placeholder="e.g. John Doe / Moniepoint Transfer"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={fundLoading}
+                      className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-md shadow-sky-600/15 active:scale-[0.98] flex items-center justify-center gap-2 btn-sheen"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Submit Payment Proof for Review
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </BottomSheet>
@@ -1894,22 +2439,65 @@ export default function MobileSimulator({
 
         {/* Forgot Password BottomSheet */}
         <BottomSheet open={forgotPasswordModalOpen} onClose={() => setForgotPasswordModalOpen(false)}
-          title="Reset Account Password" subtitle="Enter your email to receive a password reset code">
-          <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-left">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="email" required value={forgotPasswordEmail} onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  placeholder="you@email.com" disabled={forgotPasswordLoading}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm input-focus text-slate-800 font-medium" />
+          title="Reset Account Password" subtitle={forgotPasswordStep === 'request' ? 'Enter email to receive 6-digit reset code' : 'Enter verification code & create new password'}>
+          {forgotPasswordStep === 'request' ? (
+            <form onSubmit={handleForgotPasswordRequest} className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="email" required value={forgotPasswordEmail} onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    placeholder="you@email.com" disabled={forgotPasswordLoading}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm input-focus text-slate-800 font-medium" />
+                </div>
               </div>
-            </div>
-            <button type="submit" disabled={forgotPasswordLoading}
-              className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
-              {forgotPasswordLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending Reset Code...</> : 'Send Password Reset Code'}
-            </button>
-          </form>
+              <button type="submit" disabled={forgotPasswordLoading}
+                className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
+                {forgotPasswordLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending Code...</> : 'Send Password Reset Code'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleForgotPasswordVerify} className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">6-Digit Verification Code</label>
+                <input type="text" maxLength={6} required value={forgotPasswordCode}
+                  onChange={(e) => setForgotPasswordCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6-digit OTP code"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold font-mono tracking-widest text-center input-focus text-slate-800" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">New Password</label>
+                <input type="password" required minLength={8} value={forgotPasswordNew}
+                  onChange={(e) => setForgotPasswordNew(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm input-focus text-slate-800 font-medium" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Confirm New Password</label>
+                  {forgotPasswordNew && forgotPasswordConfirm && (
+                    <span className={`text-[10px] font-bold ${forgotPasswordNew === forgotPasswordConfirm ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {forgotPasswordNew === forgotPasswordConfirm ? '✓ Passwords Match' : '✗ Passwords Do Not Match'}
+                    </span>
+                  )}
+                </div>
+                <input type="password" required value={forgotPasswordConfirm}
+                  onChange={(e) => setForgotPasswordConfirm(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm input-focus text-slate-800 font-medium" />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForgotPasswordStep('request')}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-3.5 rounded-2xl text-xs transition-smooth">
+                  Back
+                </button>
+                <button type="submit" disabled={forgotPasswordLoading}
+                  className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2">
+                  {forgotPasswordLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Resetting Password...</> : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          )}
         </BottomSheet>
 
         {/* Forgot PIN BottomSheet */}
@@ -2041,6 +2629,43 @@ export default function MobileSimulator({
             </div>
           )}
         </BottomSheet>
+
+        {/* Notification Detail Bottom Sheet */}
+        {selectedNotification && (
+          <BottomSheet open={!!selectedNotification} onClose={() => setSelectedNotification(null)} title="Notification Detail">
+            <div className="space-y-4 text-left p-1">
+              {resolveImageUrl(selectedNotification.image) && (
+                <div className="rounded-2xl overflow-hidden border border-slate-100 max-h-48 shadow-sm">
+                  <img
+                    src={resolveImageUrl(selectedNotification.image)!}
+                    alt="Notification Banner"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              <div>
+                <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  {selectedNotification.target_group ? `Target: ${selectedNotification.target_group}` : 'Broadcast'}
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-2">{selectedNotification.title}</h3>
+                <span className="text-xs text-slate-400 block mt-0.5">{selectedNotification.created_at}</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
+                {selectedNotification.message}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedNotification(null)}
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-smooth btn-sheen shadow-md shadow-sky-600/15 active:scale-[0.98]"
+              >
+                Close
+              </button>
+            </div>
+          </BottomSheet>
+        )}
 
       </div>
 

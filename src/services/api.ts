@@ -1,5 +1,15 @@
 export const API_BASE_URL = (import.meta as any).env.VITE_YII_API_URL || 'https://edata.com.ng/api';
 
+export function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const hostBase = API_BASE_URL.replace(/\/api\/?.*$/, '').replace(/\/index\.php\/?.*$/, '');
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${hostBase}${cleanPath}`;
+}
+
 export function getAuthToken(): string | null {
   return localStorage.getItem('edata_token');
 }
@@ -61,8 +71,29 @@ export const api = {
     return request('/profile');
   },
 
+  async uploadPhoto(photoBase64: string) {
+    return request('/upload-photo', {
+      method: 'POST',
+      body: JSON.stringify({ photo_base64: photoBase64 }),
+    });
+  },
+
   async getWallet() {
     return request('/wallet');
+  },
+
+  async initKatpay(amount: number) {
+    return request('/katpay/init', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  async submitManualDeposit(amount: number, reference: string, accountName?: string) {
+    return request('/wallet/manual-deposit', {
+      method: 'POST',
+      body: JSON.stringify({ amount, reference, account_name: accountName }),
+    });
   },
 
   async getTransactions() {
@@ -136,6 +167,13 @@ export const api = {
     });
   },
 
+  async resetPassword(email: string, code: string, newPassword: string, confirmPassword?: string) {
+    return request('/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, new_password: newPassword, confirm_password: confirmPassword }),
+    });
+  },
+
   async forgotPinRequest() {
     return request('/forgot-pin', {
       method: 'POST',
@@ -175,6 +213,17 @@ export const api = {
         transaction_pin: transactionPin,
         referral_code: referralCode,
       }),
+    });
+  },
+
+  async getNotifications() {
+    return request('/notifications');
+  },
+
+  async markNotificationRead(id?: number | 'all') {
+    return request('/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
     });
   },
 };
