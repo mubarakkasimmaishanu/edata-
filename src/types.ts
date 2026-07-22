@@ -1,6 +1,8 @@
 export interface UserProfile {
   id?: number | string;
   name: string;
+  firstname?: string;
+  lastname?: string;
   email: string;
   phone: string;
   walletBalance: number;

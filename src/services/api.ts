@@ -30,17 +30,50 @@ async function request(endpoint: string, options: RequestInit = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  const data = await response.json();
-  if (!response.ok || (data && data.success === false)) {
-    throw new Error(data?.error || `Request failed with status ${response.status}`);
+    let data: any = null;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+    } else {
+      const text = await response.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    }
+
+    if (!response.ok || (data && data.success === false)) {
+      let msg = data?.error || data?.message;
+      if (!msg) {
+        if (response.status === 404 || response.status === 405) {
+          msg = 'Service endpoint currently unavailable. Please try again.';
+        } else if (response.status >= 500) {
+          msg = 'Server encountered an issue. Please try again shortly.';
+        } else {
+          msg = 'Unable to complete request. Please try again.';
+        }
+      }
+      throw new Error(msg);
+    }
+
+    return data || { success: true };
+  } catch (err: any) {
+    if (err.name === 'TypeError' || err.message === 'Failed to fetch' || err.message?.includes('fetch')) {
+      throw new Error('Network connection issue. Please check your internet connection.');
+    }
+    throw err;
   }
-
-  return data;
 }
 
 export const api = {
@@ -83,14 +116,20 @@ export const api = {
   },
 
   async initKatpay(amount: number) {
-    return request('/katpay/init', {
+    return request('/katpay-init', {
       method: 'POST',
       body: JSON.stringify({ amount }),
     });
   },
 
+  async generateVirtualAccount() {
+    return request('/katpay-generate-virtual-account', {
+      method: 'POST',
+    });
+  },
+
   async submitManualDeposit(amount: number, reference: string, accountName?: string) {
-    return request('/wallet/manual-deposit', {
+    return request('/manual-deposit', {
       method: 'POST',
       body: JSON.stringify({ amount, reference, account_name: accountName }),
     });
@@ -143,6 +182,13 @@ export const api = {
     return request('/upgrade', {
       method: 'POST',
       body: JSON.stringify({ transaction_pin: transactionPin }),
+    });
+  },
+
+  async updateProfile(params: { firstname?: string; lastname?: string; phone?: string }) {
+    return request('/update-profile', {
+      method: 'POST',
+      body: JSON.stringify(params),
     });
   },
 
