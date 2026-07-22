@@ -623,8 +623,8 @@ export default function MobileSimulator({
 
   // ─── OTP Handler ───
   const handleVerifyOTP = async () => {
-    if (otpCode.length < 4) {
-      setVerificationError('Please enter the verification code sent to your email.');
+    if (otpCode.length < 6) {
+      setVerificationError('Please enter the full 6-digit verification code sent to your email.');
       return;
     }
 

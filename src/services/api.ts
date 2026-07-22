@@ -11,7 +11,11 @@ export function resolveImageUrl(url: string | null | undefined): string | null {
 }
 
 export function getAuthToken(): string | null {
-  return localStorage.getItem('edata_token');
+  const token = localStorage.getItem('edata_token');
+  if (!token || token === 'google-sandbox-token' || token === 'undefined' || token === 'null') {
+    return null;
+  }
+  return token;
 }
 
 export function setAuthToken(token: string | null) {
@@ -248,7 +252,17 @@ export const api = {
     });
   },
 
-  async signupComplete(email: string, code: string, password: string, confirmPassword?: string, transactionPin?: string, referralCode?: string) {
+  async signupComplete(
+    email: string,
+    code: string,
+    password: string,
+    confirmPassword?: string,
+    transactionPin?: string,
+    referralCode?: string,
+    firstname?: string,
+    lastname?: string,
+    phone?: string
+  ) {
     return request('/signup-complete', {
       method: 'POST',
       body: JSON.stringify({
@@ -258,6 +272,9 @@ export const api = {
         confirm_password: confirmPassword || password,
         transaction_pin: transactionPin,
         referral_code: referralCode,
+        firstname,
+        lastname,
+        phone,
       }),
     });
   },
