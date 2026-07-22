@@ -7,7 +7,7 @@ import {
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
-  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera
+  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink
 } from 'lucide-react';
 import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
@@ -142,6 +142,37 @@ export default function MobileSimulator({
     account_number: '6301234567'
   });
   const [katpayEnabled, setKatpayEnabled] = useState(true);
+  const [activeKatpayCheckout, setActiveKatpayCheckout] = useState<{
+    reference: string;
+    checkout_url: string;
+    payment_account?: {
+      account_number: string;
+      account_name: string;
+      bank_name: string;
+    };
+    expires_at?: string;
+    amount: number;
+  } | null>(null);
+  const [katpayVerifying, setKatpayVerifying] = useState(false);
+  const [showIframeCheckout, setShowIframeCheckout] = useState(false);
+
+  // ─── Mandatory Profile Onboarding Locking State ───
+  const [completeProfileModalOpen, setCompleteProfileModalOpen] = useState(false);
+  const [profileFirstname, setProfileFirstname] = useState(currentUser.firstname || '');
+  const [profileLastname, setProfileLastname] = useState(currentUser.lastname || '');
+  const [profilePhone, setProfilePhone] = useState(currentUser.phone || '');
+  const [profilePin, setProfilePin] = useState('');
+  const [profileConfirmPin, setProfileConfirmPin] = useState('');
+  const [completeProfileLoading, setCompleteProfileLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentScreen === 'app') {
+      const isIncomplete = !currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin;
+      if (isIncomplete) {
+        setCompleteProfileModalOpen(true);
+      }
+    }
+  }, [currentScreen, currentUser.phone, currentUser.hasPin]);
 
   // ─── Security Modals ───
   const [changePinModalOpen, setChangePinModalOpen] = useState(false);
@@ -969,7 +1000,7 @@ export default function MobileSimulator({
                         };
                         setCurrentUser(loggedUser);
                         localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
-                        if (handleLoginSuccess) handleLoginSuccess(res.data.accessToken);
+                        if (handleLoginSuccess) handleLoginSuccess(res.data.token || res.data.accessToken);
                         toast.success(`Welcome back, ${loggedUser.firstname}!`);
                       } else {
                         toast.error(res.error || 'Google Authentication failed.');
@@ -1599,17 +1630,20 @@ export default function MobileSimulator({
                 {/* ═══ PROFILE TAB ═══ */}
                 {appTab === 'profile' && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                      <div className="relative group shrink-0">
-                        <div className="w-14 h-14 bg-gradient-to-br from-sky-400 to-sky-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shadow-sky-500/20 overflow-hidden border border-slate-100">
+                    {/* Top Centered Profile Photo & Unique Membership Badge Header */}
+                    <div className="bg-gradient-to-b from-sky-50/70 via-white to-white border border-slate-100 rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                      <div className="relative group">
+                        <div className="w-24 h-24 rounded-full p-1 bg-white ring-4 ring-sky-500/20 shadow-xl relative overflow-hidden flex items-center justify-center">
                           {currentUser.photo ? (
-                            <img src={currentUser.photo} className="w-full h-full object-cover" alt="Profile Avatar" />
+                            <img src={currentUser.photo} className="w-full h-full rounded-full object-cover" alt="Profile Avatar" />
                           ) : (
-                            currentUser.name.charAt(0)
+                            <div className="w-full h-full rounded-full bg-gradient-to-br from-sky-400 to-sky-600 text-white font-black text-3xl flex items-center justify-center shadow-inner">
+                              {currentUser.name.charAt(0)}
+                            </div>
                           )}
                         </div>
-                        <label htmlFor="mobile-profile-photo-input" className="absolute -bottom-1 -right-1 w-6 h-6 bg-sky-600 hover:bg-sky-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md transition-transform active:scale-90 border border-white">
-                          <Camera className="w-3.5 h-3.5" />
+                        <label htmlFor="mobile-profile-photo-input" className="absolute bottom-0 right-0 w-8 h-8 bg-sky-600 hover:bg-sky-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg border-2 border-white transition-transform active:scale-95">
+                          <Camera className="w-4 h-4" />
                         </label>
                         <input
                           id="mobile-profile-photo-input"
@@ -1657,26 +1691,59 @@ export default function MobileSimulator({
                           }}
                         />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-sm font-bold text-slate-900">{currentUser.name}</h4>
+
+                      {/* Unique Membership Badge Design */}
+                      <div className="mt-3.5">
+                        {currentUser.category === 'Premium User' ? (
+                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-4 py-1.5 rounded-full shadow-md shadow-amber-500/25 border border-amber-300 tracking-wide uppercase">
+                            <Zap className="w-3.5 h-3.5 fill-slate-950 stroke-slate-950" />
+                            <span>Premium Reseller</span>
+                          </div>
+                        ) : currentUser.category === 'Referred User' ? (
+                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white font-bold text-xs px-4 py-1.5 rounded-full shadow-md shadow-sky-500/20 border border-sky-300/40 tracking-wide uppercase">
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Referred Member</span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 text-slate-700 font-bold text-xs px-4 py-1.5 rounded-full shadow-sm border border-slate-300/80 tracking-wide uppercase">
+                            <Shield className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Basic Member</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Separate Card for User Information */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                      <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">User Information</span>
+
+                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
+                          <User className="w-4.5 h-4.5" />
                         </div>
-                        <span className="text-xs text-slate-400 block mt-0.5">{currentUser.email}</span>
-                        {currentUser.phone && <span className="text-xs text-sky-600 font-medium block mt-0.5">{currentUser.phone}</span>}
-                        <div className="mt-1.5">
-                          {currentUser.category === 'Premium User' ? (
-                            <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200/50 text-amber-700 text-[9.5px] font-black px-2 py-0.5 rounded-full shadow-sm shadow-amber-500/5">
-                              👑 Premium Reseller
-                            </span>
-                          ) : currentUser.category === 'Referred User' ? (
-                            <span className="inline-flex items-center gap-1 bg-sky-50 border border-sky-100 text-sky-700 text-[9.5px] font-bold px-2 py-0.5 rounded-full">
-                              👥 Referred Member
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200/50 text-slate-600 text-[9.5px] font-medium px-2 py-0.5 rounded-full">
-                              👤 Basic Member
-                            </span>
-                          )}
+                        <div className="overflow-hidden flex-1">
+                          <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Full Name</span>
+                          <span className="text-xs font-extrabold text-slate-900 truncate block">{currentUser.name}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
+                          <Mail className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="overflow-hidden flex-1">
+                          <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Email Address</span>
+                          <span className="text-xs font-bold text-slate-800 break-all block">{currentUser.email}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
+                          <Phone className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="overflow-hidden flex-1">
+                          <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Phone Number</span>
+                          <span className="text-xs font-bold text-slate-800 block">{currentUser.phone || 'Not provided'}</span>
                         </div>
                       </div>
                     </div>
@@ -2149,40 +2216,77 @@ export default function MobileSimulator({
                     </div>
                   </div>
 
-                  {virtualAccounts.map((acc, index) => (
-                    <div key={index} className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 border border-slate-800 rounded-2xl p-4 text-white space-y-3 shadow-md relative overflow-hidden">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-extrabold uppercase text-sky-400 tracking-wider bg-sky-950/60 px-2.5 py-0.5 rounded-full border border-sky-800/40">
-                          {acc.bank_name || 'Dedicated Bank'}
-                        </span>
-                        <Zap className="w-4 h-4 text-emerald-400" />
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Account Number</span>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-xl font-black font-mono tracking-wider text-slate-100">
-                            {acc.account_number}
+                  {virtualAccounts.length > 0 ? (
+                    virtualAccounts.map((acc, index) => (
+                      <div key={index} className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 border border-slate-800 rounded-2xl p-4 text-white space-y-3 shadow-md relative overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase text-sky-400 tracking-wider bg-sky-950/60 px-2.5 py-0.5 rounded-full border border-sky-800/40">
+                            {acc.bank_name || 'PalmPay (KatPay)'}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(acc.account_number);
-                              toast.success(`Account number (${acc.account_number}) copied!`);
-                            }}
-                            className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-smooth border border-sky-500/30 active:scale-95"
-                          >
-                            <Copy className="w-3.5 h-3.5" /> Copy
-                          </button>
+                          <Zap className="w-4 h-4 text-emerald-400 animate-pulse" />
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Account Number</span>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xl font-black font-mono tracking-wider text-slate-100">
+                              {acc.account_number}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(acc.account_number);
+                                toast.success(`Account number (${acc.account_number}) copied!`);
+                              }}
+                              className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-smooth border border-sky-500/30 active:scale-95"
+                            >
+                              <Copy className="w-3.5 h-3.5" /> Copy
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-medium">Account Name:</span>
+                          <span className="font-bold text-slate-200">{acc.account_name}</span>
                         </div>
                       </div>
-
-                      <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-medium">Account Name:</span>
-                        <span className="font-bold text-slate-200">{acc.account_name}</span>
+                    ))
+                  ) : (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 text-center space-y-3 shadow-sm">
+                      <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mx-auto">
+                        <Zap className="w-5 h-5" />
                       </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800">No Virtual Bank Account Yet</h4>
+                        <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
+                          Click below to generate your dedicated KatPay virtual account for instant wallet funding.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={fundLoading}
+                        onClick={async () => {
+                          setFundLoading(true);
+                          try {
+                            const res = await api.generateVirtualAccount();
+                            if (res.success) {
+                              toast.success(res.message || 'Virtual account generated!');
+                              fetchWalletData();
+                            } else {
+                              toast.error(res.error || 'Failed to generate account.');
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || 'Error generating virtual account.');
+                          } finally {
+                            setFundLoading(false);
+                          }
+                        }}
+                        className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl text-xs transition-smooth shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        <Zap className="w-4 h-4" /> Generate Dedicated Virtual Account
+                      </button>
                     </div>
-                  ))}
+                  )}
 
                   <button
                     type="button"
@@ -2203,9 +2307,9 @@ export default function MobileSimulator({
                   <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-start gap-2.5">
                     <CreditCard className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-sky-900">KatPay Online Payment Gateway</h4>
+                      <h4 className="text-xs font-bold text-sky-900">KatPay Pay-With-Transfer & Checkout</h4>
                       <p className="text-[11px] text-sky-700 mt-0.5 font-medium leading-relaxed">
-                        Pay online instantly via Debit Card, Bank Transfer, or USSD using KatPay's secure checkout.
+                        Instant pay-with-transfer or hosted checkout via KatPay.
                       </p>
                     </div>
                   </div>
@@ -2248,9 +2352,10 @@ export default function MobileSimulator({
                       setFundLoading(true);
                       try {
                         const res = await api.initKatpay(amount);
-                        if (res.success && res.data?.checkout_url) {
-                          toast.success('KatPay checkout link generated!');
-                          window.open(res.data.checkout_url, '_blank');
+                        if (res.success && res.data) {
+                          toast.success('KatPay payment session initialized!');
+                          setActiveKatpayCheckout(res.data);
+                          setShowIframeCheckout(false);
                           setFundModalOpen(false);
                         } else {
                           toast.error(res.error || 'Failed to initialize KatPay checkout link.');
@@ -2373,6 +2478,300 @@ export default function MobileSimulator({
               )}
             </div>
           )}
+        </BottomSheet>
+
+        {/* KatPay In-App Payment Checkout Sheet */}
+        <BottomSheet
+          open={!!activeKatpayCheckout}
+          onClose={() => setActiveKatpayCheckout(null)}
+          title="KatPay Pay-With-Transfer"
+          subtitle={activeKatpayCheckout ? `Ref: ${activeKatpayCheckout.reference} • Amount: ₦${activeKatpayCheckout.amount.toLocaleString()}` : ''}
+          maxHeight="85%"
+        >
+          {activeKatpayCheckout && (
+            <div className="space-y-4 text-left font-display">
+              {/* Header Badge */}
+              <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-sky-600 shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-bold text-sky-900">KatPay Instant Bank Transfer</h4>
+                    <span className="text-[10px] text-sky-700 font-medium">Transfer the exact amount below to complete</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 animate-pulse">
+                  Single Use
+                </span>
+              </div>
+
+              {/* Dynamic Account Card */}
+              {activeKatpayCheckout.payment_account && (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 border border-slate-800 rounded-2xl p-4 text-white space-y-3.5 shadow-lg relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase text-sky-400 tracking-wider bg-sky-950/60 px-2.5 py-0.5 rounded-full border border-sky-800/40">
+                      {activeKatpayCheckout.payment_account.bank_name || 'PalmPay'}
+                    </span>
+                    <span className="text-xs font-bold font-mono text-emerald-400">
+                      ₦{activeKatpayCheckout.amount.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Account Number</span>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-2xl font-black font-mono tracking-wider text-slate-100">
+                        {activeKatpayCheckout.payment_account.account_number}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(activeKatpayCheckout.payment_account!.account_number);
+                          toast.success(`Account number (${activeKatpayCheckout.payment_account!.account_number}) copied!`);
+                        }}
+                        className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-smooth border border-sky-500/30 active:scale-95"
+                      >
+                        <Copy className="w-3.5 h-3.5" /> Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-medium">Account Name:</span>
+                    <span className="font-bold text-slate-200">{activeKatpayCheckout.payment_account.account_name}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* In-App Hosted Checkout Iframe Toggle */}
+              {showIframeCheckout ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">KatPay Hosted Page (In-App View)</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowIframeCheckout(false)}
+                      className="text-xs text-sky-600 font-bold hover:underline"
+                    >
+                      Hide Web View
+                    </button>
+                  </div>
+                  <div className="w-full h-96 rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-50">
+                    <iframe
+                      src={activeKatpayCheckout.checkout_url}
+                      className="w-full h-full border-0"
+                      title="KatPay Hosted Checkout"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    disabled={katpayVerifying}
+                    onClick={async () => {
+                      setKatpayVerifying(true);
+                      try {
+                        await fetchWalletData();
+                        toast.success('Wallet refreshed! If transfer was received, your balance is updated.');
+                        setActiveKatpayCheckout(null);
+                      } catch (err: any) {
+                        toast.error('Error verifying payment.');
+                      } finally {
+                        setKatpayVerifying(false);
+                      }
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-emerald-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2"
+                  >
+                    {katpayVerifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    I Have Made The Transfer — Verify Now
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowIframeCheckout(true)}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-smooth flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" /> View Hosted KatPay Countdown Page In-App
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </BottomSheet>
+
+        {/* Mandatory Complete Profile Onboarding Modal */}
+        <BottomSheet
+          open={completeProfileModalOpen}
+          onClose={() => {
+            if (!currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin) {
+              toast.warning('Please complete your profile details to unlock eData services.');
+            } else {
+              setCompleteProfileModalOpen(false);
+            }
+          }}
+          title="Complete Your Profile"
+          subtitle="Required to activate your account & enable transactions"
+          preventClose={!currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin}
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!profilePhone || profilePhone.length !== 11 || !profilePhone.startsWith('0')) {
+                toast.warning('Please enter a valid 11-digit phone number starting with 0.');
+                return;
+              }
+              if (!currentUser.hasPin) {
+                if (!profilePin || profilePin.length !== 4) {
+                  toast.warning('Please enter a secret 4-digit transaction PIN.');
+                  return;
+                }
+                if (profilePin !== profileConfirmPin) {
+                  toast.error('Transaction PINs do not match.');
+                  return;
+                }
+              }
+
+              setCompleteProfileLoading(true);
+              try {
+                // Update profile phone & names
+                const fullName = `${profileFirstname || 'User'} ${profileLastname || 'Customer'}`.trim();
+                const profRes = await api.updateProfile({
+                  firstname: profileFirstname || 'User',
+                  lastname: profileLastname || 'Customer',
+                  phone: profilePhone
+                });
+
+                if (profRes && profRes.success === false) {
+                  toast.error(profRes.error || 'Failed to save profile details.');
+                  setCompleteProfileLoading(false);
+                  return;
+                }
+
+                // Create PIN if missing
+                if (!currentUser.hasPin && profilePin) {
+                  const pinRes = await api.setPin(profilePin, profilePin);
+                  if (pinRes && pinRes.success === false) {
+                    toast.error(pinRes.error || 'Failed to save transaction PIN.');
+                    setCompleteProfileLoading(false);
+                    return;
+                  }
+                }
+
+                const updatedUser: UserProfile = {
+                  ...currentUser,
+                  name: fullName || currentUser.name,
+                  firstname: profileFirstname,
+                  lastname: profileLastname,
+                  phone: profilePhone,
+                  hasPin: true
+                };
+
+                setCurrentUser(updatedUser);
+                localStorage.setItem('edata_current_user', JSON.stringify(updatedUser));
+                toast.success('Profile onboarding completed! eData services unlocked.');
+                setCompleteProfileModalOpen(false);
+              } catch (err: any) {
+                toast.error(err.message || 'Error completing profile setup.');
+              } finally {
+                setCompleteProfileLoading(false);
+              }
+            }}
+            className="space-y-4 text-left font-display"
+          >
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-amber-900">Mandatory Profile Setup</h4>
+                <p className="text-[11px] text-amber-700 font-medium leading-relaxed mt-0.5">
+                  To comply with regulatory standards and protect your wallet, please complete your phone number and secret 4-digit transaction PIN.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">First Name</label>
+                <input
+                  type="text"
+                  required
+                  value={profileFirstname}
+                  onChange={(e) => setProfileFirstname(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
+                  placeholder="John"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Last Name</label>
+                <input
+                  type="text"
+                  required
+                  value={profileLastname}
+                  onChange={(e) => setProfileLastname(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">11-Digit Phone Number</label>
+              <input
+                type="tel"
+                maxLength={11}
+                required
+                value={profilePhone}
+                onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl font-bold font-mono text-sm input-focus text-slate-800"
+                placeholder="08012345678"
+              />
+            </div>
+
+            {!currentUser.hasPin && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Create 4-Digit Secret PIN</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    required
+                    value={profilePin}
+                    onChange={(e) => setProfilePin(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
+                    placeholder="••••"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Confirm 4-Digit PIN</label>
+                    {profilePin && profileConfirmPin && (
+                      <span className={`text-[10px] font-bold ${profilePin === profileConfirmPin ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {profilePin === profileConfirmPin ? '✓ PINs Match' : '✗ PINs Do Not Match'}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    required
+                    value={profileConfirmPin}
+                    onChange={(e) => setProfileConfirmPin(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
+                    placeholder="••••"
+                  />
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={completeProfileLoading}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2 mt-2"
+            >
+              {completeProfileLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Save Profile & Unlock eData Services
+            </button>
+          </form>
         </BottomSheet>
 
         {/* Change / Create PIN */}
