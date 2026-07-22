@@ -992,16 +992,19 @@ export default function MobileSimulator({
                           email: res.data.user.email,
                           firstname: res.data.user.firstname || 'Google',
                           lastname: res.data.user.lastname || 'User',
+                          name: `${res.data.user.firstname || 'Google'} ${res.data.user.lastname || 'User'}`.trim(),
+                          photo: res.data.user.photo || '',
                           phone: res.data.user.phone || '',
                           walletBalance: res.data.user.walletBalance || 0,
                           category: res.data.user.category || 'Basic User',
                           isVerified: true,
-                          hasPin: res.data.user.hasPin || false,
+                          hasPin: res.data.user.hasPin || res.data.user.has_pin || false,
                         };
                         setCurrentUser(loggedUser);
                         localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
                         if (handleLoginSuccess) handleLoginSuccess(res.data.token || res.data.accessToken);
                         toast.success(`Welcome back, ${loggedUser.firstname}!`);
+                        setCurrentScreen('app');
                       } else {
                         toast.error(res.error || 'Google Authentication failed.');
                       }
@@ -2825,7 +2828,17 @@ export default function MobileSimulator({
                 }).catch(err => toast.error(err.message || 'Error changing PIN.'));
               } else {
                 api.setPin(newPin, confirmNewPin).then(res => {
-                  if (res.success) { if (handleGlobalRefresh) handleGlobalRefresh(); setChangePinModalOpen(false); setOldPin(''); setNewPin(''); setConfirmNewPin(''); toast.success(res.message || 'PIN set!'); }
+                  if (res.success) { 
+                    if (handleGlobalRefresh) handleGlobalRefresh(); 
+                    setCurrentUser((prev: UserProfile) => {
+                      const updated = { ...prev, hasPin: true };
+                      localStorage.setItem('edata_current_user', JSON.stringify(updated));
+                      return updated;
+                    });
+                    setChangePinModalOpen(false); 
+                    setOldPin(''); setNewPin(''); setConfirmNewPin(''); 
+                    toast.success(res.message || 'Transaction PIN created successfully! You can now proceed with your purchase.'); 
+                  }
                   else toast.error(res.error || 'Failed to set PIN.');
                 }).catch(err => toast.error(err.message || 'Error setting PIN.'));
               }
