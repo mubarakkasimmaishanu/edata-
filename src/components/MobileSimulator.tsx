@@ -414,30 +414,25 @@ export default function MobileSimulator({
   }, [currentScreen, apiStatus, fundModalOpen]);
 
   const handleMarkAsRead = async (id?: number | 'all') => {
+    // 1. Optimistic React UI update immediately
+    if (id === 'all' || !id) {
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadNotificationCount(0);
+      toast.success('All notifications marked as read.');
+    } else {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadNotificationCount(prev => Math.max(0, prev - 1));
+    }
+
+    // 2. Background sync with backend without blocking or showing CORS toasts
     if (apiStatus === 'connected') {
       try {
         const res = await api.markNotificationRead(id);
-        if (res.success) {
-          if (id === 'all' || !id) {
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-            setUnreadNotificationCount(0);
-            toast.success('All notifications marked as read.');
-          } else {
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-            setUnreadNotificationCount(res.unread_count ?? Math.max(0, unreadNotificationCount - 1));
-          }
+        if (res && res.unread_count !== undefined) {
+          setUnreadNotificationCount(res.unread_count);
         }
       } catch (err: any) {
-        toast.error(err.message || 'Failed to mark as read.');
-      }
-    } else {
-      if (id === 'all' || !id) {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-        setUnreadNotificationCount(0);
-        toast.success('All notifications marked as read.');
-      } else {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-        setUnreadNotificationCount(prev => Math.max(0, prev - 1));
+        console.warn('Silent sync for markNotificationRead:', err?.message || err);
       }
     }
   };
