@@ -28,6 +28,18 @@ export function setAuthToken(token: string | null) {
 
 async function request(endpoint: string, options: RequestInit = {}) {
   const token = getAuthToken();
+
+  const publicEndpoints = [
+    '/login', '/signup', '/signup-request', '/signup-verify',
+    '/signup-complete', '/google-auth', '/detect-network',
+    '/forgot-password', '/reset-password'
+  ];
+
+  const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
+  if (!isPublic && !token) {
+    throw new Error('401 Unauthorized: No authentication token provided.');
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
