@@ -134,7 +134,8 @@ export default function App() {
       setLastSynced(new Date().toLocaleTimeString());
       setCurrentScreen('app');
     } catch (err: any) {
-      if (err?.message?.includes('401') || err?.message?.toLowerCase().includes('unauthorized')) {
+      const msg = err?.message?.toLowerCase() || '';
+      if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid credentials')) {
         setAuthToken(null);
         setCurrentScreen('auth');
       } else {
