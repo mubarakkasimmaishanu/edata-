@@ -6,6 +6,9 @@ import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
 import gloIcon from '@/assets/icons/glo.png';
 import nineMobileIcon from '@/assets/icons/9mobile.png';
+import dstvIcon from '@/assets/icons/dstv.png';
+import gotvIcon from '@/assets/icons/gotv.png';
+import startimesIcon from '@/assets/icons/startimes.png';
 
 // ─── Network Provider Config ───
 const NETWORK_PROVIDERS = [
@@ -13,6 +16,13 @@ const NETWORK_PROVIDERS = [
   { name: 'Airtel', icon: airtelIcon, activeRing: 'ring-rose-500/50 border-rose-500 bg-rose-50/40' },
   { name: 'Glo', icon: gloIcon, activeRing: 'ring-emerald-500/50 border-emerald-500 bg-emerald-50/40' },
   { name: '9mobile', icon: nineMobileIcon, activeRing: 'ring-teal-600/50 border-teal-600 bg-teal-50/40' },
+];
+
+// ─── Cable TV Provider Config (Reference Layout) ───
+const CABLE_PROVIDERS = [
+  { name: 'DSTV', icon: dstvIcon, activeRing: 'ring-sky-500/50 border-sky-500 bg-sky-50/40' },
+  { name: 'GOTV', icon: gotvIcon, activeRing: 'ring-emerald-500/50 border-emerald-500 bg-emerald-50/40' },
+  { name: 'STARTIMES', icon: startimesIcon, activeRing: 'ring-amber-500/50 border-amber-500 bg-amber-50/40' },
 ];
 
 const AIRTIME_SHORTCUTS = [100, 200, 300, 500, 1000, 2000];
@@ -177,7 +187,81 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── 2. Destination Input (Phone Number) ─── */}
+      {/* ─── 1b. Cable TV Provider Selector (Reference Pattern) ─── */}
+      {serviceType === 'cable' && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2 font-display">
+              Choose Provider
+            </label>
+            <div className="grid grid-cols-3 gap-2.5">
+              {CABLE_PROVIDERS.map((net) => {
+                const currentOp = detectedOperator || 'DSTV';
+                const isSelected = currentOp.toLowerCase() === net.name.toLowerCase();
+                return (
+                  <button
+                    key={net.name}
+                    type="button"
+                    onClick={() => {
+                      setDetectedOperator(net.name);
+                      setSelectedCategory(cat);
+                      const matchingPlans = products.filter(p => 
+                        ((p.category as string) === 'Cable' || p.category === 'Cable TV') &&
+                        p.active &&
+                        p.operator?.toLowerCase() === net.name.toLowerCase()
+                      );
+                      if (matchingPlans.length > 0) {
+                        setSelectedProduct(matchingPlans[0]);
+                        setCheckoutAmount(getDynamicPrice(matchingPlans[0]).toString());
+                      }
+                    }}
+                    className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative ${
+                      isSelected
+                        ? `${net.activeRing} ring-2 scale-[1.02] shadow-sm`
+                        : 'border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-white">
+                        <Check className="w-3 h-3 text-white stroke-[3]" />
+                      </div>
+                    )}
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center bg-white border border-slate-100 shadow-2xs p-1">
+                      <img
+                        src={net.icon}
+                        alt={net.name}
+                        className="w-full h-full object-contain rounded-xl"
+                      />
+                    </div>
+                    <span className="text-[11.5px] font-black text-slate-800 tracking-wide font-display">
+                      {net.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selected Provider Card Banner */}
+          {detectedOperator && (
+            <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-3.5 flex items-center gap-3.5 shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center shrink-0 border border-white/10">
+                <img 
+                  src={CABLE_PROVIDERS.find(p => p.name.toLowerCase() === detectedOperator.toLowerCase())?.icon || dstvIcon} 
+                  alt={detectedOperator}
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+              <div>
+                <span className="text-[9px] font-extrabold text-sky-400 uppercase tracking-widest block">Selected Provider</span>
+                <span className="text-sm font-black text-white tracking-wide font-display">{detectedOperator.toUpperCase()}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── 2. Destination Input (Phone / Smartcard Number) ─── */}
       <div className="space-y-1.5">
         <div className="flex justify-between items-center">
           <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -205,7 +289,7 @@ export default function ServiceForm(props: ServiceFormProps) {
               setSelectedCategory(cat);
               setTargetNumber(e.target.value.replace(/\D/g, ''));
             }}
-            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-20 py-3 text-sm input-focus text-slate-800 font-medium"
+            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-20 py-3 text-sm input-focus text-slate-800 font-medium font-mono"
           />
           {showNetworkSelector && detectedOperator && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-lg">
@@ -239,12 +323,12 @@ export default function ServiceForm(props: ServiceFormProps) {
         )}
       </div>
 
-      {/* ─── 3. Data Plan Dropdown (or Airtime Amount) ─── */}
+      {/* ─── 3. Data / Cable Plan Dropdown ─── */}
       {showProductDropdown && (
         <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
             {serviceType === 'electricity' ? 'Electricity Provider'
-              : serviceType === 'cable' ? 'Cable TV Provider'
+              : serviceType === 'cable' ? 'Select Plan'
               : serviceType === 'exam' ? 'Examination Body'
               : 'Data Package'}
           </label>
@@ -267,7 +351,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   const matchCat = (p.category as string) === productCategoryFilter
                     || (productCategoryFilter === 'Cable' && p.category === 'Cable TV')
                     || (productCategoryFilter === 'Exam' && p.category === 'Exam Token');
-                  const matchOp = serviceType === 'data' && detectedOperator
+                  const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
                     ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
                     : true;
                   return matchCat && p.active && matchOp;
@@ -279,8 +363,9 @@ export default function ServiceForm(props: ServiceFormProps) {
                 ))
               }
               {products.filter(p => {
-                const matchCat = (p.category as string) === productCategoryFilter;
-                const matchOp = serviceType === 'data' && detectedOperator
+                const matchCat = (p.category as string) === productCategoryFilter
+                  || (productCategoryFilter === 'Cable' && p.category === 'Cable TV');
+                const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
                   ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
                   : true;
                 return matchCat && p.active && matchOp;
