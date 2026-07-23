@@ -1645,20 +1645,20 @@ export default function MobileSimulator({
 
                 {/* ═══ PROFILE TAB ═══ */}
                 {appTab === 'profile' && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    {/* Top Centered Profile Photo & Unique Membership Badge Header */}
-                    <div className="bg-gradient-to-b from-sky-50/70 via-white to-white border border-slate-100 rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                  <div className="space-y-4 animate-fade-in text-left pb-6">
+                    {/* Hero Profile Header */}
+                    <div className="bg-gradient-to-b from-sky-50/80 via-white to-white border border-slate-100 rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
                       <div className="relative group">
-                        <div className="w-24 h-24 rounded-full p-1 bg-white ring-4 ring-sky-500/20 shadow-xl relative overflow-hidden flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-full p-1.5 bg-white ring-4 ring-sky-500/20 shadow-xl relative overflow-hidden flex items-center justify-center">
                           {currentUser.photo ? (
                             <img src={currentUser.photo} className="w-full h-full rounded-full object-cover" alt="Profile Avatar" />
                           ) : (
-                            <div className="w-full h-full rounded-full bg-gradient-to-br from-sky-400 to-sky-600 text-white font-black text-3xl flex items-center justify-center shadow-inner">
-                              {currentUser.name.charAt(0)}
+                            <div className="w-full h-full rounded-full bg-gradient-to-br from-sky-500 to-sky-700 text-white font-black text-3xl flex items-center justify-center shadow-inner font-display">
+                              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                             </div>
                           )}
                         </div>
-                        <label htmlFor="mobile-profile-photo-input" className="absolute bottom-0 right-0 w-8 h-8 bg-sky-600 hover:bg-sky-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg border-2 border-white transition-transform active:scale-95">
+                        <label htmlFor="mobile-profile-photo-input" className="absolute bottom-0 right-0 w-8 h-8 bg-sky-600 hover:bg-sky-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg border-2 border-white transition-transform active:scale-95" title="Change Photo">
                           <Camera className="w-4 h-4" />
                         </label>
                         <input
@@ -1679,8 +1679,6 @@ export default function MobileSimulator({
                             reader.onload = async (event) => {
                               const base64 = event.target?.result as string;
                               if (!base64) return;
-
-                              // Instant preview
                               setCurrentUser(prev => ({ ...prev, photo: base64 }));
                               setSubscribers(prev => prev.map(s => s.email === currentUser.email ? { ...s, photo: base64 } : s));
 
@@ -1708,110 +1706,145 @@ export default function MobileSimulator({
                         />
                       </div>
 
+                      <h3 className="text-base font-black text-slate-900 mt-3 tracking-tight font-display">{currentUser.name}</h3>
+                      <p className="text-xs text-slate-400 font-medium">{currentUser.email}</p>
+
                       {/* Unique Membership Badge Design */}
-                      <div className="mt-3.5">
+                      <div className="mt-3">
                         {currentUser.category === 'Premium User' ? (
-                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-4 py-1.5 rounded-full shadow-md shadow-amber-500/25 border border-amber-300 tracking-wide uppercase">
+                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-4 py-1.5 rounded-full shadow-md shadow-amber-500/20 border border-amber-300 tracking-wider uppercase">
                             <Zap className="w-3.5 h-3.5 fill-slate-950 stroke-slate-950" />
                             <span>Premium Reseller</span>
                           </div>
                         ) : currentUser.category === 'Referred User' ? (
-                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white font-bold text-xs px-4 py-1.5 rounded-full shadow-md shadow-sky-500/20 border border-sky-300/40 tracking-wide uppercase">
+                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white font-bold text-xs px-4 py-1.5 rounded-full shadow-md shadow-sky-500/20 border border-sky-300/40 tracking-wider uppercase">
                             <UserCheck className="w-3.5 h-3.5" />
                             <span>Referred Member</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 text-slate-700 font-bold text-xs px-4 py-1.5 rounded-full shadow-sm border border-slate-300/80 tracking-wide uppercase">
-                            <Shield className="w-3.5 h-3.5 text-slate-500" />
+                          <div className="inline-flex items-center gap-1.5 bg-sky-50 text-sky-700 font-extrabold text-xs px-4 py-1.5 rounded-full border border-sky-200/80 tracking-wider uppercase">
+                            <Shield className="w-3.5 h-3.5 text-sky-600" />
                             <span>Basic Member</span>
                           </div>
                         )}
                       </div>
                     </div>
 
+                    {/* Reseller License Upgrade Banner */}
                     {currentUser.category !== 'Premium User' && (
-                      <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-4 text-white space-y-3 relative overflow-hidden shadow-md">
-                        <div className="space-y-1">
-                          <span className="text-[9px] uppercase font-black text-sky-400 tracking-wider">Agent License Upgrade</span>
-                          <h4 className="text-xs font-bold text-slate-100">Unlock Permanent Reseller Rates</h4>
-                          <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                            Upgrade to Premium to get dynamic discounts on all VTU airtime and data packages.
+                      <div className="bg-gradient-to-br from-sky-600 via-sky-700 to-slate-900 border border-sky-500/20 rounded-3xl p-5 text-white space-y-3.5 relative overflow-hidden shadow-xl shadow-sky-600/15">
+                        <div className="absolute top-0 right-0 w-36 h-36 bg-sky-400/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="relative space-y-1">
+                          <span className="text-[9.5px] uppercase font-black text-sky-300 tracking-widest bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full inline-block border border-white/10">Agent License Upgrade</span>
+                          <h4 className="text-sm font-black text-white pt-1 font-display">Unlock Permanent Reseller Rates</h4>
+                          <p className="text-[11px] text-white/80 leading-relaxed font-medium">
+                            Upgrade to Premium to get dynamic wholesale agent discounts on all VTU airtime and data packages.
                           </p>
                         </div>
                         <button 
                           type="button"
                           onClick={() => setUpgradeModalOpen(true)}
-                          className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-spring active:scale-[0.98] cursor-pointer text-center block btn-sheen"
+                          className="w-full bg-white hover:bg-sky-50 text-sky-800 font-black py-3 rounded-2xl text-xs transition-spring active:scale-[0.98] cursor-pointer text-center block btn-sheen shadow-lg shadow-black/10"
                         >
                           Upgrade Now for ₦{(currentUser.upgradeFee || 5000).toLocaleString()}
                         </button>
                       </div>
                     )}
 
-                    {/* Separate Card for User Information */}
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
-                      <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">User Information</span>
+                    {/* User Information Card */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-3.5">
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">User Information</span>
 
-                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
-                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
-                          <User className="w-4.5 h-4.5" />
+                      <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                        <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                          <User className="w-5 h-5" />
                         </div>
                         <div className="overflow-hidden flex-1">
                           <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Full Name</span>
-                          <span className="text-xs font-extrabold text-slate-900 truncate block">{currentUser.name}</span>
+                          <span className="text-xs font-black text-slate-900 truncate block">{currentUser.name}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
-                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
-                          <Mail className="w-4.5 h-4.5" />
+                      <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                        <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                          <Mail className="w-5 h-5" />
                         </div>
-                        <div className="overflow-hidden flex-1">
+                        <div className="overflow-hidden flex-1 min-w-0">
                           <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Email Address</span>
-                          <span className="text-xs font-bold text-slate-800 break-all block">{currentUser.email}</span>
+                          <span className="text-xs font-bold text-slate-800 break-all block truncate font-mono">{currentUser.email}</span>
                         </div>
+                        <button type="button" onClick={() => {
+                          navigator.clipboard.writeText(currentUser.email);
+                          toast.success('Email address copied!');
+                        }} className="text-[10px] text-sky-600 font-extrabold bg-sky-50 hover:bg-sky-100 border border-sky-100 px-2.5 py-1 rounded-xl transition-all shrink-0">
+                          Copy
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-3.5 p-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
-                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center shrink-0">
-                          <Phone className="w-4.5 h-4.5" />
+                      <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                        <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                          <Phone className="w-5 h-5" />
                         </div>
-                        <div className="overflow-hidden flex-1">
+                        <div className="overflow-hidden flex-1 min-w-0">
                           <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Phone Number</span>
-                          <span className="text-xs font-bold text-slate-800 block">{currentUser.phone || 'Not provided'}</span>
+                          <span className="text-xs font-bold text-slate-800 block font-mono">{currentUser.phone || 'Not provided'}</span>
                         </div>
+                        {currentUser.phone && (
+                          <button type="button" onClick={() => {
+                            navigator.clipboard.writeText(currentUser.phone);
+                            toast.success('Phone number copied!');
+                          }} className="text-[10px] text-sky-600 font-extrabold bg-sky-50 hover:bg-sky-100 border border-sky-100 px-2.5 py-1 rounded-xl transition-all shrink-0">
+                            Copy
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-sm">
-                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 font-display">Security & Controls</h4>
+                    {/* Security & Controls Card */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-5 space-y-3.5 shadow-sm">
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">Security & Controls</span>
 
-                      <button onClick={() => { setOldPin(''); setNewPin(''); setConfirmNewPin(''); setChangePinModalOpen(true); }}
-                        className="w-full flex items-center justify-between py-3 border-b border-slate-50 group text-left">
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block font-display">Transaction PIN</span>
-                          <span className="text-[11px] text-slate-400 font-medium">Required before purchase checkout</span>
+                      <button type="button" onClick={() => { setOldPin(''); setNewPin(''); setConfirmNewPin(''); setChangePinModalOpen(true); }}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-sky-200 transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <Shield className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Transaction PIN</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">Required before purchase checkout</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-sky-600 font-bold group-hover:text-sky-700 flex items-center gap-1">
+                        <span className="text-xs text-sky-600 font-bold bg-sky-50 group-hover:bg-sky-100 px-3 py-1.5 rounded-xl border border-sky-100/80 flex items-center gap-1 transition-all">
                           {currentUser.hasPin ? 'Change' : 'Set Up'} <ChevronRight className="w-3.5 h-3.5" />
                         </span>
                       </button>
 
-                      <button onClick={() => { setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setChangePasswordModalOpen(true); }}
-                        className="w-full flex items-center justify-between py-3 border-b border-slate-50 group text-left">
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block">Password Settings</span>
-                          <span className="text-[11px] text-slate-400 font-medium">Update account login password</span>
+                      <button type="button" onClick={() => { setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setChangePasswordModalOpen(true); }}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-sky-200 transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <Lock className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Password Settings</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">Update account login password</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-sky-600 font-bold group-hover:text-sky-700 flex items-center gap-1">
+                        <span className="text-xs text-sky-600 font-bold bg-sky-50 group-hover:bg-sky-100 px-3 py-1.5 rounded-xl border border-sky-100/80 flex items-center gap-1 transition-all">
                           Change <ChevronRight className="w-3.5 h-3.5" />
                         </span>
                       </button>
 
-                      <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block">Biometric Lock</span>
-                          <span className="text-[11px] text-slate-400 font-medium">Enable Touch ID / Face ID login</span>
+                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <Fingerprint className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Biometric Lock</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">Enable Touch ID / Face ID login</span>
+                          </div>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" checked={!!currentUser.biometricsEnabled}
@@ -1821,19 +1854,25 @@ export default function MobileSimulator({
                               setSubscribers((prev: UserProfile[]) => prev.map(s => s.email === currentUser.email ? { ...s, biometricsEnabled: checked } : s));
                             }}
                             className="sr-only peer" />
-                          <div className="w-10 h-[22px] bg-slate-200 rounded-full peer peer-checked:bg-sky-500 peer-checked:after:translate-x-[18px] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:transition-all after:shadow-sm" />
+                          <div className="w-10 h-[22px] bg-slate-200 rounded-full peer peer-checked:bg-sky-600 peer-checked:after:translate-x-[18px] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[18px] after:w-[18px] after:transition-all after:shadow-sm" />
                         </label>
                       </div>
 
-                      <div className="flex items-center justify-between py-3">
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block font-display">Two-Factor Auth (2FA)</span>
-                          <span className="text-[11px] text-slate-400 font-medium">Extra layer of verification codes</span>
+                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <Shield className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Two-Factor Auth (2FA)</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">Extra layer of verification codes</span>
+                          </div>
                         </div>
-                        <span className="bg-emerald-50 text-emerald-600 font-bold text-[10px] px-2 py-1 rounded-full border border-emerald-100">Active</span>
+                        <span className="bg-emerald-50 text-emerald-600 font-bold text-[10px] px-2.5 py-1 rounded-full border border-emerald-100">Active ✓</span>
                       </div>
                     </div>
 
+                    {/* Sign Out Button */}
                     <button onClick={() => {
                       showConfirm({
                         title: 'Sign Out?',
@@ -1844,7 +1883,7 @@ export default function MobileSimulator({
                         onConfirm: () => { setConfirmOpen(false); if (handleLogout) handleLogout(); else setCurrentScreen('auth'); },
                       });
                     }}
-                      className="w-full bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold text-xs py-3.5 rounded-2xl transition-smooth flex items-center justify-center gap-2 border border-sky-100/80 shadow-sm">
+                      className="w-full bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold text-xs py-3.5 rounded-2xl transition-smooth flex items-center justify-center gap-2 border border-sky-100/80 shadow-sm active:scale-[0.98]">
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                   </div>
