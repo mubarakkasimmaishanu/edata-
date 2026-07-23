@@ -5,6 +5,8 @@ import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_US
 import { UserProfile, ProductItem, Transaction } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 
+import AuthPage from './components/AuthPage';
+
 export default function App() {
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
@@ -41,18 +43,17 @@ export default function App() {
   const fetchAllData = async () => {
     setIsSyncing(true);
     try {
-      // 1. Fetch Profile
-      const profileRes = await api.getProfile();
-      // 2. Fetch Wallet
-      const walletRes = await api.getWallet();
-      // 3. Fetch Transactions
-      const txRes = await api.getTransactions();
-      // 4. Fetch Services & Plans
-      const servicesRes = await api.getServices();
+      // Fetch Profile, Wallet, Transactions, and Services concurrently in parallel
+      const [profileRes, walletRes, txRes, servicesRes] = await Promise.all([
+        api.getProfile(),
+        api.getWallet(),
+        api.getTransactions(),
+        api.getServices(),
+      ]);
 
       // Map dynamic services/plans to products
-      const dbServices: any[] = servicesRes.data.services || [];
-      const dbPlans: any[] = servicesRes.data.plans || [];
+      const dbServices: any[] = servicesRes.data?.services || servicesRes.services || [];
+      const dbPlans: any[] = servicesRes.data?.plans || servicesRes.plans || [];
 
       const mappedProducts: ProductItem[] = [];
 
@@ -99,7 +100,7 @@ export default function App() {
 
       setProducts(mappedProducts);
 
-      const mappedTx: Transaction[] = (txRes.data || []).map((t: any) => ({
+      const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
         id: t.reference,
         type: t.type === 'Exam Card' ? 'Exam Token' : (t.type === 'Cable TV' || t.type === 'Cable' ? 'Cable TV' : t.type),
         productName: t.description,
@@ -112,13 +113,14 @@ export default function App() {
       }));
       setTransactions(mappedTx);
 
-      const user = profileRes.data;
+      const user = profileRes.data || profileRes;
+      const walletData = walletRes.data || walletRes;
       setCurrentUser({
         id: user.id,
-        name: `${user.firstname} ${user.lastname}`.trim() || 'eData User',
+        name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'eData User',
         email: user.email,
         phone: user.phone || '',
-        walletBalance: parseFloat(walletRes.data.balance || '0'),
+        walletBalance: parseFloat(walletData.balance || '0'),
         category: user.level_label || 'Basic User',
         bvn: '',
         nin: '',
@@ -188,26 +190,35 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white" id="standalone-mobile-frame">
-        {/* Full Width Responsive App Container */}
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
         <div className="w-full flex-1 flex flex-col">
-          <MobileSimulator 
-            currentUser={currentUser}
-            setCurrentUser={handleSetCurrentUser}
-            products={products}
-            transactions={transactions}
-            setTransactions={handleSetTransactions}
-            subscribers={subscribers}
-            setSubscribers={handleSetSubscribers}
-            handleGlobalRefresh={handleGlobalRefresh}
-            isSyncing={isSyncing}
-            currentScreen={currentScreen}
-            setCurrentScreen={setCurrentScreen}
-            handleLoginSuccess={handleLoginSuccess}
-            handleLogout={handleLogout}
-            apiStatus={apiStatus}
-            setApiStatus={setApiStatus}
-          />
+          {currentScreen !== 'app' ? (
+            <AuthPage
+              onLoginSuccess={handleLoginSuccess}
+              setCurrentUser={handleSetCurrentUser}
+              apiStatus={apiStatus}
+              setApiStatus={setApiStatus}
+              subscribers={subscribers}
+            />
+          ) : (
+            <MobileSimulator 
+              currentUser={currentUser}
+              setCurrentUser={handleSetCurrentUser}
+              products={products}
+              transactions={transactions}
+              setTransactions={handleSetTransactions}
+              subscribers={subscribers}
+              setSubscribers={handleSetSubscribers}
+              handleGlobalRefresh={handleGlobalRefresh}
+              isSyncing={isSyncing}
+              currentScreen={currentScreen}
+              setCurrentScreen={setCurrentScreen}
+              handleLoginSuccess={handleLoginSuccess}
+              handleLogout={handleLogout}
+              apiStatus={apiStatus}
+              setApiStatus={setApiStatus}
+            />
+          )}
         </div>
       </div>
     </ToastProvider>

@@ -12,20 +12,21 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: DialogVariant;
+  icon?: React.ElementType;
   loading?: boolean;
 }
 
 const VARIANT_ICONS: Record<DialogVariant, { icon: React.ElementType; bg: string; iconColor: string }> = {
   danger: { icon: XCircle, bg: 'bg-rose-50', iconColor: 'text-rose-500' },
   warning: { icon: AlertTriangle, bg: 'bg-amber-50', iconColor: 'text-amber-500' },
-  info: { icon: Info, bg: 'bg-sky-50', iconColor: 'text-sky-500' },
+  info: { icon: Info, bg: 'bg-sky-50', iconColor: 'text-sky-600' },
   success: { icon: CheckCircle, bg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
 };
 
 const CONFIRM_STYLES: Record<DialogVariant, string> = {
   danger: 'bg-rose-600 hover:bg-rose-700 text-white',
   warning: 'bg-amber-500 hover:bg-amber-600 text-white',
-  info: 'bg-sky-600 hover:bg-sky-700 text-white',
+  info: 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg shadow-sky-600/20',
   success: 'bg-emerald-600 hover:bg-emerald-700 text-white',
 };
 
@@ -38,12 +39,13 @@ export default function ConfirmDialog({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'info',
+  icon: CustomIcon,
   loading = false,
 }: ConfirmDialogProps) {
   if (!open) return null;
 
   const config = VARIANT_ICONS[variant];
-  const Icon = config.icon;
+  const Icon = CustomIcon || config.icon;
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center p-6">
