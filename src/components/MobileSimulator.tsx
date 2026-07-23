@@ -7,7 +7,7 @@ import {
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
-  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink
+  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus
 } from 'lucide-react';
 import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
@@ -185,6 +185,8 @@ export default function MobileSimulator({
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradePinSheetOpen, setUpgradePinSheetOpen] = useState(false);
+  const [upgradePinInput, setUpgradePinInput] = useState('');
   const [chatMessage, setChatMessage] = useState('');
 
   // ─── Confirm Dialog ───
@@ -192,6 +194,7 @@ export default function MobileSimulator({
   const [confirmConfig, setConfirmConfig] = useState<{
     title: string; description?: string; confirmText?: string;
     variant?: 'danger' | 'warning' | 'info' | 'success';
+    icon?: React.ElementType;
     onConfirm: () => void;
   }>({ title: '', onConfirm: () => {} });
 
@@ -492,8 +495,9 @@ export default function MobileSimulator({
   };
 
   // ─── Confirm Purchase After PIN ───
-  const handleConfirmPurchase = async () => {
-    if (!pinInput || pinInput.length !== 4) {
+  const handleConfirmPurchase = async (overridePin?: string) => {
+    const pin = typeof overridePin === 'string' ? overridePin : pinInput;
+    if (!pin || pin.length !== 4) {
       toast.warning('Please enter your 4-digit PIN.');
       return;
     }
@@ -517,7 +521,7 @@ export default function MobileSimulator({
           service_id: serviceId || '1',
           amount: finalPrice,
           target_number: targetNumber,
-          transaction_pin: pinInput,
+          transaction_pin: pin,
           plan_id: planId,
           promo_id: appliedPromo ? 1 : undefined,
           bank_name: a2cBank,
@@ -531,6 +535,7 @@ export default function MobileSimulator({
           toast.success(`₦${finalPrice.toLocaleString()} payment processed successfully!`);
           if (appliedPromo) { setAppliedPromo(''); setPromoDiscount(0); setPromoCodeInput(''); }
           if (handleGlobalRefresh) handleGlobalRefresh();
+          setSelectedProduct(null); setTargetNumber('');
 
           const newTx: Transaction = {
             id: res.data.reference || `EDAT-${Date.now()}`,
@@ -556,6 +561,39 @@ export default function MobileSimulator({
     }
 
     toast.error('API connection required to execute purchase.');
+  };
+
+  // ─── Account Upgrade Execution After PIN ───
+  const handleExecuteUpgrade = async (overridePin?: string) => {
+    const pin = typeof overridePin === 'string' ? overridePin : upgradePinInput;
+    if (!pin || pin.length !== 4) {
+      toast.warning('Please enter your 4-digit PIN.');
+      return;
+    }
+
+    setUpgradePinSheetOpen(false);
+    setUpgradeLoading(true);
+
+    if (apiStatus === 'offline') {
+      setUpgradeLoading(false);
+      toast.error('API connection required for reseller upgrade.');
+      return;
+    }
+
+    try {
+      const res = await api.upgrade(pin);
+      setUpgradeLoading(false);
+      if (res.success) {
+        toast.success(res.message || 'Upgrade successful!');
+        if (handleGlobalRefresh) handleGlobalRefresh();
+        setUpgradeModalOpen(false);
+      } else {
+        toast.error(res.error || 'Upgrade failed.');
+      }
+    } catch (err: any) {
+      setUpgradeLoading(false);
+      toast.error(err.message || 'Upgrade error.');
+    }
   };
 
   // ─── Login Handler ───
@@ -597,28 +635,17 @@ export default function MobileSimulator({
       return;
     }
 
-    if (apiStatus === 'connected') {
-      try {
-        const res = await api.signupRequest(authEmail, authPromo);
-        if (res.success) {
-          toast.success(res.message || 'Verification code sent to your email!');
-          if (res.otp) {
-            toast.info(`Localhost OTP Code: ${res.otp}`);
-          }
-          setCurrentScreen('otp');
-        } else {
-          toast.error(res.error || 'Failed to send verification code.');
-        }
-      } catch (err: any) {
-        toast.error(err.message || 'Error requesting registration verification code.');
+    try {
+      const res = await api.signupRequest(authEmail, authPromo);
+      if (res.success) {
+        toast.success(res.message || 'Verification code sent to your email!');
+        setCurrentScreen('otp');
+      } else {
+        toast.error(res.error || 'Failed to send verification code.');
       }
-      return;
+    } catch (err: any) {
+      toast.error(err.message || 'Error requesting registration verification code.');
     }
-
-    // Localhost Sandbox Fallback
-    toast.success(`Verification code sent to ${authEmail}`);
-    toast.info('Sandbox OTP Code: 123456');
-    setCurrentScreen('otp');
   };
 
   // ─── OTP Handler ───
@@ -628,26 +655,19 @@ export default function MobileSimulator({
       return;
     }
 
-    if (apiStatus === 'connected') {
-      try {
-        const res = await api.signupVerify(authEmail, otpCode);
-        if (res.success) {
-          setVerificationError('');
-          toast.success('Email verified successfully!');
-          setCurrentScreen('password_create');
-        } else {
-          setVerificationError(res.error || 'Incorrect verification code.');
-          toast.error(res.error || 'Verification failed.');
-        }
-      } catch (err: any) {
-        setVerificationError(err.message || 'OTP verification error.');
+    try {
+      const res = await api.signupVerify(authEmail, otpCode);
+      if (res.success) {
+        setVerificationError('');
+        toast.success('Email verified successfully!');
+        setCurrentScreen('password_create');
+      } else {
+        setVerificationError(res.error || 'Incorrect verification code.');
+        toast.error(res.error || 'Verification failed.');
       }
-      return;
+    } catch (err: any) {
+      setVerificationError(err.message || 'OTP verification error.');
     }
-
-    // Localhost Sandbox Fallback
-    setVerificationError('');
-    setCurrentScreen('password_create');
   };
 
   // ─── Register Password Handler ───
@@ -662,48 +682,32 @@ export default function MobileSimulator({
       return;
     }
 
-    if (apiStatus === 'connected') {
-      try {
-        const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', authPromo);
-        if (res.success && res.data) {
-          const newUserObj: UserProfile = {
-            id: res.data.user.id,
-            name: authEmail.split('@')[0].toUpperCase(),
-            email: res.data.user.email,
-            phone: res.data.user.phone || '',
-            walletBalance: 0,
-            category: res.data.user.level_label || 'Basic User',
-            bvn: '', nin: '', isVerified: false,
-            pinCode: '', hasPin: res.data.user.has_pin || false,
-            promoCode: authPromo,
-          };
-          setCurrentUser(newUserObj);
-          localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
-          if (handleLoginSuccess) handleLoginSuccess(res.data.token);
-          toast.success(res.message || 'Registration completed successfully! Welcome to eData.');
-          setRegPassword(''); setRegConfirmPassword('');
-          setCurrentScreen('app');
-        } else {
-          toast.error(res.error || 'Registration failed.');
-        }
-      } catch (err: any) {
-        toast.error(err.message || 'Registration completion error.');
+    try {
+      const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', authPromo);
+      if (res.success && res.data) {
+        const newUserObj: UserProfile = {
+          id: res.data.user.id,
+          name: authEmail.split('@')[0].toUpperCase(),
+          email: res.data.user.email,
+          phone: res.data.user.phone || '',
+          walletBalance: 0,
+          category: res.data.user.level_label || 'Basic User',
+          bvn: '', nin: '', isVerified: false,
+          pinCode: '', hasPin: res.data.user.has_pin || false,
+          promoCode: authPromo,
+        };
+        setCurrentUser(newUserObj);
+        localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
+        if (handleLoginSuccess) handleLoginSuccess(res.data.token);
+        toast.success(res.message || 'Registration completed successfully! Welcome to eData.');
+        setRegPassword(''); setRegConfirmPassword('');
+        setCurrentScreen('app');
+      } else {
+        toast.error(res.error || 'Registration failed.');
       }
-      return;
+    } catch (err: any) {
+      toast.error(err.message || 'Registration completion error.');
     }
-
-    // Sandbox Fallback
-    const newUserObj: UserProfile = {
-      name: authEmail.split('@')[0].toUpperCase(),
-      email: authEmail, phone: '', walletBalance: 0,
-      category: authPromo ? 'Referred User' : 'Basic User',
-      bvn: '', nin: '', isVerified: false, pinCode: '', hasPin: false, promoCode: authPromo,
-    };
-    setCurrentUser(newUserObj);
-    localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
-    toast.success('Registration setup completed! Welcome to eData.');
-    setRegPassword(''); setRegConfirmPassword('');
-    setCurrentScreen('app');
   };
 
   // ─── KYC Handler ───
@@ -1300,52 +1304,74 @@ export default function MobileSimulator({
 
                 {/* ═══ HOME TAB ═══ */}
                 {appTab === 'home' && (
-                  <div className="space-y-3 text-left animate-fade-in">
-                    {/* Wallet Card */}
-                    <div className="wallet-gradient text-white p-4.5 rounded-2xl shadow-xl shadow-sky-950/15 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent" />
-                      <div className="relative">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-2">
+                  <div className="space-y-4 text-left animate-fade-in">
+                    {/* Hero Wallet Card */}
+                    <div className="bg-gradient-to-br from-sky-600 via-sky-700 to-slate-900 text-white p-5 rounded-3xl shadow-xl shadow-sky-600/20 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
+                      <div className="relative space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[10px] text-white/70 font-semibold uppercase tracking-wider">Available Balance</span>
+                            <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider font-display">Available Balance</span>
                           </div>
                           <button type="button" onClick={() => setAppTab('history')}
-                            className="text-[10px] text-white/60 font-bold uppercase tracking-wider hover:text-white/90 transition-colors">
-                            History →
+                            className="bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold py-1.5 px-3 rounded-xl backdrop-blur-md transition-all border border-white/10 flex items-center gap-1 active:scale-95">
+                            History <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <div className="flex items-center gap-3 mt-2.5">
-                          <span className="text-2xl font-extrabold font-mono tracking-tight">
-                            {isBalanceHidden ? '₦••••••' : `₦${currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-                          </span>
-                          <button type="button" onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-                            className="text-white/50 hover:text-white transition-colors p-1">
-                            {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                          </button>
-                        </div>
-                        <div className="flex justify-end mt-2">
-                          <button type="button" onClick={() => setFundModalOpen(true)}
-                            className="bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold py-1.5 px-4 rounded-full transition-all backdrop-blur-sm border border-white/15 active:scale-95">
-                            + Add Money
-                          </button>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Earnings Strip */}
-                    <div className="bg-white rounded-2xl px-4 py-3 flex items-center justify-between border border-slate-100 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Coins className="w-4 h-4 text-sky-500" />
-                        <span className="text-xs text-slate-500 font-semibold">Yesterday's Earnings</span>
+                        <div className="flex justify-between items-end pt-1">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-3xl font-black font-mono tracking-tight text-white">
+                                {isBalanceHidden ? '₦••••••••' : `₦${(currentUser?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                              </span>
+                              <button type="button" onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+                                className="text-white/70 hover:text-white transition-colors p-1.5 bg-white/10 rounded-xl backdrop-blur-sm">
+                                {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <button type="button" onClick={() => setFundModalOpen(true)}
+                            className="bg-white hover:bg-sky-50 text-sky-800 font-black text-xs py-2.5 px-4 rounded-2xl shadow-lg transition-spring active:scale-95 flex items-center gap-1.5 btn-sheen">
+                            <PlusCircle className="w-4 h-4 text-sky-600" />
+                            Add Money
+                          </button>
+                        </div>
+
+                        {/* Dynamic Virtual Transfer Bank Account Pill (Synced with backend API) */}
+                        {virtualAccounts && virtualAccounts.length > 0 ? (
+                          <div className="border-t border-white/15 pt-3 flex items-center justify-between bg-black/20 backdrop-blur-md rounded-2xl px-3.5 py-2.5">
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-extrabold text-sky-200 uppercase tracking-wider block">Instant Bank Transfer Account</span>
+                              <span className="text-xs font-bold text-white font-mono tracking-wide truncate block">
+                                {virtualAccounts[0].bank_name}: <strong className="text-sky-300 font-black">{virtualAccounts[0].account_number}</strong>
+                              </span>
+                            </div>
+                            <button type="button" onClick={() => {
+                              navigator.clipboard.writeText(virtualAccounts[0].account_number);
+                              toast.success(`${virtualAccounts[0].bank_name} account number copied!`);
+                            }} className="bg-sky-500/30 hover:bg-sky-500/50 text-white text-[10px] font-extrabold px-3 py-1 rounded-xl transition-all border border-sky-400/30 shrink-0 uppercase tracking-wider">
+                              COPY
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="border-t border-white/15 pt-3 flex items-center justify-between bg-black/20 backdrop-blur-md rounded-2xl px-3.5 py-2.5">
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-extrabold text-sky-200 uppercase tracking-wider block">Automated Bank Transfer</span>
+                              <span className="text-xs font-medium text-white/80 truncate block">Get instant dedicated account for wallet funding</span>
+                            </div>
+                            <button type="button" onClick={() => setFundModalOpen(true)} className="bg-sky-500/30 hover:bg-sky-500/50 text-white text-[10px] font-extrabold px-3 py-1 rounded-xl transition-all border border-sky-400/30 shrink-0 uppercase tracking-wider">
+                              Get Account
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs text-emerald-600 font-bold font-mono">
-                        +₦{yesterdaysEarnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="bg-white rounded-2xl p-3 flex justify-around items-center border border-slate-100 shadow-sm">
+                    <div className="bg-white rounded-3xl p-4 flex justify-around items-center border border-slate-100 shadow-sm">
                       {[
                         { id: 'bank', label: 'To Bank', icon: Smartphone },
                         { id: 'palmpay', label: 'PalmPay', icon: ArrowUpRight },
@@ -1354,11 +1380,11 @@ export default function MobileSimulator({
                       ].map(btn => (
                         <button key={btn.id} type="button"
                           onClick={() => toast.info(`${btn.label} — connected to your wallet.`)}
-                          className="flex flex-col items-center gap-1.5 group">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 group-hover:bg-sky-50 flex items-center justify-center transition-spring group-active:scale-90 border border-slate-100/50">
-                            <btn.icon className="w-4.5 h-4.5 text-slate-500 group-hover:text-sky-600 transition-colors" />
+                          className="flex flex-col items-center gap-1.5 group cursor-pointer">
+                          <div className="w-12 h-12 rounded-2xl bg-sky-50/90 text-sky-600 group-hover:bg-sky-100 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-sky-100 shadow-sm">
+                            <btn.icon className="w-5.5 h-5.5 text-sky-600 transition-colors shrink-0" />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 group-hover:text-sky-600 transition-colors">{btn.label}</span>
+                          <span className="text-[10px] font-black text-slate-700 group-hover:text-sky-600 transition-colors mt-0.5">{btn.label}</span>
                         </button>
                       ))}
                     </div>
@@ -1369,7 +1395,7 @@ export default function MobileSimulator({
                         onClick={() => setActiveReceipt(lastTx)}>
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-900 font-mono">₦{lastTx.amount.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-slate-900 font-mono">₦{(lastTx.amount || 0).toLocaleString()}</span>
                             <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
                               lastTx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
                             }`}>{lastTx.status}</span>
@@ -1385,65 +1411,52 @@ export default function MobileSimulator({
                     )}
 
                     {/* Services Grid */}
-                    <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                      <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3">
+                      <div className="flex justify-between items-center px-1">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 font-display">Services</h4>
+                        <button type="button" onClick={() => setAppTab('services')} className="text-[11px] font-extrabold text-sky-600 hover:underline">
+                          View All
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-y-5 gap-x-3 pt-1">
                         {serviceIcons.map((srv, idx) => (
                           <button key={idx} type="button"
                             onClick={() => {
                               if (srv.tab) { setSelectedCategory(srv.id as any); setAppTab(srv.tab as any); }
                               else if (srv.action) srv.action();
                             }}
-                            className="flex flex-col items-center gap-1.5 group">
-                            <div className={`w-10 h-10 rounded-xl ${srv.color} flex items-center justify-center transition-spring group-hover:scale-105 group-active:scale-90 border border-slate-100/10`}>
-                              <srv.icon className="w-4.5 h-4.5" />
+                            className="flex flex-col items-center gap-1.5 group cursor-pointer">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-50 via-sky-100/90 to-sky-50 text-sky-600 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-sky-200/70 shadow-md shadow-sky-500/10 group-hover:shadow-sky-500/25 group-hover:border-sky-300">
+                              <srv.icon className="w-6.5 h-6.5 text-sky-600 shrink-0" />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-500 text-center leading-tight group-hover:text-slate-700 transition-colors">{srv.id}</span>
+                            <span className="text-[11px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors tracking-tight mt-1">{srv.id}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Membership + Upgrade Row */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm space-y-2.5">
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-800">Membership</h5>
-                          <span className="text-[10px] text-slate-400 font-medium">Current tier</span>
+                    {/* Agent License Reseller Banner */}
+                    <div className="bg-gradient-to-br from-sky-50 via-white to-sky-50/60 rounded-3xl p-4.5 border border-sky-100 shadow-sm flex items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-black bg-sky-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            {currentUser.category}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">Current Tier</span>
                         </div>
-                        <span className="text-xs font-bold text-sky-600 bg-sky-50 border border-sky-100 px-2.5 py-1 rounded-xl block text-center truncate">
-                          {currentUser.category}
-                        </span>
-                        <button type="button" onClick={() => setPriceSheetOpen(true)}
-                          className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-semibold py-1.5 rounded-xl transition-smooth font-display">
-                          View Rates
+                        <h5 className="text-sm font-black text-slate-900 font-display">Reseller License</h5>
+                        <p className="text-[11px] text-slate-500 font-medium">Get wholesale agent discounts on all purchases.</p>
+                      </div>
+                      {currentUser.category === 'Premium User' ? (
+                        <button type="button" disabled className="bg-emerald-50 text-emerald-600 font-bold text-xs px-3.5 py-2.5 rounded-2xl border border-emerald-100 shrink-0">
+                          Active ✓
                         </button>
-                      </div>
-                      <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm space-y-2.5 relative overflow-hidden">
-                        {currentUser.category !== 'Premium User' && (
-                          <div className="absolute top-0 right-0 bg-sky-500 text-white text-[8px] font-extrabold px-2 py-0.5 rounded-bl-lg tracking-wider">PRO</div>
-                        )}
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-800">VTU License</h5>
-                          <span className="text-[10px] text-slate-400 font-medium">Agent rates</span>
-                        </div>
-                        <span className="text-sm font-extrabold text-sky-600 block tabular-nums">
-                          {currentUser.category === 'Premium User' ? 'ACTIVE' : `₦${(currentUser.upgradeFee || 5000).toLocaleString()}`}
-                        </span>
-                        {currentUser.category === 'Premium User' ? (
-                          <button type="button" disabled className="w-full bg-emerald-50 text-emerald-600 text-[11px] font-bold py-1.5 rounded-xl cursor-not-allowed border border-emerald-100">
-                            Active ✓
-                          </button>
-                        ) : currentUser.hasPendingUpgrade ? (
-                          <button type="button" disabled className="w-full bg-sky-50 text-sky-500 text-[11px] font-bold py-1.5 rounded-xl cursor-not-allowed border border-sky-100">
-                            Pending
-                          </button>
-                        ) : (
-                          <button type="button" onClick={() => setUpgradeModalOpen(true)}
-                            className="w-full bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold py-1.5 rounded-xl transition-smooth active:scale-95 btn-sheen">
-                            Upgrade
-                          </button>
-                        )}
-                      </div>
+                      ) : (
+                        <button type="button" onClick={() => setUpgradeModalOpen(true)}
+                          className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl transition-spring shadow-md shadow-sky-600/15 active:scale-95 shrink-0 btn-sheen">
+                          Upgrade ₦{(currentUser.upgradeFee || 5000).toLocaleString()}
+                        </button>
+                      )}
                     </div>
 
                     {/* Referral Banner */}
@@ -1716,6 +1729,25 @@ export default function MobileSimulator({
                       </div>
                     </div>
 
+                    {currentUser.category !== 'Premium User' && (
+                      <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-4 text-white space-y-3 relative overflow-hidden shadow-md">
+                        <div className="space-y-1">
+                          <span className="text-[9px] uppercase font-black text-sky-400 tracking-wider">Agent License Upgrade</span>
+                          <h4 className="text-xs font-bold text-slate-100">Unlock Permanent Reseller Rates</h4>
+                          <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                            Upgrade to Premium to get dynamic discounts on all VTU airtime and data packages.
+                          </p>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setUpgradeModalOpen(true)}
+                          className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-spring active:scale-[0.98] cursor-pointer text-center block btn-sheen"
+                        >
+                          Upgrade Now for ₦{(currentUser.upgradeFee || 5000).toLocaleString()}
+                        </button>
+                      </div>
+                    )}
+
                     {/* Separate Card for User Information */}
                     <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
                       <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">User Information</span>
@@ -1750,25 +1782,6 @@ export default function MobileSimulator({
                         </div>
                       </div>
                     </div>
-
-                    {currentUser.category !== 'Premium User' && (
-                      <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-4 text-white space-y-3 relative overflow-hidden shadow-md">
-                        <div className="space-y-1">
-                          <span className="text-[9px] uppercase font-black text-sky-400 tracking-wider">Agent License Upgrade</span>
-                          <h4 className="text-xs font-bold text-slate-100">Unlock Permanent Reseller Rates</h4>
-                          <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                            Upgrade to Premium to get dynamic discounts on all VTU airtime and data packages.
-                          </p>
-                        </div>
-                        <button 
-                          type="button"
-                          onClick={() => setUpgradeModalOpen(true)}
-                          className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-spring active:scale-[0.98] cursor-pointer text-center block btn-sheen"
-                        >
-                          Upgrade Now for ₦{(currentUser.upgradeFee || 5000).toLocaleString()}
-                        </button>
-                      </div>
-                    )}
 
                     <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-sm">
                       <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 font-display">Security & Controls</h4>
@@ -1826,11 +1839,12 @@ export default function MobileSimulator({
                         title: 'Sign Out?',
                         description: 'You will need to log in again to access your account.',
                         confirmText: 'Sign Out',
-                        variant: 'danger',
+                        variant: 'info',
+                        icon: LogOut,
                         onConfirm: () => { setConfirmOpen(false); if (handleLogout) handleLogout(); else setCurrentScreen('auth'); },
                       });
                     }}
-                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-3.5 rounded-2xl transition-smooth flex items-center justify-center gap-2 border border-rose-100">
+                      className="w-full bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold text-xs py-3.5 rounded-2xl transition-smooth flex items-center justify-center gap-2 border border-sky-100/80 shadow-sm">
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                   </div>
@@ -2065,11 +2079,38 @@ export default function MobileSimulator({
         {/* PIN Auth */}
         <BottomSheet open={pinSheetOpen} onClose={() => setPinSheetOpen(false)} title="Authorize Transaction" subtitle="Enter your 4-digit PIN" closeLabel="Cancel">
           <div className="space-y-4">
-            <div className="flex justify-center">
-              <input type="password" maxLength={4} value={pinInput}
-                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="••••"
-                className="bg-slate-50 border-2 border-slate-200 tracking-[0.5em] text-center text-xl font-bold rounded-2xl w-32 py-3.5 input-focus text-slate-800 font-mono" />
+            <div className="flex justify-center gap-3 py-1">
+              {[0, 1, 2, 3].map(i => (
+                <input
+                  key={i}
+                  type="password"
+                  maxLength={1}
+                  value={pinInput[i] || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    const pinArr = pinInput.split('');
+                    pinArr[i] = val;
+                    const fullPin = pinArr.join('').slice(0, 4);
+                    setPinInput(fullPin);
+                    if (val && i < 3) {
+                      const next = e.target.nextElementSibling as HTMLInputElement;
+                      if (next) next.focus();
+                    }
+                    if (fullPin.length === 4) {
+                      setTimeout(() => {
+                        handleConfirmPurchase(fullPin);
+                      }, 50);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && !pinInput[i] && i > 0) {
+                      const prev = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
+                      if (prev) prev.focus();
+                    }
+                  }}
+                  className="w-12 h-13 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 font-mono transition-all"
+                />
+              ))}
             </div>
             <div className="flex justify-between items-center px-1">
               <span className="text-xs text-slate-400 font-medium">4-Digit Security PIN</span>
@@ -2079,11 +2120,11 @@ export default function MobileSimulator({
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { setPinInput(currentUser.pinCode || '1234'); setTimeout(() => handleConfirmPurchase(), 100); }}
+              <button onClick={() => { const bioPin = currentUser.pinCode || '1234'; setPinInput(bioPin); setTimeout(() => handleConfirmPurchase(bioPin), 50); }}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-smooth border border-slate-200/50">
                 🧬 Biometric
               </button>
-              <button onClick={handleConfirmPurchase}
+              <button onClick={() => handleConfirmPurchase()}
                 className="bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen shadow-md shadow-sky-600/15">
                 Verify PIN & Pay
               </button>
@@ -3008,38 +3049,77 @@ export default function MobileSimulator({
                   toast.warning('Set up a Transaction PIN first.');
                   setChangePinModalOpen(true); setUpgradeModalOpen(false); return;
                 }
-                const pin = window.prompt('Enter your 4-digit PIN:');
-                if (pin === null) return;
-                if (!pin.trim()) { toast.warning('PIN is required.'); return; }
-                
-                const upgradeFee = currentUser.upgradeFee || 5000;
-                setUpgradeLoading(true);
-                
-                if (apiStatus === 'offline') {
-                  setUpgradeLoading(false);
-                  toast.error('API connection required for reseller upgrade.');
-                  return;
-                }
-                
-                api.upgrade(pin).then(res => {
-                  setUpgradeLoading(false);
-                  if (res.success) {
-                    toast.success(res.message || 'Upgrade successful!');
-                    if (handleGlobalRefresh) handleGlobalRefresh();
-                    setUpgradeModalOpen(false);
-                  } else {
-                    toast.error(res.error || 'Upgrade failed.');
-                  }
-                }).catch(err => {
-                  setUpgradeLoading(false);
-                  toast.error(err.message || 'Upgrade error.');
-                });
+                setUpgradePinInput('');
+                setUpgradePinSheetOpen(true);
               }}
                 className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen">
                 Pay ₦{(currentUser.upgradeFee || 5000).toLocaleString()} & Upgrade
               </button>
             </div>
           )}
+        </BottomSheet>
+
+        {/* Upgrade PIN Verification Modal */}
+        <BottomSheet open={upgradePinSheetOpen} onClose={() => setUpgradePinSheetOpen(false)} title="Authorize Account Upgrade" subtitle="Enter your 4-digit Transaction PIN" closeLabel="Cancel">
+          <div className="space-y-4">
+            <div className="bg-sky-50 border border-sky-100 p-3.5 rounded-2xl flex items-center justify-between text-left">
+              <div>
+                <span className="text-xs font-bold text-slate-800 block font-display">Reseller License Fee</span>
+                <span className="text-[10px] text-slate-400">One-time account upgrade payment</span>
+              </div>
+              <span className="text-sm font-black text-sky-600 font-mono">₦{(currentUser.upgradeFee || 5000).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-center gap-3 py-1">
+              {[0, 1, 2, 3].map(i => (
+                <input
+                  key={i}
+                  type="password"
+                  maxLength={1}
+                  value={upgradePinInput[i] || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    const pinArr = upgradePinInput.split('');
+                    pinArr[i] = val;
+                    const fullPin = pinArr.join('').slice(0, 4);
+                    setUpgradePinInput(fullPin);
+                    if (val && i < 3) {
+                      const next = e.target.nextElementSibling as HTMLInputElement;
+                      if (next) next.focus();
+                    }
+                    if (fullPin.length === 4) {
+                      setTimeout(() => {
+                        handleExecuteUpgrade(fullPin);
+                      }, 50);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && !upgradePinInput[i] && i > 0) {
+                      const prev = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
+                      if (prev) prev.focus();
+                    }
+                  }}
+                  className="w-12 h-13 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 font-mono transition-all"
+                />
+              ))}
+            </div>
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs text-slate-400 font-medium">4-Digit Security PIN</span>
+              <button type="button" onClick={() => { setUpgradePinSheetOpen(false); setForgotPinStep('request'); setForgotPinModalOpen(true); }}
+                className="text-xs text-sky-600 font-bold hover:underline">
+                Forgot PIN?
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => { const bioPin = currentUser.pinCode || '1234'; setUpgradePinInput(bioPin); setTimeout(() => handleExecuteUpgrade(bioPin), 50); }}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-smooth border border-slate-200/50">
+                🧬 Biometric
+              </button>
+              <button onClick={() => handleExecuteUpgrade()}
+                className="bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen shadow-md shadow-sky-600/15">
+                Verify PIN & Upgrade
+              </button>
+            </div>
+          </div>
         </BottomSheet>
 
         {/* Notification Detail Bottom Sheet */}
@@ -3085,7 +3165,7 @@ export default function MobileSimulator({
       <ConfirmDialog open={confirmOpen} onClose={() => setConfirmOpen(false)}
         onConfirm={confirmConfig.onConfirm} title={confirmConfig.title}
         description={confirmConfig.description} confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant} />
+        variant={confirmConfig.variant} icon={confirmConfig.icon} />
     </div>
   );
 }
