@@ -479,11 +479,7 @@ export default function ServiceForm(props: ServiceFormProps) {
       {/* ─── Submit Button ─── */}
       <button
         onClick={handleSubmit}
-        className={`w-full font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg transition-spring active:scale-[0.97] mt-1 btn-sheen ${
-          isA2C
-            ? 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-rose-500/20'
-            : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/20'
-        }`}
+        className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.97] mt-1 btn-sheen"
       >
         {isA2C ? 'Convert Airtime to Cash' : `Pay ₦${finalPrice.toLocaleString()}`}
         <ArrowRight className="w-4 h-4" />
