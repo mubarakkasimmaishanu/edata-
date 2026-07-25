@@ -215,20 +215,6 @@ export const api = {
     });
   },
 
-  async updateProfile(params: { firstname?: string; lastname?: string; phone?: string }) {
-    return request('/update-profile', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  },
-
-  async setPin(pin: string, confirmPin: string) {
-    return request('/set-pin', {
-      method: 'POST',
-      body: JSON.stringify({ pin, confirm_pin: confirmPin }),
-    });
-  },
-
   async changePin(currentPin: string, newPin: string, confirmPin: string) {
     return request('/change-pin', {
       method: 'POST',
