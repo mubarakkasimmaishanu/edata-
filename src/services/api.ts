@@ -120,6 +120,20 @@ export const api = {
     return request('/profile');
   },
 
+  async updateProfile(data: { firstname?: string; lastname?: string; phone?: string }) {
+    return request('/update-profile', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async setPin(pin: string) {
+    return request('/set-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  },
+
   async uploadPhoto(photoBase64: string) {
     return request('/upload-photo', {
       method: 'POST',
