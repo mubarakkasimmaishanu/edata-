@@ -165,14 +165,10 @@ export default function MobileSimulator({
   const [profileConfirmPin, setProfileConfirmPin] = useState('');
   const [completeProfileLoading, setCompleteProfileLoading] = useState(false);
 
-  useEffect(() => {
-    if (currentScreen === 'app') {
-      const isIncomplete = !currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin;
-      if (isIncomplete) {
-        setCompleteProfileModalOpen(true);
-      }
-    }
-  }, [currentScreen, currentUser.phone, currentUser.hasPin]);
+  const [createPinSheetOpen, setCreatePinSheetOpen] = useState(false);
+  const [initialPinInput, setInitialPinInput] = useState('');
+  const [confirmInitialPinInput, setConfirmInitialPinInput] = useState('');
+  const [createPinLoading, setCreatePinLoading] = useState(false);
 
   // ─── Security Modals ───
   const [changePinModalOpen, setChangePinModalOpen] = useState(false);
@@ -482,8 +478,9 @@ export default function MobileSimulator({
   // ─── Checkout Initiation (PIN modal) ───
   const handleCheckoutInitiate = () => {
     if (!currentUser.hasPin) {
-      toast.warning('Please set up a Transaction PIN first.');
-      setChangePinModalOpen(true);
+      setInitialPinInput('');
+      setConfirmInitialPinInput('');
+      setCreatePinSheetOpen(true);
       return;
     }
     setPinInput('');
@@ -2679,177 +2676,95 @@ export default function MobileSimulator({
           )}
         </BottomSheet>
 
-        {/* Mandatory Complete Profile Onboarding Modal */}
+        {/* Create Transaction PIN at Purchase Time Sheet */}
         <BottomSheet
-          open={completeProfileModalOpen}
-          onClose={() => {
-            if (!currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin) {
-              toast.warning('Please complete your profile details to unlock eData services.');
-            } else {
-              setCompleteProfileModalOpen(false);
-            }
-          }}
-          title="Complete Your Profile"
-          subtitle="Required to activate your account & enable transactions"
-          preventClose={!currentUser.phone || currentUser.phone.length < 11 || !currentUser.hasPin}
+          open={createPinSheetOpen}
+          onClose={() => setCreatePinSheetOpen(false)}
+          title="Create Transaction PIN"
+          subtitle="Set a secret 4-digit PIN to authorize this and future transactions"
         >
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!profilePhone || profilePhone.length !== 11 || !profilePhone.startsWith('0')) {
-                toast.warning('Please enter a valid 11-digit phone number starting with 0.');
+              if (!initialPinInput || initialPinInput.length !== 4) {
+                toast.warning('Please enter a 4-digit PIN.');
                 return;
               }
-              if (!currentUser.hasPin) {
-                if (!profilePin || profilePin.length !== 4) {
-                  toast.warning('Please enter a secret 4-digit transaction PIN.');
-                  return;
-                }
-                if (profilePin !== profileConfirmPin) {
-                  toast.error('Transaction PINs do not match.');
-                  return;
-                }
+              if (initialPinInput !== confirmInitialPinInput) {
+                toast.error('PINs do not match.');
+                return;
               }
-
-              setCompleteProfileLoading(true);
+              setCreatePinLoading(true);
               try {
-                // Update profile phone & names
-                const fullName = `${profileFirstname || 'User'} ${profileLastname || 'Customer'}`.trim();
-                const profRes = await api.updateProfile({
-                  firstname: profileFirstname || 'User',
-                  lastname: profileLastname || 'Customer',
-                  phone: profilePhone
-                });
-
-                if (profRes && profRes.success === false) {
-                  toast.error(profRes.error || 'Failed to save profile details.');
-                  setCompleteProfileLoading(false);
+                const res = await api.setPin(initialPinInput);
+                if (res && res.success === false) {
+                  toast.error(res.error || 'Failed to save transaction PIN.');
                   return;
                 }
-
-                // Create PIN if missing
-                if (!currentUser.hasPin && profilePin) {
-                  const pinRes = await api.setPin(profilePin, profilePin);
-                  if (pinRes && pinRes.success === false) {
-                    toast.error(pinRes.error || 'Failed to save transaction PIN.');
-                    setCompleteProfileLoading(false);
-                    return;
-                  }
-                }
-
-                const updatedUser: UserProfile = {
-                  ...currentUser,
-                  name: fullName || currentUser.name,
-                  firstname: profileFirstname,
-                  lastname: profileLastname,
-                  phone: profilePhone,
-                  hasPin: true
-                };
-
+                const updatedUser: UserProfile = { ...currentUser, hasPin: true };
                 setCurrentUser(updatedUser);
                 localStorage.setItem('edata_current_user', JSON.stringify(updatedUser));
-                toast.success('Profile onboarding completed! eData services unlocked.');
-                setCompleteProfileModalOpen(false);
+                toast.success('Transaction PIN created successfully!');
+                setCreatePinSheetOpen(false);
+                handleConfirmPurchase(initialPinInput);
               } catch (err: any) {
-                toast.error(err.message || 'Error completing profile setup.');
+                toast.error(err.message || 'Failed to set PIN.');
               } finally {
-                setCompleteProfileLoading(false);
+                setCreatePinLoading(false);
               }
             }}
             className="space-y-4 text-left font-display"
           >
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5">
-              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-bold text-amber-900">Mandatory Profile Setup</h4>
-                <p className="text-[11px] text-amber-700 font-medium leading-relaxed mt-0.5">
-                  To comply with regulatory standards and protect your wallet, please complete your phone number and secret 4-digit transaction PIN.
+                <h4 className="text-xs font-bold text-sky-900">Secure Transaction PIN</h4>
+                <p className="text-[11px] text-sky-700 font-medium leading-relaxed mt-0.5">
+                  Create a 4-digit secret PIN to secure your wallet payments. You will use this PIN to authorize purchases.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">First Name</label>
-                <input
-                  type="text"
-                  required
-                  value={profileFirstname}
-                  onChange={(e) => setProfileFirstname(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
-                  placeholder="John"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Last Name</label>
-                <input
-                  type="text"
-                  required
-                  value={profileLastname}
-                  onChange={(e) => setProfileLastname(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">11-Digit Phone Number</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Create 4-Digit Secret PIN</label>
               <input
-                type="tel"
-                maxLength={11}
+                type="password"
+                maxLength={4}
                 required
-                value={profilePhone}
-                onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl font-bold font-mono text-sm input-focus text-slate-800"
-                placeholder="08012345678"
+                value={initialPinInput}
+                onChange={(e) => setInitialPinInput(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
+                placeholder="••••"
               />
             </div>
 
-            {!currentUser.hasPin && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Create 4-Digit Secret PIN</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    required
-                    value={profilePin}
-                    onChange={(e) => setProfilePin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
-                    placeholder="••••"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Confirm 4-Digit PIN</label>
-                    {profilePin && profileConfirmPin && (
-                      <span className={`text-[10px] font-bold ${profilePin === profileConfirmPin ? 'text-emerald-600' : 'text-rose-500'}`}>
-                        {profilePin === profileConfirmPin ? '✓ PINs Match' : '✗ PINs Do Not Match'}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    required
-                    value={profileConfirmPin}
-                    onChange={(e) => setProfileConfirmPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
-                    placeholder="••••"
-                  />
-                </div>
-              </>
-            )}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Confirm 4-Digit PIN</label>
+                {initialPinInput && confirmInitialPinInput && (
+                  <span className={`text-[10px] font-bold ${initialPinInput === confirmInitialPinInput ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {initialPinInput === confirmInitialPinInput ? '✓ PINs Match' : '✗ PINs Do Not Match'}
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                maxLength={4}
+                required
+                value={confirmInitialPinInput}
+                onChange={(e) => setConfirmInitialPinInput(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl text-center font-bold tracking-[0.5em] text-sm input-focus text-slate-800 font-mono"
+                placeholder="••••"
+              />
+            </div>
 
             <button
               type="submit"
-              disabled={completeProfileLoading}
-              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2 mt-2"
+              disabled={createPinLoading || initialPinInput.length !== 4 || initialPinInput !== confirmInitialPinInput}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
             >
-              {completeProfileLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              Save Profile & Unlock eData Services
+              {createPinLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Set PIN & Complete Purchase
             </button>
           </form>
         </BottomSheet>
