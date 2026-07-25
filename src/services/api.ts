@@ -104,7 +104,7 @@ export const api = {
     return data;
   },
 
-  async googleAuth(params: { id_token?: string; email?: string; name?: string }) {
+  async googleAuth(params: { id_token?: string; email?: string; name?: string; picture?: string; firstname?: string; lastname?: string }) {
     const data = await request('/google-auth', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -296,15 +296,10 @@ export const api = {
   },
 
   async markNotificationRead(id?: number | 'all') {
-    try {
-      return await request('/notifications/read', {
-        method: 'POST',
-        body: JSON.stringify({ id }),
-      });
-    } catch (err: any) {
-      console.warn('api.markNotificationRead CORS preflight or network fallback:', err?.message || err);
-      return { success: true, offlineFallback: true };
-    }
+    return request('/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ id: id ?? 'all' }),
+    });
   },
 };
 
