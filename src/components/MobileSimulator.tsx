@@ -7,7 +7,7 @@ import {
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
-  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus
+  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus, Edit3
 } from 'lucide-react';
 import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
@@ -169,6 +169,13 @@ export default function MobileSimulator({
   const [initialPinInput, setInitialPinInput] = useState('');
   const [confirmInitialPinInput, setConfirmInitialPinInput] = useState('');
   const [createPinLoading, setCreatePinLoading] = useState(false);
+
+  // ─── Edit Profile Modal State ───
+  const [editProfileModalOpen, setEditProfileModalOpen] = useState(false);
+  const [editFirstname, setEditFirstname] = useState(currentUser.firstname || '');
+  const [editLastname, setEditLastname] = useState(currentUser.lastname || '');
+  const [editPhone, setEditPhone] = useState(currentUser.phone || '');
+  const [editProfileLoading, setEditProfileLoading] = useState(false);
 
   // ─── Security Modals ───
   const [changePinModalOpen, setChangePinModalOpen] = useState(false);
@@ -1740,7 +1747,21 @@ export default function MobileSimulator({
 
                     {/* User Information Card */}
                     <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-3.5">
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">User Information</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">User Information</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditFirstname(currentUser.firstname || currentUser.name?.split(' ')[0] || '');
+                            setEditLastname(currentUser.lastname || currentUser.name?.split(' ')[1] || '');
+                            setEditPhone(currentUser.phone || '');
+                            setEditProfileModalOpen(true);
+                          }}
+                          className="text-[10px] text-sky-600 font-bold bg-sky-50 hover:bg-sky-100 border border-sky-100/80 px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 active:scale-95"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit Profile
+                        </button>
+                      </div>
 
                       <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-100">
                         <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
@@ -1776,14 +1797,14 @@ export default function MobileSimulator({
                           <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Phone Number</span>
                           <span className="text-xs font-bold text-slate-800 block font-mono">{currentUser.phone || 'Not provided'}</span>
                         </div>
-                        {currentUser.phone && (
-                          <button type="button" onClick={() => {
-                            navigator.clipboard.writeText(currentUser.phone);
-                            toast.success('Phone number copied!');
-                          }} className="text-[10px] text-sky-600 font-extrabold bg-sky-50 hover:bg-sky-100 border border-sky-100 px-2.5 py-1 rounded-xl transition-all shrink-0">
-                            Copy
-                          </button>
-                        )}
+                        <button type="button" onClick={() => {
+                          setEditFirstname(currentUser.firstname || currentUser.name?.split(' ')[0] || '');
+                          setEditLastname(currentUser.lastname || currentUser.name?.split(' ')[1] || '');
+                          setEditPhone(currentUser.phone || '');
+                          setEditProfileModalOpen(true);
+                        }} className="text-[10px] text-sky-600 font-extrabold bg-sky-50 hover:bg-sky-100 border border-sky-100 px-2.5 py-1 rounded-xl transition-all shrink-0 flex items-center gap-1">
+                          <Edit3 className="w-3 h-3" /> {currentUser.phone ? 'Edit' : 'Add Phone'}
+                        </button>
                       </div>
                     </div>
 
@@ -2765,6 +2786,118 @@ export default function MobileSimulator({
             >
               {createPinLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               Set PIN & Complete Purchase
+            </button>
+          </form>
+        </BottomSheet>
+
+        {/* Edit Profile Details Modal */}
+        <BottomSheet
+          open={editProfileModalOpen}
+          onClose={() => setEditProfileModalOpen(false)}
+          title="Edit Profile Details"
+          subtitle="Update your personal details & phone number"
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (editPhone && (editPhone.length !== 11 || !editPhone.startsWith('0'))) {
+                toast.warning('Please enter a valid 11-digit phone number starting with 0.');
+                return;
+              }
+
+              setEditProfileLoading(true);
+              try {
+                const res = await api.updateProfile({
+                  firstname: editFirstname,
+                  lastname: editLastname,
+                  phone: editPhone
+                });
+
+                if (res && res.success === false) {
+                  toast.error(res.error || 'Failed to update profile.');
+                  return;
+                }
+
+                const updatedName = `${editFirstname} ${editLastname}`.trim() || currentUser.name;
+                const updatedUser: UserProfile = {
+                  ...currentUser,
+                  firstname: editFirstname,
+                  lastname: editLastname,
+                  name: updatedName,
+                  phone: editPhone
+                };
+
+                setCurrentUser(updatedUser);
+                localStorage.setItem('edata_current_user', JSON.stringify(updatedUser));
+                setSubscribers((prev: UserProfile[]) =>
+                  prev.map(s => s.email === currentUser.email ? { ...s, firstname: editFirstname, lastname: editLastname, name: updatedName, phone: editPhone } : s)
+                );
+
+                toast.success('Profile details & phone number updated successfully!');
+                setEditProfileModalOpen(false);
+              } catch (err: any) {
+                toast.error(err.message || 'Error updating profile details.');
+              } finally {
+                setEditProfileLoading(false);
+              }
+            }}
+            className="space-y-4 text-left font-display"
+          >
+            <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3.5 flex items-start gap-2.5">
+              <User className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-sky-900">Profile Synchronization</h4>
+                <p className="text-[11px] text-sky-700 font-medium leading-relaxed mt-0.5">
+                  Updating your phone number will save it to your live account database and synchronize across web & mobile services.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">First Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editFirstname}
+                  onChange={(e) => setEditFirstname(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
+                  placeholder="John"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Last Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editLastname}
+                  onChange={(e) => setEditLastname(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-800 input-focus"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">11-Digit Phone Number</label>
+              <input
+                type="tel"
+                maxLength={11}
+                required
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-2xl font-bold font-mono text-sm input-focus text-slate-800"
+                placeholder="08012345678"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={editProfileLoading || !editPhone}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-xs transition-spring shadow-lg shadow-sky-600/15 active:scale-[0.98] btn-sheen flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+            >
+              {editProfileLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Save & Sync Phone Number
             </button>
           </form>
         </BottomSheet>
