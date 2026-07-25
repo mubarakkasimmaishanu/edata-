@@ -281,41 +281,34 @@ export default function AuthPage({
               <button
                 type="button"
                 onClick={async () => {
-                  if (apiStatus === 'connected') {
-                    try {
-                      const res = await api.googleAuth({ email: authEmail || DEFAULT_USER.email });
-                      if (res.success && res.data) {
-                        const loggedUser = {
-                          ...DEFAULT_USER,
-                          id: res.data.user.id,
-                          email: res.data.user.email,
-                          firstname: res.data.user.firstname || 'Google',
-                          lastname: res.data.user.lastname || 'User',
-                          name: `${res.data.user.firstname || 'Google'} ${res.data.user.lastname || 'User'}`.trim(),
-                          photo: res.data.user.photo || '',
-                          phone: res.data.user.phone || '',
-                          walletBalance: res.data.user.walletBalance || 0,
-                          category: res.data.user.category || 'Basic User',
-                          isVerified: true,
-                          hasPin: res.data.user.hasPin || res.data.user.has_pin || false,
-                        };
-                        setCurrentUser(loggedUser);
-                        localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
-                        onLoginSuccess(res.data.token || res.data.accessToken);
-                        toast.success(`Welcome back, ${loggedUser.firstname}!`);
-                      } else {
-                        toast.error(res.error || 'Google Authentication failed.');
-                      }
-                    } catch (err: any) {
-                      toast.error(err.message || 'Google Auth service error.');
+                  try {
+                    const targetEmail = authEmail || 'user@google.com';
+                    const res = await api.googleAuth({ email: targetEmail, name: 'Google User' });
+                    if (res.success && res.data) {
+                      const loggedUser = {
+                        ...DEFAULT_USER,
+                        id: res.data.user.id,
+                        email: res.data.user.email,
+                        firstname: res.data.user.firstname || 'Google',
+                        lastname: res.data.user.lastname || 'User',
+                        name: `${res.data.user.firstname || 'Google'} ${res.data.user.lastname || 'User'}`.trim(),
+                        photo: res.data.user.photo || '',
+                        phone: res.data.user.phone || '',
+                        walletBalance: res.data.user.walletBalance || 0,
+                        category: res.data.user.level_label || res.data.user.category || 'Basic User',
+                        isVerified: true,
+                        hasPin: res.data.user.hasPin || res.data.user.has_pin || false,
+                      };
+                      setCurrentUser(loggedUser);
+                      localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
+                      onLoginSuccess(res.data.token || res.data.accessToken);
+                      toast.success(`Welcome back, ${loggedUser.firstname}!`);
+                    } else {
+                      toast.error(res.error || 'Google Authentication failed.');
                     }
-                    return;
+                  } catch (err: any) {
+                    toast.error(err.message || 'Google Auth service error.');
                   }
-                  localStorage.setItem('edata_sandbox', 'true');
-                  const match = subscribers.find(s => s.email === DEFAULT_USER.email) || DEFAULT_USER;
-                  setCurrentUser(match);
-                  localStorage.setItem('edata_current_user', JSON.stringify(match));
-                  onLoginSuccess('google-sandbox-token');
                 }}
                 className="w-full bg-white border border-slate-250 text-slate-750 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
               >
