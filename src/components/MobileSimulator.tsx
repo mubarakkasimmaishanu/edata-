@@ -1870,7 +1870,14 @@ export default function MobileSimulator({
                         confirmText: 'Sign Out',
                         variant: 'info',
                         icon: LogOut,
-                        onConfirm: () => { setConfirmOpen(false); if (handleLogout) handleLogout(); else setCurrentScreen('auth'); },
+                        onConfirm: () => {
+                          setConfirmOpen(false);
+                          setAppTab('home');
+                          setAuthEmail('');
+                          setAuthPassword('');
+                          if (handleLogout) handleLogout();
+                          else setCurrentScreen('auth');
+                        },
                       });
                     }}
                       className="w-full bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold text-xs py-3.5 rounded-2xl transition-smooth flex items-center justify-center gap-2 border border-sky-100/80 shadow-sm active:scale-[0.98]">

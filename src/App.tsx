@@ -183,6 +183,10 @@ export default function App() {
 
   const handleLogout = () => {
     setAuthToken(null);
+    localStorage.removeItem('edata_token');
+    localStorage.removeItem('edata_current_user');
+    localStorage.removeItem('edata_sandbox');
+    localStorage.removeItem('google_session');
     setCurrentUser(DEFAULT_USER);
     setApiStatus('offline');
     setCurrentScreen('auth');
