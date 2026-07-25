@@ -3,7 +3,7 @@ import { UserProfile, Transaction, ProductItem, AppNotification, VirtualAccount,
 import {
   Smartphone, Wifi, Battery, ChevronLeft, ArrowRight, ArrowDownLeft, Home,
   ArrowUpRight, Copy, Share2, HelpCircle, CheckCircle, AlertTriangle,
-  User, Lock, Key, Eye, Flame, ShieldAlert,
+  User, Lock, Key, Eye, Flame, ShieldAlert, ShieldCheck,
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
