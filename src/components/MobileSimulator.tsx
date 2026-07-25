@@ -874,20 +874,12 @@ export default function MobileSimulator({
         {currentScreen === 'auth' && (
           <div className="flex-1 flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-sky-50/30 animate-fade-in">
             <div className="px-6 pt-10 pb-6 space-y-6">
-              {/* Logo Header */}
-              <div className="text-center space-y-3 pt-2">
-                <div className="inline-flex relative items-center justify-center">
-                  <div className="absolute inset-0 bg-sky-500/25 blur-2xl rounded-full animate-pulse" />
-                  <div className="relative bg-white border-2 border-sky-100/80 p-3 rounded-3xl shadow-xl shadow-sky-500/20 ring-4 ring-sky-500/10 transition-transform duration-300 hover:scale-105">
-                    <img src={edataLogo} alt="eData Official Logo" className="w-16 h-16 object-contain rounded-2xl" />
-                  </div>
-                </div>
-                <div>
-                  <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-1 font-display">
-                    <span className="text-sky-600 font-extrabold">e</span><span className="font-extrabold">Data</span>
-                  </h1>
-                  <p className="text-xs font-semibold text-slate-500 tracking-wide mt-1">Instant VTU & Utility Payment Platform</p>
-                </div>
+              {/* Header without Logo */}
+              <div className="text-center space-y-1 pt-6 pb-2">
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-1 font-display">
+                  <span className="text-sky-600 font-extrabold">e</span><span className="font-extrabold">Data</span>
+                </h1>
+                <p className="text-xs font-semibold text-slate-500 tracking-wide">Instant VTU & Utility Payment Platform</p>
               </div>
 
 
