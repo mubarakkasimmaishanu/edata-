@@ -6,8 +6,10 @@ import { UserProfile, ProductItem, Transaction } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 
 import AuthPage from './components/AuthPage';
+import SplashScreen from './components/SplashScreen';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
@@ -150,6 +152,10 @@ export default function App() {
   };
 
   useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2800);
+
     const checkConnectionOnLoad = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/detect-network?phone=0803`);
@@ -170,6 +176,8 @@ export default function App() {
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }
+
+    return () => clearTimeout(splashTimer);
   }, []);
 
   const handleGlobalRefresh = () => {
@@ -194,6 +202,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      {showSplash && <SplashScreen />}
       <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
         <div className="w-full flex-1 flex flex-col">
           {currentScreen !== 'app' ? (
