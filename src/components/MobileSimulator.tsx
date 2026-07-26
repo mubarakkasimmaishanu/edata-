@@ -1386,8 +1386,8 @@ export default function MobileSimulator({
                             action: () => { setSelectedCategory('Airtime'); setAppTab('airtime'); }
                           },
                           {
-                            id: 'tv-cables',
-                            label: 'TV Cables',
+                            id: 'dstv',
+                            label: 'DStv',
                             icon: dstvIcon,
                             action: () => { setDetectedOperator('DSTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
                           },
