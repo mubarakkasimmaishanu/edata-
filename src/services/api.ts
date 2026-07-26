@@ -127,10 +127,10 @@ export const api = {
     });
   },
 
-  async setPin(pin: string) {
+  async setPin(pin: string, confirmPin?: string) {
     return request('/set-pin', {
       method: 'POST',
-      body: JSON.stringify({ pin }),
+      body: JSON.stringify({ pin, confirm_pin: confirmPin || pin }),
     });
   },
 
