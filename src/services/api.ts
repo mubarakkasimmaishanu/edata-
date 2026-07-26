@@ -301,6 +301,13 @@ export const api = {
       body: JSON.stringify({ id: id ?? 'all' }),
     });
   },
+
+  async deleteAccount(password: string) {
+    return request('/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  },
 };
 
 
