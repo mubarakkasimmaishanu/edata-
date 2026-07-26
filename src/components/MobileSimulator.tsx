@@ -19,6 +19,11 @@ import ServiceForm from './ServiceForm';
 import PrivacyTerms from './PrivacyTerms';
 import DeleteAccount from './DeleteAccount';
 import edataLogo from '../assets/edata_logo.png';
+import mtnIcon from '@/assets/icons/mtn.png';
+import dstvIcon from '@/assets/icons/dstv.png';
+import gotvIcon from '@/assets/icons/gotv.png';
+import waecIcon from '@/assets/icons/waec.png';
+import airtelIcon from '@/assets/icons/airtel.png';
 
 
 
@@ -1358,23 +1363,59 @@ export default function MobileSimulator({
                       </div>
                     </div>
 
-                    {/* Quick Actions */}
-                    <div className="bg-white rounded-3xl p-4 flex justify-around items-center border border-slate-100 shadow-sm">
-                      {[
-                        { id: 'bank', label: 'To Bank', icon: Smartphone },
-                        { id: 'palmpay', label: 'PalmPay', icon: ArrowUpRight },
-                        { id: 'savings', label: 'Savings', icon: Coins },
-                        { id: 'cards', label: 'Cards', icon: CreditCard },
-                      ].map(btn => (
-                        <button key={btn.id} type="button"
-                          onClick={() => toast.info(`${btn.label} — connected to your wallet.`)}
-                          className="flex flex-col items-center gap-1.5 group cursor-pointer">
-                          <div className="w-12 h-12 rounded-2xl bg-sky-50/90 text-sky-600 group-hover:bg-sky-100 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-sky-100 shadow-sm">
-                            <btn.icon className="w-5.5 h-5.5 text-sky-600 transition-colors shrink-0" />
-                          </div>
-                          <span className="text-[10px] font-black text-slate-700 group-hover:text-sky-600 transition-colors mt-0.5">{btn.label}</span>
+                    {/* Quick Actions (Synced directly to main services) */}
+                    <div className="bg-white rounded-3xl p-3.5 border border-slate-100 shadow-sm">
+                      <div className="flex justify-between items-center px-1 mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-display">Quick Shortcuts</span>
+                        <button type="button" onClick={() => setAppTab('services')} className="text-[10.5px] font-extrabold text-sky-600 hover:underline">
+                          More &rarr;
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {[
+                          {
+                            id: 'mtn-data',
+                            label: 'MTN Data',
+                            icon: mtnIcon,
+                            action: () => { setDetectedOperator('MTN'); setSelectedCategory('Data'); setAppTab('data'); }
+                          },
+                          {
+                            id: 'airtime',
+                            label: 'Airtime',
+                            icon: airtelIcon,
+                            action: () => { setSelectedCategory('Airtime'); setAppTab('airtime'); }
+                          },
+                          {
+                            id: 'tv-cables',
+                            label: 'TV Cables',
+                            icon: dstvIcon,
+                            action: () => { setDetectedOperator('DSTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
+                          },
+                          {
+                            id: 'gotv',
+                            label: 'GOtv',
+                            icon: gotvIcon,
+                            action: () => { setDetectedOperator('GOTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
+                          },
+                          {
+                            id: 'waec',
+                            label: 'WAEC Cards',
+                            icon: waecIcon,
+                            action: () => { setSelectedCategory('Exam'); setAppTab('exam'); }
+                          },
+                        ].map(btn => (
+                          <button key={btn.id} type="button"
+                            onClick={btn.action}
+                            className="flex flex-col items-center gap-1 group cursor-pointer">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-sky-50 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-slate-100 group-hover:border-sky-200 shadow-2xs p-1.5">
+                              <img src={btn.icon} alt={btn.label} className="w-full h-full object-contain rounded-xl" />
+                            </div>
+                            <span className="text-[9.5px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors mt-0.5 truncate max-w-full font-display">
+                              {btn.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Last Transaction */}
