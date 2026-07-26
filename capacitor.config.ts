@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.edata.mobile',
+  appId: 'com.edata.app',
   appName: 'eData',
   webDir: 'dist',
   server: {
