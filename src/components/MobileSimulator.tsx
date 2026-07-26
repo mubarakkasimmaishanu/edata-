@@ -16,6 +16,8 @@ import { useToast } from './Toast';
 import BottomSheet from './BottomSheet';
 import ConfirmDialog from './ConfirmDialog';
 import ServiceForm from './ServiceForm';
+import PrivacyTerms from './PrivacyTerms';
+import DeleteAccount from './DeleteAccount';
 import edataLogo from '../assets/edata_logo.png';
 
 
@@ -57,7 +59,7 @@ export default function MobileSimulator({
   const toast = useToast();
 
   // ─── Navigation ───
-  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services' | 'notifications'>('home');
+  const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services' | 'notifications' | 'privacy' | 'terms' | 'delete_account'>('home');
 
   // ─── Notifications System State ───
   const [notifications, setNotifications] = useState<AppNotification[]>([
@@ -1868,8 +1870,56 @@ export default function MobileSimulator({
                             <span className="text-[10.5px] text-slate-400 font-medium block">Extra layer of verification codes</span>
                           </div>
                         </div>
-                        <span className="bg-emerald-50 text-emerald-600 font-bold text-[10px] px-2.5 py-1 rounded-full border border-emerald-100">Active ✓</span>
+                        <span className="bg-sky-50 text-sky-600 font-bold text-[10px] px-2.5 py-1 rounded-full border border-sky-100">Active ✓</span>
                       </div>
+
+                      <button type="button" onClick={() => setAppTab('privacy')}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-sky-200 transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <ShieldAlert className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Privacy Policy</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">Data handling & privacy terms</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-sky-600 font-bold bg-sky-50 group-hover:bg-sky-100 px-3 py-1.5 rounded-xl border border-sky-100/80 flex items-center gap-1 transition-all">
+                          View <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                      </button>
+
+                      <button type="button" onClick={() => setAppTab('terms')}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-sky-200 transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100/50">
+                            <Info className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-900 block font-display">Terms of Service</span>
+                            <span className="text-[10.5px] text-slate-400 font-medium block">App usage & agreement</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-sky-600 font-bold bg-sky-50 group-hover:bg-sky-100 px-3 py-1.5 rounded-xl border border-sky-100/80 flex items-center gap-1 transition-all">
+                          View <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                      </button>
+
+                      <button type="button" onClick={() => setAppTab('delete_account')}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-rose-50/60 border border-rose-100 hover:border-rose-200 transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+                            <ShieldAlert className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-extrabold text-rose-900 block font-display">Delete Account</span>
+                            <span className="text-[10.5px] text-rose-500 font-medium block">Permanently remove user data</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-rose-600 font-bold bg-rose-100/70 group-hover:bg-rose-200/70 px-3 py-1.5 rounded-xl border border-rose-200 flex items-center gap-1 transition-all">
+                          Request <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                      </button>
                     </div>
 
                     {/* Sign Out Button */}
@@ -1894,6 +1944,28 @@ export default function MobileSimulator({
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                   </div>
+                )}
+
+                {/* ═══ PRIVACY POLICY VIEW ═══ */}
+                {appTab === 'privacy' && (
+                  <PrivacyTerms mode="privacy" onBack={() => setAppTab('profile')} />
+                )}
+
+                {/* ═══ TERMS OF SERVICE VIEW ═══ */}
+                {appTab === 'terms' && (
+                  <PrivacyTerms mode="terms" onBack={() => setAppTab('profile')} />
+                )}
+
+                {/* ═══ DELETE ACCOUNT VIEW ═══ */}
+                {appTab === 'delete_account' && (
+                  <DeleteAccount 
+                    onBack={() => setAppTab('profile')} 
+                    onDeleted={() => {
+                      setAppTab('home');
+                      if (handleLogout) handleLogout();
+                      else setCurrentScreen('auth');
+                    }} 
+                  />
                 )}
 
                 {/* ═══ SERVICES CATALOG TAB ═══ */}
