@@ -10,33 +10,34 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
   const isPrivacy = mode === 'privacy';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans pb-12 animate-in fade-in slide-in-from-right-4 duration-300">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-12 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="max-w-md mx-auto relative px-4 sm:px-6">
 
         {/* Header */}
-        <header className="py-6 flex items-center gap-4 bg-transparent border-b border-slate-800 mb-6">
+        <header className="py-6 flex items-center gap-4 border-b border-slate-200/80 mb-6">
           <button 
             onClick={onBack} 
-            className="w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-200 hover:bg-slate-700 transition-colors"
+            className="w-10 h-10 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-sky-200 flex items-center justify-center transition-colors shadow-xs active:scale-95"
+            title="Go Back"
           >
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${isPrivacy ? 'bg-sky-500/10 text-sky-400' : 'bg-blue-500/10 text-blue-400'}`}>
-              {isPrivacy ? <Shield size={18} /> : <FileText size={18} />}
+            <div className={`p-2.5 rounded-2xl ${isPrivacy ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-sky-50 text-sky-600 border border-sky-100'}`}>
+              {isPrivacy ? <Shield size={20} /> : <FileText size={20} />}
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white">
+              <h1 className="text-base font-black tracking-tight text-slate-900 font-display">
                 {isPrivacy ? 'Privacy Policy' : 'Terms of Service'}
               </h1>
-              <p className="text-[10px] text-sky-400 font-medium">eData Digital Solutions</p>
+              <p className="text-[10px] text-sky-600 font-extrabold uppercase tracking-wider">eData Digital Solutions</p>
             </div>
           </div>
         </header>
 
         {/* Last Updated */}
-        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3.5 flex gap-3 mb-6 backdrop-blur-sm">
-          <p className="text-[10px] text-slate-300 leading-relaxed font-bold uppercase tracking-wider">
+        <div className="bg-sky-50/80 border border-sky-100/90 rounded-2xl p-3.5 flex items-center justify-between mb-6 shadow-xs">
+          <p className="text-[10.5px] text-sky-800 leading-relaxed font-black uppercase tracking-wider font-display">
             Last Updated: June 2026 • eData Mobile Application
           </p>
         </div>
@@ -46,7 +47,7 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
           {isPrivacy ? <PrivacyContent /> : <TermsContent />}
         </div>
 
-        <p className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-10 mb-4">
+        <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-10 mb-4 font-display">
           eData Mobile v1.0.0 • Verified Digital Payments
         </p>
       </div>
@@ -56,9 +57,9 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-xl">
-      <h3 className="text-[10px] font-black text-sky-400 uppercase tracking-[0.2em] mb-2.5">{title}</h3>
-      <div className="text-xs text-slate-300 leading-relaxed space-y-2 font-medium">
+    <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2">
+      <h3 className="text-[11px] font-black text-sky-600 uppercase tracking-wider mb-2 font-display">{title}</h3>
+      <div className="text-xs text-slate-600 leading-relaxed space-y-2 font-medium">
         {children}
       </div>
     </div>
@@ -78,12 +79,12 @@ function PrivacyContent() {
       </Section>
 
       <Section title="2. Information We Collect">
-        <p className="font-bold text-white/90">Personal Identity:</p>
+        <p className="font-extrabold text-slate-900">Personal Identity:</p>
         <p>• Full name, email address, and phone number during account creation.</p>
         <p>• Profile photo (if uploaded).</p>
-        <p className="font-bold text-white/90 pt-1">Financial & Transaction Data:</p>
+        <p className="font-extrabold text-slate-900 pt-1">Financial & Transaction Data:</p>
         <p>• Wallet balance, virtual bank account details (Monnify/KatPay), and complete transaction logs across Airtime, Data, Cable TV, Electricity, Exam Cards, and A2C.</p>
-        <p className="font-bold text-white/90 pt-1">Security Credentials:</p>
+        <p className="font-extrabold text-slate-900 pt-1">Security Credentials:</p>
         <p>• 4-Digit Transaction PINs (stored strictly using salted bcrypt password hashing algorithms).</p>
       </Section>
 
@@ -102,14 +103,14 @@ function PrivacyContent() {
 
       <Section title="5. Data Retention & Account Deletion">
         <p>
-          Your personal data is retained for as long as your account remains active. You can request complete deletion of your account and personal data at any time via <strong>Profile Settings &rarr; Delete Account</strong> within this app, or on our web portal at <code>https://edata.com.ng/delete-account</code>. Upon deletion confirmation, your account will be immediately deactivated and permanently purged within 30 days.
+          Your personal data is retained for as long as your account remains active. You can request complete deletion of your account and personal data at any time via <strong>Profile Settings &rarr; Delete Account</strong> within this app, or on our web portal at <code className="bg-slate-100 text-sky-700 px-1.5 py-0.5 rounded font-mono text-[11px]">https://edata.com.ng/delete-account</code>. Upon deletion confirmation, your account will be immediately deactivated and permanently purged within 30 days.
         </p>
       </Section>
 
       <Section title="6. Contact Support">
         <p>For any privacy inquiries or security issues, contact our team:</p>
-        <p className="text-sky-400 font-bold">Email: info@edata.com.ng</p>
-        <p className="text-sky-400 font-bold">Website: https://edata.com.ng</p>
+        <p className="text-sky-600 font-extrabold font-mono">Email: info@edata.com.ng</p>
+        <p className="text-sky-600 font-extrabold font-mono">Website: https://edata.com.ng</p>
       </Section>
     </>
   );
@@ -143,8 +144,8 @@ function TermsContent() {
       </Section>
 
       <Section title="5. Contact Info">
-        <p className="text-sky-400 font-bold">Email: info@edata.com.ng</p>
-        <p className="text-sky-400 font-bold">Website: https://edata.com.ng</p>
+        <p className="text-sky-600 font-extrabold font-mono">Email: info@edata.com.ng</p>
+        <p className="text-sky-600 font-extrabold font-mono">Website: https://edata.com.ng</p>
       </Section>
     </>
   );
