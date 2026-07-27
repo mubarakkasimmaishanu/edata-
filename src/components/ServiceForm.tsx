@@ -117,6 +117,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [examQuantity, setExamQuantity] = React.useState<number>(1);
   const [meterType, setMeterType] = React.useState<'PrePaid' | 'PostPaid'>('PrePaid');
   const [discoOpen, setDiscoOpen] = React.useState<boolean>(false);
+  const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
 
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
@@ -564,13 +565,43 @@ export default function ServiceForm(props: ServiceFormProps) {
 
       {/* ─── 3. Data / Cable Plan Dropdown ─── */}
       {showProductDropdown && (
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+        <div className="space-y-2">
+          {/* Data Type Filter Tabs (SME, CG, Gifting, etc) */}
+          {serviceType === 'data' && (
+            <div className="space-y-1 mb-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block font-display">
+                Filter Data Type
+              </label>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {['ALL', 'SME', 'CG', 'DIRECT-GIFTING', 'SME2', 'DATA-SHARE'].map((typeKey) => {
+                  const isActive = dataTypeFilter === typeKey;
+                  const labelText = typeKey === 'DIRECT-GIFTING' ? 'GIFTING' : typeKey;
+                  return (
+                    <button
+                      key={typeKey}
+                      type="button"
+                      onClick={() => setDataTypeFilter(typeKey)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                        isActive
+                          ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {labelText}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block font-display">
             {serviceType === 'electricity' ? 'Electricity Provider'
               : serviceType === 'cable' ? 'Select Plan'
               : serviceType === 'exam' ? 'Examination Body'
-              : 'Data Package'}
+              : 'Select Data Package'}
           </label>
+
           <div className="relative">
             <select
               value={selectedProduct?.id || ''}
@@ -583,7 +614,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }
                 }
               }}
-              className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm input-focus text-slate-800 appearance-none pr-10 font-medium"
+              className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 text-xs font-bold input-focus text-slate-800 appearance-none pr-10 shadow-2xs"
             >
               {products
                 .filter(p => {
@@ -593,13 +624,20 @@ export default function ServiceForm(props: ServiceFormProps) {
                   const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
                     ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
                     : true;
-                  return matchCat && p.active && matchOp;
+                  const matchType = (serviceType === 'data' && dataTypeFilter !== 'ALL')
+                    ? (p.planType?.toUpperCase() === dataTypeFilter || (dataTypeFilter === 'DIRECT-GIFTING' && p.planType?.toUpperCase() === 'DIRECT-GIFTING'))
+                    : true;
+                  return matchCat && p.active && matchOp && matchType;
                 })
-                .map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {serviceType !== 'electricity' ? `(₦${getDynamicPrice(p).toLocaleString()})` : ''}
-                  </option>
-                ))
+                .map(p => {
+                  const tag = p.planType ? `[${p.planType}] ` : '';
+                  const displayName = `${tag}${p.name} (₦${getDynamicPrice(p).toLocaleString()})`;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {displayName}
+                    </option>
+                  );
+                })
               }
               {products.filter(p => {
                 const matchCat = (p.category as string) === productCategoryFilter
@@ -607,13 +645,40 @@ export default function ServiceForm(props: ServiceFormProps) {
                 const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
                   ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
                   : true;
-                return matchCat && p.active && matchOp;
+                const matchType = (serviceType === 'data' && dataTypeFilter !== 'ALL')
+                  ? (p.planType?.toUpperCase() === dataTypeFilter || (dataTypeFilter === 'DIRECT-GIFTING' && p.planType?.toUpperCase() === 'DIRECT-GIFTING'))
+                  : true;
+                return matchCat && p.active && matchOp && matchType;
               }).length === 0 && (
-                <option value="">No packages available</option>
+                <option value="">No packages found for selected filter</option>
               )}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
+
+          {/* Selected Data Plan Detail Preview Card */}
+          {serviceType === 'data' && selectedProduct && (
+            <div className="p-3.5 bg-gradient-to-r from-sky-50 to-blue-50/40 border border-sky-200/80 rounded-2xl flex items-center justify-between shadow-2xs mt-2">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-black text-slate-800 font-display">{selectedProduct.name}</span>
+                  {selectedProduct.planType && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-600 text-white tracking-wider">
+                      {selectedProduct.planType}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10.5px] font-semibold text-slate-500 block">
+                  Full Duration & Type Included
+                </span>
+              </div>
+              <div className="text-right shrink-0 ml-2">
+                <span className="text-base font-black text-sky-700 font-mono">
+                  ₦{getDynamicPrice(selectedProduct).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

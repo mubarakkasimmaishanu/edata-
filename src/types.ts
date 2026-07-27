@@ -48,6 +48,7 @@ export interface ProductItem {
   pricePremium: number;
   active: boolean;
   description: string;
+  planType?: string;
 }
 
 export interface MarketerLeader {
