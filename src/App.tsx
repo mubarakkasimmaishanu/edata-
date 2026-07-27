@@ -17,7 +17,9 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
   const [lastSynced, setLastSynced] = useState<string>('Never');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [currentScreen, setCurrentScreen] = useState<'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app'>('auth');
+  const [currentScreen, setCurrentScreen] = useState<'auth' | 'otp' | 'password_create' | 'bvn_verify' | 'app'>(() => {
+    return getAuthToken() ? 'app' : 'auth';
+  });
 
   // Helper wrappers to sync updates
   const handleSetCurrentUser = (user: UserProfile | ((prev: UserProfile) => UserProfile)) => {

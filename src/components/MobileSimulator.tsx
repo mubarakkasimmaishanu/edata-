@@ -401,6 +401,9 @@ export default function MobileSimulator({
       try {
         const res = await api.getWallet();
         if (res.success && res.data) {
+          if (res.data.balance !== undefined) {
+            setCurrentUser(prev => ({ ...prev, walletBalance: parseFloat(res.data.balance) }));
+          }
           if (res.data.virtual_accounts && res.data.virtual_accounts.length > 0) {
             setVirtualAccounts(res.data.virtual_accounts);
           }
