@@ -98,7 +98,8 @@ export default function App() {
           priceReferred: parseFloat(plan.price),
           pricePremium: parseFloat(plan.price),
           active: true,
-          description: '',
+          description: plan.description || plan.name,
+          planType: plan.plan_type || 'SME',
         });
       });
 
