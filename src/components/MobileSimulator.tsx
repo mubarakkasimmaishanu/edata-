@@ -7,7 +7,7 @@ import {
   Send, CreditCard, RefreshCw, Layers, Phone, DollarSign, Lightbulb,
   Tv, BookOpen, UserCheck, Check, Search, AlertCircle,
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
-  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus, Edit3
+  X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus, Edit3, Tag
 } from 'lucide-react';
 import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
@@ -2235,60 +2235,191 @@ export default function MobileSimulator({
           </div>
         </BottomSheet>
 
-        {/* PIN Auth */}
-        <BottomSheet open={pinSheetOpen} onClose={() => setPinSheetOpen(false)} title="Authorize Transaction" subtitle="Enter your 4-digit PIN" closeLabel="Cancel">
-          <div className="space-y-4">
-            <div className="flex justify-center gap-3 py-1">
-              {[0, 1, 2, 3].map(i => (
-                <input
-                  key={i}
-                  type="password"
-                  maxLength={1}
-                  value={pinInput[i] || ''}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    const pinArr = pinInput.split('');
-                    pinArr[i] = val;
-                    const fullPin = pinArr.join('').slice(0, 4);
-                    setPinInput(fullPin);
-                    if (val && i < 3) {
-                      const next = e.target.nextElementSibling as HTMLInputElement;
-                      if (next) next.focus();
-                    }
-                    if (fullPin.length === 4) {
-                      setTimeout(() => {
-                        handleConfirmPurchase(fullPin);
-                      }, 50);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !pinInput[i] && i > 0) {
-                      const prev = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
-                      if (prev) prev.focus();
-                    }
-                  }}
-                  className="w-12 h-13 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 font-mono transition-all"
-                />
-              ))}
-            </div>
-            <div className="flex justify-between items-center px-1">
-              <span className="text-xs text-slate-400 font-medium">4-Digit Security PIN</span>
-              <button type="button" onClick={() => { setPinSheetOpen(false); setForgotPinStep('request'); setForgotPinModalOpen(true); }}
-                className="text-xs text-sky-600 font-bold hover:underline">
-                Forgot PIN?
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { const bioPin = currentUser.pinCode || '1234'; setPinInput(bioPin); setTimeout(() => handleConfirmPurchase(bioPin), 50); }}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-smooth border border-slate-200/50">
-                🧬 Biometric
-              </button>
-              <button onClick={() => handleConfirmPurchase()}
-                className="bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen shadow-md shadow-sky-600/15">
-                Verify PIN & Pay
-              </button>
-            </div>
-          </div>
+        {/* PIN Auth & Final Purchase Confirmation Sheet */}
+        <BottomSheet
+          open={pinSheetOpen}
+          onClose={() => setPinSheetOpen(false)}
+          title="Authorize Transaction"
+          subtitle="Review details & enter your 4-digit PIN"
+          closeLabel="Cancel"
+          maxHeight="90%"
+        >
+          {(() => {
+            const basePrice = parseFloat(checkoutAmount || '0');
+            const finalPrice = Math.max(0, basePrice - promoDiscount);
+            return (
+              <div className="space-y-4 text-left">
+                {/* ─── Purchase & Wallet Breakdown Card ─── */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+                  {/* Service & Destination Info */}
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Service</span>
+                      <span className="text-xs font-bold text-slate-800">
+                        {detectedOperator ? `${detectedOperator} ` : ''}{selectedProduct?.name || selectedCategory}
+                      </span>
+                    </div>
+                    {targetNumber && (
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target</span>
+                        <span className="text-xs font-mono font-bold text-slate-700">{targetNumber}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Wallet Balance & Financial Breakdown */}
+                  <div className="space-y-2 text-xs">
+                    {/* User Wallet Balance */}
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span className="font-medium">Current Wallet Balance</span>
+                      <span className="font-bold font-mono text-slate-800">
+                        ₦{currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Purchase Amount (Negative sign for money going out) */}
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span className="font-medium">Purchase Subtotal</span>
+                      <span className="font-bold font-mono text-rose-600 tabular-nums">
+                        -₦{basePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Promo Code Discount (if applied) */}
+                    {appliedPromo && promoDiscount > 0 && (
+                      <div className="flex justify-between items-center text-emerald-600">
+                        <span className="font-medium flex items-center gap-1">
+                          <Tag className="w-3 h-3" /> Discount ({appliedPromo})
+                        </span>
+                        <span className="font-bold font-mono tabular-nums">
+                          +₦{promoDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Net Deduction Outflow */}
+                    <div className="border-t border-slate-200/80 pt-2 flex justify-between items-center">
+                      <span className="font-bold text-slate-900">Total Outflow</span>
+                      <span className="text-base font-extrabold font-mono text-rose-600 tabular-nums">
+                        -₦{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Balance After Transaction */}
+                    <div className="flex justify-between items-center text-[11px] text-slate-400 font-medium">
+                      <span>Balance After Purchase</span>
+                      <span className="font-mono font-semibold text-slate-600">
+                        ₦{Math.max(0, currentUser.walletBalance - finalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── Promo Code Box on Final Purchase Page ─── */}
+                {selectedCategory !== 'A2C' && (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-display">
+                        <Tag className="w-3.5 h-3.5 text-sky-600" /> Have a Promo Code?
+                      </label>
+                      {appliedPromo && (
+                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          <Check className="w-3 h-3" /> {appliedPromo} Applied
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. WELCOME10"
+                        value={promoCodeInput}
+                        onChange={(e) => setPromoCodeInput(e.target.value)}
+                        disabled={!!appliedPromo}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs input-focus text-slate-800 font-mono disabled:opacity-50 tracking-wider uppercase"
+                      />
+                      {appliedPromo ? (
+                        <button
+                          type="button"
+                          onClick={() => { setAppliedPromo(''); setPromoDiscount(0); setPromoCodeInput(''); }}
+                          className="bg-rose-50 text-rose-600 border border-rose-100 font-bold px-3 rounded-xl text-xs transition-smooth hover:bg-rose-100 active:scale-95"
+                        >
+                          Clear
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleApplyPromoCode}
+                          className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 rounded-xl text-xs transition-smooth btn-sheen active:scale-95 shadow-sm shadow-sky-600/15"
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                    {promoError && (
+                      <span className="text-[10.5px] text-rose-500 font-semibold block">{promoError}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* ─── 4-Digit Security PIN ─── */}
+                <div className="space-y-3 pt-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">
+                    Enter 4-Digit Security PIN
+                  </span>
+                  <div className="flex justify-center gap-3 py-1">
+                    {[0, 1, 2, 3].map(i => (
+                      <input
+                        key={i}
+                        type="password"
+                        maxLength={1}
+                        value={pinInput[i] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          const pinArr = pinInput.split('');
+                          pinArr[i] = val;
+                          const fullPin = pinArr.join('').slice(0, 4);
+                          setPinInput(fullPin);
+                          if (val && i < 3) {
+                            const next = e.target.nextElementSibling as HTMLInputElement;
+                            if (next) next.focus();
+                          }
+                          if (fullPin.length === 4) {
+                            setTimeout(() => {
+                              handleConfirmPurchase(fullPin);
+                            }, 50);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Backspace' && !pinInput[i] && i > 0) {
+                            const prev = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
+                            if (prev) prev.focus();
+                          }
+                        }}
+                        className="w-12 h-13 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-xl font-bold text-slate-900 focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 font-mono transition-all"
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-xs text-slate-400 font-medium">Auto-submits on 4th digit</span>
+                    <button type="button" onClick={() => { setPinSheetOpen(false); setForgotPinStep('request'); setForgotPinModalOpen(true); }}
+                      className="text-xs text-sky-600 font-bold hover:underline">
+                      Forgot PIN?
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button onClick={() => { const bioPin = currentUser.pinCode || '1234'; setPinInput(bioPin); setTimeout(() => handleConfirmPurchase(bioPin), 50); }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-smooth border border-slate-200/50">
+                      🧬 Biometric
+                    </button>
+                    <button onClick={() => handleConfirmPurchase()}
+                      className="bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-2xl text-xs font-bold transition-smooth btn-sheen shadow-md shadow-sky-600/15">
+                      Verify PIN & Pay
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </BottomSheet>
 
         {/* Receipt */}

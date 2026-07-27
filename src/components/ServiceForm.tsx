@@ -489,74 +489,39 @@ export default function ServiceForm(props: ServiceFormProps) {
         </>
       )}
 
-      {/* ─── Promo Code Section ─── */}
-      {!isA2C && (
-        <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-2xl p-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="w-3 h-3" /> Promo Code
-            </label>
-            {appliedPromo && (
-              <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full">
-                <Check className="w-3 h-3" /> {appliedPromo}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="e.g. WELCOME10"
-              value={promoCodeInput}
-              onChange={(e) => setPromoCodeInput(e.target.value)}
-              disabled={!!appliedPromo}
-              className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs input-focus text-slate-800 font-mono disabled:opacity-50 tracking-wider"
-            />
-            {appliedPromo ? (
-              <button
-                type="button"
-                onClick={() => { setAppliedPromo(''); setPromoDiscount(0); setPromoCodeInput(''); }}
-                className="bg-rose-50 text-rose-600 border border-rose-100 font-semibold px-3.5 rounded-xl text-xs transition-smooth hover:bg-rose-100 active:scale-95"
-              >
-                Clear
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleApplyPromoCode}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 rounded-xl text-xs transition-smooth btn-sheen active:scale-95"
-              >
-                Apply
-              </button>
-            )}
-          </div>
-          {promoError && (
-            <span className="text-[11px] text-rose-500 font-semibold block">{promoError}</span>
-          )}
-          {appliedPromo && (
-            <div className="flex justify-between items-center text-xs text-slate-500 font-semibold border-t border-slate-200/50 pt-2.5">
-              <span>Discount</span>
-              <span className="text-emerald-600 font-mono font-bold tabular-nums">-₦{promoDiscount.toLocaleString()}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── Order Summary ─── */}
+      {/* ─── Order & Financial Breakdown Summary ─── */}
       {!isA2C && basePrice > 0 && (
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>Subtotal</span>
-            <span className="tabular-nums">₦{basePrice.toLocaleString()}</span>
+        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5">
+          {/* Current Wallet Balance */}
+          <div className="flex justify-between items-center text-xs text-slate-600">
+            <span className="font-medium">Current Wallet Balance</span>
+            <span className="font-bold font-mono text-slate-800">
+              ₦{currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
           </div>
-          {promoDiscount > 0 && (
-            <div className="flex justify-between items-center text-xs text-emerald-600 font-medium">
-              <span>Discount</span>
-              <span className="tabular-nums">-₦{promoDiscount.toLocaleString()}</span>
-            </div>
-          )}
-          <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between items-center">
-            <span className="text-sm font-bold text-slate-800">Total</span>
-            <span className="text-base font-extrabold text-slate-900 tabular-nums">₦{finalPrice.toLocaleString()}</span>
+
+          {/* Subtotal (Negative sign for money going out) */}
+          <div className="flex justify-between items-center text-xs text-slate-600">
+            <span className="font-medium">Purchase Subtotal</span>
+            <span className="font-bold font-mono text-rose-600 tabular-nums">
+              -₦{basePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {/* Net Outflow */}
+          <div className="border-t border-slate-200/80 pt-2 flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-900">Total Outflow</span>
+            <span className="text-sm font-extrabold font-mono text-rose-600 tabular-nums">
+              -₦{basePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {/* Remaining Balance After Purchase */}
+          <div className="flex justify-between items-center text-[11px] text-slate-400 font-medium">
+            <span>Balance After Purchase</span>
+            <span className="font-mono font-semibold text-slate-600">
+              ₦{Math.max(0, currentBalance - basePrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
           </div>
         </div>
       )}
@@ -566,7 +531,7 @@ export default function ServiceForm(props: ServiceFormProps) {
         onClick={handleSubmit}
         className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.97] mt-1 btn-sheen"
       >
-        {isA2C ? 'Convert Airtime to Cash' : `Pay ₦${finalPrice.toLocaleString()}`}
+        {isA2C ? 'Convert Airtime to Cash' : `Pay ₦${basePrice.toLocaleString()}`}
         <ArrowRight className="w-4 h-4" />
       </button>
     </div>
