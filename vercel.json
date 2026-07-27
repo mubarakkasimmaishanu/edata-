@@ -5,6 +5,6 @@
   "installCommand": "npm install",
   "rewrites": [
     { "source": "/api/eDataAI", "destination": "/api/eDataAI" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!assets/.*).*)", "destination": "/index.html" }
   ]
 }

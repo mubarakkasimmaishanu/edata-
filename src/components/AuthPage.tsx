@@ -5,7 +5,6 @@ import { api, setAuthToken } from '../services/api';
 import { useToast } from './Toast';
 import { UserProfile } from '../types';
 import { DEFAULT_USER, INITIAL_SUBSCRIBERS } from '../data';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 interface AuthPageProps {
   onLoginSuccess: (token: string) => void;
@@ -56,6 +55,7 @@ export default function AuthPage({
   const handleGoogleSignIn = async () => {
     setGoogleAuthLoading(true);
     try {
+      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
       try {
         await GoogleAuth.initialize({
           clientId: '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com',
