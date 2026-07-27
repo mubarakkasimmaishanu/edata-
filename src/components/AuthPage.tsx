@@ -5,6 +5,7 @@ import { api, setAuthToken } from '../services/api';
 import { useToast } from './Toast';
 import { UserProfile } from '../types';
 import { DEFAULT_USER, INITIAL_SUBSCRIBERS } from '../data';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 interface AuthPageProps {
   onLoginSuccess: (token: string) => void;
@@ -48,19 +49,34 @@ export default function AuthPage({
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
-  // Google Account Chooser Modal State
-  const [googleModalOpen, setGoogleModalOpen] = useState(false);
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
-  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
+  // Google Auth State
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
 
-  // ─── Google Auth Helper ───
-  const executeGoogleAuth = async (email: string, name: string) => {
+  // ─── Native Google Sign-In Handler ───
+  const handleGoogleSignIn = async () => {
     setGoogleAuthLoading(true);
     try {
-      const res = await api.googleAuth({ email, name });
+      try {
+        await GoogleAuth.initialize({
+          clientId: '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
+      } catch {
+        // Ignored if already initialized
+      }
+
+      const googleUser = await GoogleAuth.signIn();
+      const idToken = googleUser.authentication?.idToken || (googleUser as any).idToken;
+
+      if (!idToken) {
+        toast.error('Unable to retrieve Google ID Token. Please try again.');
+        return;
+      }
+
+      const res = await api.googleAuth({ id_token: idToken });
       if (res.success && res.data) {
-        const loggedUser = {
+        const loggedUser: UserProfile = {
           ...DEFAULT_USER,
           id: res.data.user.id,
           email: res.data.user.email,
@@ -77,16 +93,23 @@ export default function AuthPage({
         setCurrentUser(loggedUser);
         localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
         if (setApiStatus) setApiStatus('connected');
-        setGoogleModalOpen(false);
-        setCustomGoogleEmail('');
-        setShowCustomGoogleInput(false);
         onLoginSuccess(res.data.token || res.data.accessToken);
         toast.success(`Welcome back, ${loggedUser.firstname}!`);
       } else {
         toast.error(res.error || 'Google Authentication failed.');
       }
     } catch (err: any) {
-      toast.error(err.message || 'Google Auth service error.');
+      if (
+        err?.message?.includes('canceled') ||
+        err?.message?.includes('cancelled') ||
+        err?.message?.includes('popup_closed_by_user') ||
+        err?.code === '12501' ||
+        err?.code === 12501
+      ) {
+        toast.info('Google Sign-In was cancelled.');
+      } else {
+        toast.error(err?.message || 'Google Auth service error.');
+      }
     } finally {
       setGoogleAuthLoading(false);
     }
@@ -316,20 +339,26 @@ export default function AuthPage({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setCustomGoogleEmail('');
-                  setShowCustomGoogleInput(false);
-                  setGoogleModalOpen(true);
-                }}
-                className="w-full bg-white border border-slate-250 text-slate-750 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+                disabled={googleAuthLoading}
+                onClick={handleGoogleSignIn}
+                className="w-full bg-white border border-slate-250 text-slate-750 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-60"
               >
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Continue with Google</span>
+                {googleAuthLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+                    <span>Signing in with Google...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -504,106 +533,6 @@ export default function AuthPage({
         </div>
       )}
 
-      {/* ═══ GOOGLE ACCOUNT SELECTOR MODAL ═══ */}
-      {googleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-6 shadow-2xl animate-slide-up border border-slate-100">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Sign in with Google</h3>
-                  <p className="text-xs text-slate-500">Choose an account to continue to eData</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setGoogleModalOpen(false); setShowCustomGoogleInput(false); }}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-smooth"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Account List */}
-            <div className="space-y-3">
-              {/* Account 1 */}
-              <button
-                type="button"
-                disabled={googleAuthLoading}
-                onClick={() => executeGoogleAuth('mubarakkasimmaishanu@gmail.com', 'Mubarak Kasim')}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 transition-all text-left group active:scale-[0.99]"
-              >
-                <div className="w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-sky-500/20">
-                  MK
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-900 group-hover:text-sky-700">Mubarak Kasim</div>
-                  <div className="text-[11px] text-slate-500 truncate">mubarakkasimmaishanu@gmail.com</div>
-                </div>
-              </button>
-
-              {/* Account 2 */}
-              <button
-                type="button"
-                disabled={googleAuthLoading}
-                onClick={() => executeGoogleAuth('user@google.com', 'Google User')}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 transition-all text-left group active:scale-[0.99]"
-              >
-                <div className="w-10 h-10 rounded-full bg-slate-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
-                  GU
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-900 group-hover:text-sky-700">Google User</div>
-                  <div className="text-[11px] text-slate-500 truncate">user@google.com</div>
-                </div>
-              </button>
-
-              {/* Custom Google Account Option */}
-              {!showCustomGoogleInput ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCustomGoogleInput(true)}
-                  className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl border border-dashed border-slate-300 hover:border-sky-400 text-xs font-bold text-sky-600 hover:bg-sky-50/50 transition-all"
-                >
-                  + Use another Google Account
-                </button>
-              ) : (
-                <div className="space-y-3 pt-1 border-t border-slate-100">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Enter Google Account Email</label>
-                    <input
-                      type="email"
-                      value={customGoogleEmail}
-                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                      placeholder="account@gmail.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-250 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={googleAuthLoading || !customGoogleEmail}
-                    onClick={() => {
-                      if (!customGoogleEmail) return;
-                      const namePart = customGoogleEmail.split('@')[0];
-                      executeGoogleAuth(customGoogleEmail.trim().toLowerCase(), namePart);
-                    }}
-                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-sky-600/20 disabled:opacity-50 transition-all"
-                  >
-                    {googleAuthLoading ? 'Authenticating...' : 'Sign In with This Account'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
