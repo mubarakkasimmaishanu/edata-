@@ -1213,16 +1213,32 @@ export default function MobileSimulator({
                 {appTab === 'home' ? (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-sky-500/25 overflow-hidden border border-white shrink-0">
-                        {currentUser.photo ? (
-                          <img src={currentUser.photo} className="w-full h-full object-cover" alt="Profile Avatar" />
-                        ) : (
-                          (currentUser.name || 'U').charAt(0)
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAppTab('profile')}
+                        className="relative flex flex-col items-center justify-center shrink-0 group focus:outline-none cursor-pointer"
+                        title={`Account Level: ${currentUser.category || 'Basic User'}`}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-sky-500/25 overflow-hidden border-2 border-white transition-transform group-hover:scale-105">
+                          {currentUser.photo ? (
+                            <img src={currentUser.photo} className="w-full h-full object-cover" alt="Profile Avatar" />
+                          ) : (
+                            (currentUser.name || 'U').charAt(0)
+                          )}
+                        </div>
+                        <span className={`absolute -bottom-1.5 px-1.5 py-[0.5px] text-[7.5px] font-black uppercase tracking-wider rounded-full border border-white shadow-xs whitespace-nowrap z-10 transition-all ${
+                          (currentUser.category || '').toLowerCase().includes('premium')
+                            ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-sky-600 text-white ring-1 ring-amber-400/50'
+                            : (currentUser.category || '').toLowerCase().includes('referred')
+                            ? 'bg-sky-600 text-white ring-1 ring-sky-400/50'
+                            : 'bg-slate-700 text-slate-100 ring-1 ring-slate-400/50'
+                        }`}>
+                          {(currentUser.category || 'Basic').replace(' User', '').replace(' Reseller', '')}
+                        </span>
+                      </button>
                       <div>
                         <span className="text-xs text-slate-400 block font-semibold leading-none">Welcome back</span>
-                        <span className="text-sm font-bold text-slate-900 leading-none mt-0.5 block">
+                        <span className="text-sm font-bold text-slate-900 leading-none mt-1 block">
                           {(currentUser.name || 'User').split(' ')[0]}
                         </span>
                       </div>
