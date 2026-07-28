@@ -1,21 +1,21 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Capacitor
+-keep class com.getcapacitor.** { *; }
+-keep  class * extends com.getcapacitor.Plugin { *; }
+-keep  class * extends com.getcapacitor.BridgeActivity { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Google Auth
+-keep class com.google.android.gms.auth.api.signin.** { *; }
+-keep class com.google.android.gms.common.api.ApiException { *; }
+-keep class com.codetrixstudio.capacitor.googleauth.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Lucide Icons (react-native or web if bundled)
+# Mostly JS side, but if using native icons:
+# -keep class com.lucide.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# General
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-dontwarn org.conscrypt.**
+-keepnames class com.fasterxml.jackson.** { *; }

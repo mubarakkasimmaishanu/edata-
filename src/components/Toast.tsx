@@ -27,11 +27,11 @@ export function useToast(): ToastContextValue {
   if (!ctx) {
     // Fallback for when context is not available
     return {
-      toast: (msg) => console.log('[Toast]', msg),
-      success: (msg) => console.log('[Toast:success]', msg),
-      error: (msg) => console.log('[Toast:error]', msg),
-      warning: (msg) => console.log('[Toast:warning]', msg),
-      info: (msg) => console.log('[Toast:info]', msg),
+      toast: () => {},
+      success: () => {},
+      error: () => {},
+      warning: () => {},
+      info: () => {},
     };
   }
   return ctx;
