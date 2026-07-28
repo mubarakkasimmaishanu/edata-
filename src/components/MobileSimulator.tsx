@@ -568,13 +568,9 @@ export default function MobileSimulator({
 
   // ─── KYC Handler ───
   const handleSubmitKYC = () => {
-    setKycLoading(true);
-    setTimeout(() => {
-      setKycLoading(false);
-      setCurrentUser((curr: UserProfile) => ({ ...curr, isVerified: true }));
-      setCurrentScreen('app');
-      toast.success('Identity verified successfully!');
-    }, 1500);
+    setCurrentUser((curr: UserProfile) => ({ ...curr, isVerified: true }));
+    setCurrentScreen('app');
+    toast.success('Identity verified successfully!');
   };
 
   const safeFormatDate = (rawDate: any): string => {
@@ -1203,7 +1199,7 @@ export default function MobileSimulator({
                                   {isFunding ? '+' : '-'}₦{tx.amount.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">
-                                  {new Date(tx.date).toLocaleDateString()}
+                                  {safeFormatDate(tx.date)}
                                 </span>
                               </div>
                             </div>
@@ -2031,7 +2027,7 @@ export default function MobileSimulator({
                     { label: 'Service', val: activeReceipt.productName },
                     { label: 'Recipient', val: activeReceipt.phoneOrMeter },
                     ...(activeReceipt.operator ? [{ label: 'Provider', val: activeReceipt.operator }] : []),
-                    { label: 'Date', val: new Date(activeReceipt.date).toLocaleString() },
+                    { label: 'Date', val: safeFormatDate(activeReceipt.date) },
                   ].map((item, i) => (
                     <div key={i} className="flex justify-between gap-4">
                       <span className="text-slate-400 font-semibold">{item.label}</span>
