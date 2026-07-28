@@ -9,6 +9,7 @@ import {
   History, MoreHorizontal, Headphones, Bell, EyeOff, Coins, Info, Gift, Mail,
   X, Zap, Shield, LogOut, ChevronRight, Fingerprint, Camera, ExternalLink, PlusCircle, Plus, Edit3, Tag
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { api, setAuthToken, resolveImageUrl } from '../services/api';
 import { jsPDF } from 'jspdf';
 import { DEFAULT_USER } from '../data';
@@ -45,14 +46,8 @@ interface MobileSimulatorProps {
   setApiStatus?: (status: 'connected' | 'offline') => void;
 }
 
-// ─── Demo Contacts ───
-const demoContacts = [
-  { name: 'Usman Annur', phone: '08142233864', operator: 'MTN' },
-  { name: 'Fatima Ibrahim', phone: '09012345678', operator: 'Glo' },
-  { name: 'Chinedu Okafor', phone: '07062345678', operator: 'Airtel' },
-  { name: 'Aisha Mohammed', phone: '08182233445', operator: '9mobile' },
-  { name: 'Emeka Nwankwo', phone: '08032345678', operator: 'MTN' },
-];
+// ─── Contacts ───
+const demoContacts: any[] = [];
 
 export default function MobileSimulator({
   currentUser, setCurrentUser, products, transactions, setTransactions,
@@ -67,41 +62,12 @@ export default function MobileSimulator({
   const [appTab, setAppTab] = useState<'home' | 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'history' | 'support' | 'profile' | 'a2c' | 'services' | 'notifications' | 'privacy' | 'terms' | 'delete_account'>('home');
 
   // ─── Notifications System State ───
-  const [notifications, setNotifications] = useState<AppNotification[]>([
-    {
-      id: 1,
-      title: 'Welcome to eData!',
-      message: 'Your account is active. Explore our lightning fast airtime, data bundles, and bill payment services.',
-      image: null,
-      target_group: 'all',
-      created_at: 'Just now',
-      is_read: false
-    }
-  ]);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(1);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
+
+  // ─── Notification Filter ───
   const [notificationFilter, setNotificationFilter] = useState<'all' | 'unread'>('all');
   const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
-
-  // ─── Auth State ───
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [authName, setAuthName] = useState(currentUser.name);
-  const [authPhone, setAuthPhone] = useState(currentUser.phone);
-  const [authPromo, setAuthPromo] = useState('');
-  const [regMode, setRegMode] = useState<'self' | 'referral'>('self');
-  const [acceptTerms, setAcceptTerms] = useState(true);
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [showRegPassword, setShowRegPassword] = useState(false);
-  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [verificationError, setVerificationError] = useState('');
-  const [bvnInput, setBvnInput] = useState('');
-  const [ninInput, setNinInput] = useState('');
-  const [kycLoading, setKycLoading] = useState(false);
 
   // ─── Transaction Flow State ───
   const [selectedCategory, setSelectedCategory] = useState<'Airtime' | 'Data' | 'Electricity' | 'Cable' | 'Exam' | 'A2C'>('Airtime');
@@ -136,17 +102,11 @@ export default function MobileSimulator({
   const [manualAmountInput, setManualAmountInput] = useState('5000');
   const [manualRefInput, setManualRefInput] = useState('');
   const [manualSenderInput, setManualSenderInput] = useState('');
-  const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([
-    {
-      bank_name: 'Moniepoint MFB',
-      account_number: '6301234567',
-      account_name: 'eData - ' + (currentUser.name || 'User')
-    }
-  ]);
+  const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
   const [manualBank, setManualBank] = useState<ManualBank>({
-    bank_name: 'Moniepoint Microfinance Bank',
-    account_name: 'eData Enterprise',
-    account_number: '6301234567'
+    bank_name: '',
+    account_name: '',
+    account_number: ''
   });
   const [katpayEnabled, setKatpayEnabled] = useState(true);
   const [activeKatpayCheckout, setActiveKatpayCheckout] = useState<{
@@ -850,9 +810,9 @@ export default function MobileSimulator({
     return transactions.filter(t => new Date(t.date).toDateString() === yStr && t.status === 'Completed').reduce((acc, t) => acc + t.amount, 0);
   })();
 
-  const referralLink = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  const referralLink = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1'))
     ? `https://edata.com.ng/signup?ref=${currentUser.id || '1'}`
-    : `http://localhost/edata/signup?ref=${currentUser.id || '1'}`;
+    : `https://edata.com.ng/signup?ref=${currentUser.id || '1'}`;
 
   const lastTx = transactions[0];
 
@@ -879,333 +839,9 @@ export default function MobileSimulator({
       <div className="flex-1 bg-slate-50 flex flex-col">
 
         {/* ═══════════════════════════════════════
-            AUTH SCREEN
-        ═══════════════════════════════════════ */}
-        {currentScreen === 'auth' && (
-          <div className="flex-1 flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-sky-50/30 animate-fade-in">
-            <div className="px-6 pt-10 pb-6 space-y-6">
-              {/* Header without Logo */}
-              <div className="text-center space-y-1 pt-6 pb-2">
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-1 font-display">
-                  <span className="text-sky-600 font-extrabold">e</span><span className="font-extrabold">Data</span>
-                </h1>
-                <p className="text-xs font-semibold text-slate-500 tracking-wide">Instant VTU & Utility Payment Platform</p>
-              </div>
-
-
-
-              {/* Tab Switcher */}
-              <div className="bg-slate-100 p-1 rounded-2xl flex relative">
-                <div
-                  className="absolute top-1 bottom-1 bg-white rounded-xl shadow-sm transition-all duration-300 ease-out"
-                  style={{ width: '50%', left: isRegistering ? '50%' : '0%' }}
-                />
-                <button
-                  onClick={() => setIsRegistering(false)}
-                  className={`flex-grow py-2.5 text-xs font-bold rounded-xl transition-all relative z-10 ${!isRegistering ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => setIsRegistering(true)}
-                  className={`flex-grow py-2.5 text-xs font-bold rounded-xl transition-all relative z-10 ${isRegistering ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                  Create Account
-                </button>
-              </div>
-
-              {/* Form */}
-              {isRegistering ? (
-                <form onSubmit={handleRegisterSubmit} className="space-y-4 animate-fade-in">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Email Address</label>
-                    <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Referral Code <span className="text-slate-400 font-normal">(Optional)</span></label>
-                    <input type="text" value={authPromo} onChange={(e) => setAuthPromo(e.target.value)}
-                      placeholder="e.g. REF-58291 or referrer email"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
-                  </div>
-                  <label className="flex items-start gap-2.5 pt-1">
-                    <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
-                      className="mt-0.5 accent-sky-600 rounded w-4 h-4" />
-                    <span className="text-xs text-slate-500 leading-relaxed">
-                      I accept the <strong className="text-slate-700">Terms & Conditions</strong> and privacy policy.
-                    </span>
-                  </label>
-                  <button type="submit"
-                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.98]">
-                    Get Started <ArrowRight className="w-4 h-4" />
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleLoginSubmit} className="space-y-4 animate-fade-in">
-                  {loginError && (
-                    <div className="bg-rose-50 text-rose-700 p-3 rounded-xl text-xs font-semibold flex items-start gap-2 border border-rose-100 animate-slide-down">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>{loginError}</span>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Email Address</label>
-                    <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="you@email.com" disabled={loginLoading}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800 disabled:opacity-60" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-semibold text-slate-500 block">Password</label>
-                      <button type="button" onClick={() => { setForgotPasswordEmail(authEmail); setForgotPasswordModalOpen(true); }}
-                        className="text-xs text-sky-600 font-bold hover:underline">
-                        Forgot Password?
-                      </button>
-                    </div>
-                    <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="••••••••" disabled={loginLoading}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800 disabled:opacity-60" />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.98]">
-                    {loginLoading ? (
-                      <><RefreshCw className="w-4 h-4 animate-spin" /> Signing in...</>
-                    ) : (
-                      <>Sign In <ArrowRight className="w-4 h-4" /></>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Social Login */}
-            <div className="px-6 pb-8 space-y-4">
-              <div className="relative flex items-center">
-                <div className="flex-grow border-t border-slate-200" />
-                <span className="px-3 text-xs text-slate-400 font-medium">or continue with</span>
-                <div className="flex-grow border-t border-slate-200" />
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const targetEmail = authEmail || 'user@google.com';
-                    const res = await api.googleAuth({ email: targetEmail, name: 'Google User' });
-                    if (res.success && res.data) {
-                      const loggedUser = {
-                        ...DEFAULT_USER,
-                        id: res.data.user.id,
-                        email: res.data.user.email,
-                        firstname: res.data.user.firstname || 'Google',
-                        lastname: res.data.user.lastname || 'User',
-                        name: `${res.data.user.firstname || 'Google'} ${res.data.user.lastname || 'User'}`.trim(),
-                        photo: res.data.user.photo || '',
-                        phone: res.data.user.phone || '',
-                        walletBalance: res.data.user.walletBalance || 0,
-                        category: res.data.user.level_label || res.data.user.category || 'Basic User',
-                        isVerified: true,
-                        hasPin: res.data.user.hasPin || res.data.user.has_pin || false,
-                      };
-                      setCurrentUser(loggedUser);
-                      localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
-                      if (setApiStatus) setApiStatus('connected');
-                      if (handleLoginSuccess) handleLoginSuccess(res.data.token || res.data.accessToken);
-                      toast.success(`Welcome back, ${loggedUser.firstname}!`);
-                      setCurrentScreen('app');
-                    } else {
-                      toast.error(res.error || 'Google Authentication failed.');
-                    }
-                  } catch (err: any) {
-                    toast.error(err.message || 'Google Auth service error.');
-                  }
-                }}
-                className="w-full bg-white border border-slate-250 hover:border-slate-350 text-slate-750 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-3 hover:bg-slate-50/80 transition-spring shadow-sm active:scale-[0.98] btn-sheen"
-              >
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════
-            OTP SCREEN
-        ═══════════════════════════════════════ */}
-        {currentScreen === 'otp' && (
-          <div className="flex-1 p-6 flex flex-col justify-between bg-white animate-fade-in">
-            <div className="space-y-8 mt-8">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Verify Your Email</h2>
-                <p className="text-sm text-slate-500 font-medium">
-                  We sent a 6-digit verification code to <strong className="text-slate-800">{authEmail}</strong>
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-center gap-2">
-                  {[0, 1, 2, 3, 4, 5].map(i => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength={1}
-                      value={otpCode[i] || ''}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '');
-                        const newCode = otpCode.split('');
-                        newCode[i] = val;
-                        setOtpCode(newCode.join(''));
-                        if (val && i < 5) {
-                          const next = e.target.nextElementSibling as HTMLInputElement;
-                          if (next) next.focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !otpCode[i] && i > 0) {
-                          const prev = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
-                          if (prev) prev.focus();
-                        }
-                      }}
-                      className="w-11 h-12 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-lg font-bold text-slate-900 input-focus font-mono"
-                    />
-                  ))}
-                </div>
-                {verificationError && (
-                  <p className="text-rose-500 text-xs text-center font-semibold">{verificationError}</p>
-                )}
-                <p className="text-xs text-slate-400 text-center font-medium">
-                  Didn't receive code?{' '}
-                  <button type="button" onClick={async () => {
-                    try {
-                      const res = await api.signupRequest(authEmail, authPromo);
-                      toast.success(res.message || 'Verification code resent!');
-                      if (res.otp) toast.info(`Localhost OTP Code: ${res.otp}`);
-                    } catch (err: any) {
-                      toast.error(err.message || 'Error resending code.');
-                    }
-                  }} className="text-sky-600 font-bold hover:underline">
-                    Resend Code
-                  </button>
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <button onClick={handleVerifyOTP}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.98]">
-                Verify & Continue
-              </button>
-              <button onClick={() => setCurrentScreen('auth')}
-                className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
-                Back
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════
-            PASSWORD CREATE SCREEN
-        ═══════════════════════════════════════ */}
-        {currentScreen === 'password_create' && (
-          <div className="flex-1 p-6 flex flex-col justify-between bg-white animate-fade-in">
-            <div className="space-y-6 mt-8">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Create Password</h2>
-                <p className="text-sm text-slate-500 font-medium">Secure your account with a strong password.</p>
-              </div>
-              <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Password</label>
-                  <div className="relative">
-                    <input type={showRegPassword ? 'text' : 'password'} required value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)} placeholder="Min. 6 characters"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm input-focus text-slate-800" />
-                    <button type="button" onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                      {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Confirm Password</label>
-                  <div className="relative">
-                    <input type={showRegConfirmPassword ? 'text' : 'password'} required value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)} placeholder="Re-enter password"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm input-focus text-slate-800" />
-                    <button type="button" onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                      {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <button type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.98] mt-4">
-                  Complete Registration
-                </button>
-              </form>
-            </div>
-            <button onClick={() => setCurrentScreen('auth')}
-              className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
-              Back
-            </button>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════
-            KYC / BVN SCREEN
-        ═══════════════════════════════════════ */}
-        {currentScreen === 'bvn_verify' && (
-          <div className="flex-1 p-6 flex flex-col justify-between bg-white animate-fade-in">
-            <div className="space-y-6 mt-6">
-              <div className="space-y-2">
-                <span className="text-xs bg-sky-50 text-sky-600 border border-sky-100 font-bold px-2.5 py-1 rounded-full inline-block">Identity Check</span>
-                <h2 className="text-xl font-bold text-slate-900 font-display">Verify Your Identity</h2>
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  Provide your <strong className="text-slate-700">BVN</strong> or <strong className="text-slate-700">NIN</strong> to comply with central regulations.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">National ID Number (NIN)</label>
-                  <input type="text" maxLength={11} value={ninInput}
-                    onChange={(e) => setNinInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="11-digit NIN"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
-                </div>
-                <div className="relative flex items-center">
-                  <div className="flex-grow border-t border-slate-100" />
-                  <span className="px-3 text-xs text-slate-300 font-medium">or</span>
-                  <div className="flex-grow border-t border-slate-100" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Bank Verification Number (BVN)</label>
-                  <input type="text" maxLength={11} value={bvnInput}
-                    onChange={(e) => setBvnInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="11-digit BVN"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm input-focus text-slate-800" />
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <button onClick={handleSubmitKYC} disabled={kycLoading}
-                className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.98] flex items-center justify-center gap-2">
-                {kycLoading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Verifying...</> : 'Verify & Continue'}
-              </button>
-              <button onClick={() => setCurrentScreen('app')}
-                className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
-                Skip for now
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════
             MAIN APP (Dashboard + Tabs)
         ═══════════════════════════════════════ */}
-        {currentScreen === 'app' && (
-          <div className="flex-1 flex flex-col justify-between">
+        <div className="flex-1 flex flex-col justify-between">
 
             {/* ─── Header ─── */}
             <div className="px-5 pt-3 pb-3 shrink-0 bg-white border-b border-slate-100/80 w-full">
@@ -1304,182 +940,135 @@ export default function MobileSimulator({
             </div>
 
             {/* ─── Tab Content ─── */}
-            <div className="flex-1 overflow-y-auto p-4 relative scrollbar-none bg-slate-50 flex flex-col w-full">
-              <div className="max-w-md mx-auto w-full flex-1 flex flex-col space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 relative scrollbar-none bg-slate-50 flex flex-col w-full pb-32">
+              <div className="max-w-md mx-auto w-full flex-1 flex flex-col">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={appTab}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex-1 flex flex-col space-y-4"
+                  >
+                    {/* Sync indicator */}
+                    {isSyncing && (
+                      <div className="bg-sky-50 text-sky-600 text-[10px] font-black py-2.5 text-center rounded-2xl flex items-center justify-center gap-2 animate-pulse border border-sky-100/50 uppercase tracking-widest">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Synchronizing with eData Cloud...
+                      </div>
+                    )}
 
-                {/* Sync indicator */}
-                {isSyncing && (
-                  <div className="bg-sky-50 text-sky-600 text-[10px] font-bold py-2 text-center rounded-xl flex items-center justify-center gap-2 animate-pulse border border-sky-100/50">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Syncing with API...
-                  </div>
-                )}
-
-                {/* ═══ HOME TAB ═══ */}
-                {appTab === 'home' && (
-                  <div className="space-y-4 text-left animate-fade-in">
-                    {/* Hero Wallet Card */}
-                    <div className="bg-gradient-to-br from-sky-600 via-sky-700 to-slate-900 text-white p-5 rounded-3xl shadow-xl shadow-sky-600/20 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
-                      <div className="relative space-y-4">
+                    {/* ═══ HOME TAB ═══ */}
+                    {appTab === 'home' && (
+                      <div className="space-y-5 text-left stagger-children">
+                        {/* Hero Wallet Card */}
+                        <div className="wallet-gradient text-white p-6 rounded-[2rem] shadow-2xl shadow-sky-900/20 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none transition-transform group-hover:scale-110 duration-700" />
+                      <div className="relative space-y-5">
                         <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider font-display">Available Balance</span>
+                          <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-white/20">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-glow-pulse" />
+                            <span className="text-[10px] text-white font-black uppercase tracking-widest font-display">Live Balance</span>
                           </div>
                           <button type="button" onClick={() => setAppTab('history')}
-                            className="bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold py-1.5 px-3 rounded-xl backdrop-blur-md transition-all border border-white/10 flex items-center gap-1 active:scale-95">
-                            History <ChevronRight className="w-3.5 h-3.5" />
+                            className="bg-white/10 hover:bg-white/20 text-white text-[11px] font-black py-2 px-4 rounded-2xl backdrop-blur-xl transition-all border border-white/10 flex items-center gap-1.5 active:scale-95">
+                            Details <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        <div className="flex justify-between items-end pt-1">
+                        <div className="flex justify-between items-end">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-3xl font-black font-mono tracking-tight text-white">
+                            <div className="flex items-center gap-3">
+                              <span className="text-4xl font-black font-mono tracking-tighter text-white drop-shadow-sm tabular-nums">
                                 {isBalanceHidden ? '₦••••••••' : `₦${(currentUser?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                               </span>
                               <button type="button" onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-                                className="text-white/70 hover:text-white transition-colors p-1.5 bg-white/10 rounded-xl backdrop-blur-sm">
-                                {isBalanceHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                className="text-white/60 hover:text-white transition-colors p-2 bg-white/10 rounded-2xl backdrop-blur-md border border-white/5">
+                                {isBalanceHidden ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
                               </button>
                             </div>
                           </div>
 
                           <button type="button" onClick={() => setFundModalOpen(true)}
-                            className="bg-white hover:bg-sky-50 text-sky-800 font-black text-xs py-2.5 px-4 rounded-2xl shadow-lg transition-spring active:scale-95 flex items-center gap-1.5 btn-sheen">
-                            <PlusCircle className="w-4 h-4 text-sky-600" />
-                            Add Money
+                            className="bg-white text-sky-900 font-black text-xs py-3 px-5 rounded-[1.25rem] shadow-xl transition-spring active:scale-95 flex items-center gap-2 btn-sheen">
+                            <Plus className="w-4.5 h-4.5 text-sky-600 stroke-[3]" />
+                            Add Cash
                           </button>
                         </div>
 
-                        {/* Dynamic Virtual Transfer Bank Account Pill (Synced with backend API) */}
+                        {/* Instant Funding Account Pill */}
                         {virtualAccounts && virtualAccounts.length > 0 ? (
-                          <div className="border-t border-white/15 pt-3 flex items-center justify-between bg-black/20 backdrop-blur-md rounded-2xl px-3.5 py-2.5">
-                            <div className="min-w-0">
-                              <span className="text-[9px] font-extrabold text-sky-200 uppercase tracking-wider block">Instant Bank Transfer Account</span>
-                              <span className="text-xs font-bold text-white font-mono tracking-wide truncate block">
-                                {virtualAccounts[0].bank_name}: <strong className="text-sky-300 font-black">{virtualAccounts[0].account_number}</strong>
-                              </span>
-                            </div>
-                            <button type="button" onClick={() => {
+                          <div className="bg-black/20 backdrop-blur-2xl rounded-[1.5rem] p-4 border border-white/10 flex items-center justify-between group/acc cursor-pointer active:scale-[0.99] transition-all"
+                            onClick={() => {
                               navigator.clipboard.writeText(virtualAccounts[0].account_number);
-                              toast.success(`${virtualAccounts[0].bank_name} account number copied!`);
-                            }} className="bg-sky-500/30 hover:bg-sky-500/50 text-white text-[10px] font-extrabold px-3 py-1 rounded-xl transition-all border border-sky-400/30 shrink-0 uppercase tracking-wider">
-                              COPY
-                            </button>
+                              toast.success(`${virtualAccounts[0].bank_name} account copied!`);
+                            }}>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-black text-sky-300 uppercase tracking-[0.15em] block mb-1">Instant Top-up Account</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-white font-mono tracking-tight truncate">
+                                  {virtualAccounts[0].bank_name}
+                                </span>
+                                <div className="w-1 h-1 rounded-full bg-white/30" />
+                                <span className="text-sm font-black text-sky-100 font-mono tracking-widest">
+                                  {virtualAccounts[0].account_number}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="bg-white/10 p-2 rounded-xl border border-white/10 group-hover/acc:bg-white/20 transition-colors">
+                              <Copy className="w-4 h-4 text-white" />
+                            </div>
                           </div>
                         ) : (
-                          <div className="border-t border-white/15 pt-3 flex items-center justify-between bg-black/20 backdrop-blur-md rounded-2xl px-3.5 py-2.5">
+                          <div className="bg-black/20 backdrop-blur-2xl rounded-[1.5rem] p-4 border border-white/10 flex items-center justify-between"
+                            onClick={() => setFundModalOpen(true)}>
                             <div className="min-w-0">
-                              <span className="text-[9px] font-extrabold text-sky-200 uppercase tracking-wider block">Automated Bank Transfer</span>
-                              <span className="text-xs font-medium text-white/80 truncate block">Get instant dedicated account for wallet funding</span>
+                              <span className="text-[9px] font-black text-sky-300 uppercase tracking-[0.15em] block mb-1">Automatic Funding</span>
+                              <span className="text-xs font-bold text-white/90">Get your dedicated transfer account</span>
                             </div>
-                            <button type="button" onClick={() => setFundModalOpen(true)} className="bg-sky-500/30 hover:bg-sky-500/50 text-white text-[10px] font-extrabold px-3 py-1 rounded-xl transition-all border border-sky-400/30 shrink-0 uppercase tracking-wider">
-                              Get Account
-                            </button>
+                            <div className="bg-sky-500/30 p-2 rounded-xl border border-sky-400/30">
+                              <Zap className="w-4 h-4 text-white animate-pulse" />
+                            </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Quick Actions (Synced directly to main services) */}
-                    <div className="bg-white rounded-3xl p-3.5 border border-slate-100 shadow-sm">
-                      <div className="flex justify-between items-center px-1 mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-display">Quick Shortcuts</span>
-                        <button type="button" onClick={() => setAppTab('services')} className="text-[10.5px] font-extrabold text-sky-600 hover:underline">
-                          More &rarr;
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-5 gap-1.5">
-                        {[
-                          {
-                            id: 'mtn-data',
-                            label: 'MTN Data',
-                            icon: mtnIcon,
-                            action: () => { setDetectedOperator('MTN'); setSelectedCategory('Data'); setAppTab('data'); }
-                          },
-                          {
-                            id: 'airtime',
-                            label: 'Airtime',
-                            icon: airtelIcon,
-                            action: () => { setSelectedCategory('Airtime'); setAppTab('airtime'); }
-                          },
-                          {
-                            id: 'dstv',
-                            label: 'DStv',
-                            icon: dstvIcon,
-                            action: () => { setDetectedOperator('DSTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
-                          },
-                          {
-                            id: 'gotv',
-                            label: 'GOtv',
-                            icon: gotvIcon,
-                            action: () => { setDetectedOperator('GOTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
-                          },
-                          {
-                            id: 'waec',
-                            label: 'WAEC Cards',
-                            icon: waecIcon,
-                            action: () => { setSelectedCategory('Exam'); setAppTab('exam'); }
-                          },
-                        ].map(btn => (
-                          <button key={btn.id} type="button"
-                            onClick={btn.action}
-                            className="flex flex-col items-center gap-1 group cursor-pointer">
-                            <div className="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-sky-50 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-slate-100 group-hover:border-sky-200 shadow-2xs p-1.5">
-                              <img src={btn.icon} alt={btn.label} className="w-full h-full object-contain rounded-xl" />
-                            </div>
-                            <span className="text-[9.5px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors mt-0.5 truncate max-w-full font-display">
-                              {btn.label}
-                            </span>
+                    {/* Quick Actions & Main Services Grid */}
+                    <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm space-y-6">
+                      <div>
+                        <div className="flex justify-between items-center px-1 mb-4">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Telecom & Utilities</span>
+                          <button type="button" onClick={() => setAppTab('services')} className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1">
+                            More <ArrowRight className="w-3 h-3" />
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Last Transaction */}
-                    {lastTx ? (
-                      <div className="bg-white rounded-2xl p-3.5 flex justify-between items-center border border-slate-100 shadow-sm active:scale-[0.99] transition-spring cursor-pointer hover:border-slate-200"
-                        onClick={() => setActiveReceipt(lastTx)}>
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-900 font-mono">₦{(lastTx.amount || 0).toLocaleString()}</span>
-                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                              lastTx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
-                            }`}>{lastTx.status}</span>
-                          </div>
-                          <span className="text-xs text-slate-400 block truncate font-medium">{lastTx.productName}</span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm">
-                        <p className="text-xs text-slate-400 block font-semibold">No transactions yet</p>
-                      </div>
-                    )}
-
-                    {/* Services Grid */}
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3">
-                      <div className="flex justify-between items-center px-1">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 font-display">Services</h4>
-                        <button type="button" onClick={() => setAppTab('services')} className="text-[11px] font-extrabold text-sky-600 hover:underline">
-                          View All
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-4 gap-y-5 gap-x-3 pt-1">
-                        {serviceIcons.map((srv, idx) => (
-                          <button key={idx} type="button"
-                            onClick={() => {
-                              if (srv.tab) { setSelectedCategory(srv.id as any); setAppTab(srv.tab as any); }
-                              else if (srv.action) srv.action();
-                            }}
-                            className="flex flex-col items-center gap-1.5 group cursor-pointer">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-50 via-sky-100/90 to-sky-50 text-sky-600 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-sky-200/70 shadow-md shadow-sky-500/10 group-hover:shadow-sky-500/25 group-hover:border-sky-300">
-                              <srv.icon className="w-6.5 h-6.5 text-sky-600 shrink-0" />
-                            </div>
-                            <span className="text-[11px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors tracking-tight mt-1">{srv.id}</span>
-                          </button>
-                        ))}
+                        <div className="grid grid-cols-4 gap-y-6 gap-x-4">
+                          {[
+                            { id: 'Airtime', icon: Phone, color: 'from-sky-500 to-sky-600', tab: 'airtime' },
+                            { id: 'Data', icon: Layers, color: 'from-sky-500 to-sky-600', tab: 'data' },
+                            { id: 'Cable TV', icon: Tv, color: 'from-sky-500 to-sky-600', tab: 'cable' },
+                            { id: 'Electricity', icon: Zap, color: 'from-sky-500 to-sky-600', tab: 'electricity' },
+                            { id: 'A2C', icon: RefreshCw, color: 'from-sky-500 to-sky-600', tab: 'a2c' },
+                            { id: 'Exam Card', icon: BookOpen, color: 'from-sky-500 to-sky-600', tab: 'exam' },
+                            { id: 'Referral', icon: Gift, color: 'from-sky-500 to-sky-600', action: () => { navigator.clipboard.writeText(referralLink); toast.success('Link copied!'); } },
+                            { id: 'Pricing', icon: Tag, color: 'from-sky-500 to-sky-600', action: () => setPriceSheetOpen(true) },
+                          ].map((srv, idx) => (
+                            <button key={idx} type="button"
+                              onClick={() => {
+                                if (srv.tab) { setSelectedCategory(srv.id as any); setAppTab(srv.tab as any); }
+                                else if (srv.action) srv.action();
+                              }}
+                              className="flex flex-col items-center gap-2 group cursor-pointer">
+                              <div className="w-14 h-14 rounded-3xl bg-slate-50 group-hover:bg-sky-50 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-slate-100 group-hover:border-sky-200 shadow-2xs">
+                                <srv.icon className="w-6 h-6 text-sky-600 transition-transform group-hover:rotate-12" />
+                              </div>
+                              <span className="text-[10px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors tracking-tight font-display">
+                                {srv.id}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -2202,14 +1791,14 @@ export default function MobileSimulator({
                         ));
                       })()}
                     </div>
-                  </div>
-                )}
-
-              </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
+          </div>
 
-            {/* ─── Bottom Navigation ─── */}
-            <div className="px-2 py-2 flex justify-around items-center shrink-0 z-40 w-full bg-white border-t border-slate-100 safe-bottom">
+          {/* ─── Bottom Navigation ─── */}
+            <div className="fixed bottom-4 left-4 right-4 h-20 glass-nav border border-white/40 shadow-2xl rounded-[2.5rem] flex justify-around items-center px-4 z-50 safe-bottom animate-slide-up">
               {[
                 { id: 'home', icon: Home, label: 'Home' },
                 { id: 'services', icon: Layers, label: 'Services' },
@@ -2221,12 +1810,17 @@ export default function MobileSimulator({
                   : appTab === tab.id;
                 return (
                   <button key={tab.id} type="button" onClick={() => setAppTab(tab.id as any)}
-                    className={`flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-spring relative ${
+                    className={`flex flex-col items-center justify-center gap-1.5 px-5 py-2 rounded-2xl transition-spring relative overflow-hidden group ${
                       isActive ? 'text-sky-600' : 'text-slate-400 hover:text-slate-500'
                     }`}>
-                    {isActive && <div className="absolute -top-1 w-5 h-[3px] bg-sky-500 rounded-full" />}
-                    <tab.icon className={`w-[18px] h-[18px] ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
-                    <span className={`text-[10px] tracking-tight ${isActive ? 'font-extrabold font-display' : 'font-semibold'}`}>{tab.label}</span>
+                    {isActive && (
+                      <div className="absolute inset-0 bg-sky-50 animate-scale-in" />
+                    )}
+                    <tab.icon className={`w-5.5 h-5.5 relative z-10 transition-transform group-hover:-translate-y-0.5 ${isActive ? 'text-sky-600 stroke-[2.5]' : 'text-slate-400'}`} />
+                    <span className={`text-[10px] tracking-tight relative z-10 font-black uppercase ${isActive ? 'text-sky-600' : 'text-slate-400'}`}>
+                      {tab.label}
+                    </span>
+                    {isActive && <div className="absolute bottom-1 w-1 h-1 bg-sky-600 rounded-full" />}
                   </button>
                 );
               })}
