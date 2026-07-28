@@ -566,120 +566,6 @@ export default function MobileSimulator({
     }
   };
 
-  // ─── Login Handler ───
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!authEmail || !authPassword) {
-      setLoginError('Email and password are required.');
-      return;
-    }
-    setLoginLoading(true);
-    setLoginError('');
-    try {
-      const res = await api.login(authEmail, authPassword);
-      if (res.success && res.data?.token) {
-        setAuthToken(res.data.token);
-        if (setApiStatus) setApiStatus('connected');
-        if (handleLoginSuccess) handleLoginSuccess(res.data.token);
-        setAuthPassword('');
-        setLoginError('');
-      } else {
-        setLoginError(res.error || 'Invalid email or password.');
-      }
-    } catch (err: any) {
-      setLoginError(err.message || 'Invalid email or password.');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  // ─── Register Handler ───
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!acceptTerms) {
-      toast.warning('Please accept the terms and conditions.');
-      return;
-    }
-    if (!authEmail || !authEmail.includes('@')) {
-      toast.warning('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      const res = await api.signupRequest(authEmail, authPromo);
-      if (res.success) {
-        toast.success(res.message || 'Verification code sent to your email!');
-        setCurrentScreen('otp');
-      } else {
-        toast.error(res.error || 'Failed to send verification code.');
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Error requesting registration verification code.');
-    }
-  };
-
-  // ─── OTP Handler ───
-  const handleVerifyOTP = async () => {
-    if (otpCode.length < 6) {
-      setVerificationError('Please enter the full 6-digit verification code sent to your email.');
-      return;
-    }
-
-    try {
-      const res = await api.signupVerify(authEmail, otpCode);
-      if (res.success) {
-        setVerificationError('');
-        toast.success('Email verified successfully!');
-        setCurrentScreen('password_create');
-      } else {
-        setVerificationError(res.error || 'Incorrect verification code.');
-        toast.error(res.error || 'Verification failed.');
-      }
-    } catch (err: any) {
-      setVerificationError(err.message || 'OTP verification error.');
-    }
-  };
-
-  // ─── Register Password Handler ───
-  const handleRegisterPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (regPassword.length < 6) {
-      toast.warning('Password must be at least 6 characters.');
-      return;
-    }
-    if (regPassword !== regConfirmPassword) {
-      toast.error('Passwords do not match.');
-      return;
-    }
-
-    try {
-      const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', authPromo);
-      if (res.success && res.data) {
-        const newUserObj: UserProfile = {
-          id: res.data.user.id,
-          name: authEmail.split('@')[0].toUpperCase(),
-          email: res.data.user.email,
-          phone: res.data.user.phone || '',
-          walletBalance: 0,
-          category: res.data.user.level_label || 'Basic User',
-          bvn: '', nin: '', isVerified: false,
-          pinCode: '', hasPin: res.data.user.has_pin || false,
-          promoCode: authPromo,
-        };
-        setCurrentUser(newUserObj);
-        localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
-        if (handleLoginSuccess) handleLoginSuccess(res.data.token);
-        toast.success(res.message || 'Registration completed successfully! Welcome to eData.');
-        setRegPassword(''); setRegConfirmPassword('');
-        setCurrentScreen('app');
-      } else {
-        toast.error(res.error || 'Registration failed.');
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Registration completion error.');
-    }
-  };
-
   // ─── KYC Handler ───
   const handleSubmitKYC = () => {
     setKycLoading(true);
@@ -689,6 +575,26 @@ export default function MobileSimulator({
       setCurrentScreen('app');
       toast.success('Identity verified successfully!');
     }, 1500);
+  };
+
+  const safeFormatDate = (rawDate: any): string => {
+    if (!rawDate) return 'N/A';
+    if (typeof rawDate !== 'string') {
+      if (rawDate instanceof Date && !isNaN(rawDate.getTime())) return rawDate.toLocaleString();
+      return String(rawDate);
+    }
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d.toLocaleString();
+
+    const isoCandidate = rawDate.replace(' ', 'T');
+    const dIso = new Date(isoCandidate);
+    if (!isNaN(dIso.getTime())) return dIso.toLocaleString();
+
+    const spaceCandidate = rawDate.replace(/-/g, ' ');
+    const dSpace = new Date(spaceCandidate);
+    if (!isNaN(dSpace.getTime())) return dSpace.toLocaleString();
+
+    return rawDate;
   };
 
   // ─── PDF Receipt ───
@@ -728,7 +634,7 @@ export default function MobileSimulator({
         { label: 'Recipient/Meter', val: tx.phoneOrMeter },
         { label: 'Provider / Network', val: tx.operator || 'N/A' },
         { label: 'Payment Method', val: 'Wallet Balance' },
-        { label: 'Execution Date', val: new Date(tx.date).toLocaleString() },
+        { label: 'Execution Date', val: safeFormatDate(tx.date) },
       ];
       let currentY = 67;
       details.forEach((item) => {
@@ -755,7 +661,7 @@ export default function MobileSimulator({
 
   // ─── Copy Receipt ───
   const copyReceiptToClipboard = (tx: Transaction) => {
-    const text = `=== EDATA TRANSACTION RECEIPT ===\nReference ID: ${tx.reference}\nAmount: ₦${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}\nService: ${tx.productName}\nRecipient: ${tx.phoneOrMeter}\nProvider: ${tx.operator || 'N/A'}\nDate: ${new Date(tx.date).toLocaleString()}\nStatus: SUCCESSFUL\n=================================\nThank you for using eData Mobile!`;
+    const text = `=== EDATA TRANSACTION RECEIPT ===\nReference ID: ${tx.reference}\nAmount: ₦${tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}\nService: ${tx.productName}\nRecipient: ${tx.phoneOrMeter}\nProvider: ${tx.operator || 'N/A'}\nDate: ${safeFormatDate(tx.date)}\nStatus: SUCCESSFUL\n=================================\nThank you for using eData Mobile!`;
     navigator.clipboard.writeText(text)
       .then(() => toast.success('Receipt copied to clipboard!'))
       .catch(() => toast.error('Failed to copy receipt.'));
@@ -992,7 +898,7 @@ export default function MobileSimulator({
                           <button type="button" onClick={() => setFundModalOpen(true)}
                             className="bg-white text-sky-900 font-black text-xs py-3 px-5 rounded-[1.25rem] shadow-xl transition-spring active:scale-95 flex items-center gap-2 btn-sheen">
                             <Plus className="w-4.5 h-4.5 text-sky-600 stroke-[3]" />
-                            Add Cash
+                            Add Money
                           </button>
                         </div>
 
@@ -1034,14 +940,87 @@ export default function MobileSimulator({
                       </div>
                     </div>
 
-                    {/* Quick Actions & Main Services Grid */}
-                    <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm space-y-6">
+                    {/* Quick Shortcuts (Original specific actions) */}
+                    <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
+                      <div className="flex justify-between items-center px-1 mb-4">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Quick Actions</span>
+                        <button type="button" onClick={() => setAppTab('services')} className="text-[11px] font-bold text-sky-600 hover:underline">
+                          All <ArrowRight className="w-3 h-3 inline" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[
+                          {
+                            id: 'mtn-data',
+                            label: 'MTN Data',
+                            icon: mtnIcon,
+                            action: () => { setDetectedOperator('MTN'); setSelectedCategory('Data'); setAppTab('data'); }
+                          },
+                          {
+                            id: 'airtime',
+                            label: 'Airtime',
+                            icon: airtelIcon,
+                            action: () => { setSelectedCategory('Airtime'); setAppTab('airtime'); }
+                          },
+                          {
+                            id: 'dstv',
+                            label: 'DStv',
+                            icon: dstvIcon,
+                            action: () => { setDetectedOperator('DSTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
+                          },
+                          {
+                            id: 'gotv',
+                            label: 'GOtv',
+                            icon: gotvIcon,
+                            action: () => { setDetectedOperator('GOTV'); setSelectedCategory('Cable'); setAppTab('cable'); }
+                          },
+                          {
+                            id: 'waec',
+                            label: 'WAEC',
+                            icon: waecIcon,
+                            action: () => { setSelectedCategory('Exam'); setAppTab('exam'); }
+                          },
+                        ].map(btn => (
+                          <button key={btn.id} type="button"
+                            onClick={btn.action}
+                            className="flex flex-col items-center gap-1.5 group cursor-pointer">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-sky-50 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-active:scale-95 border border-slate-100 group-hover:border-sky-200 shadow-2xs p-1.5">
+                              <img src={btn.icon} alt={btn.label} className="w-full h-full object-contain rounded-xl" />
+                            </div>
+                            <span className="text-[9px] font-black text-slate-800 text-center leading-tight group-hover:text-sky-600 transition-colors truncate max-w-full font-display">
+                              {btn.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Last Transaction (Restored) */}
+                    {lastTx && (
+                      <div className="bg-white rounded-2xl p-4 flex justify-between items-center border border-slate-100 shadow-sm active:scale-[0.99] transition-spring cursor-pointer hover:border-slate-200 mx-1"
+                        onClick={() => setActiveReceipt(lastTx)}>
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${lastTx.status === 'Completed' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                            <span className="text-sm font-black text-slate-900 font-mono tabular-nums">₦{(lastTx.amount || 0).toLocaleString()}</span>
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${
+                              lastTx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                            }`}>{lastTx.status}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block truncate font-bold uppercase tracking-wider">{lastTx.productName}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-300">
+                          <span className="text-[9px] font-bold uppercase">View</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Services Grid (Restored separate section) */}
+                    <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-6">
                       <div>
                         <div className="flex justify-between items-center px-1 mb-4">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Telecom & Utilities</span>
-                          <button type="button" onClick={() => setAppTab('services')} className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1">
-                            More <ArrowRight className="w-3 h-3" />
-                          </button>
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-display">Services</span>
                         </div>
                         <div className="grid grid-cols-4 gap-y-6 gap-x-4">
                           {[
@@ -1052,7 +1031,7 @@ export default function MobileSimulator({
                             { id: 'A2C', icon: RefreshCw, color: 'from-sky-500 to-sky-600', tab: 'a2c' },
                             { id: 'Exam Card', icon: BookOpen, color: 'from-sky-500 to-sky-600', tab: 'exam' },
                             { id: 'Referral', icon: Gift, color: 'from-sky-500 to-sky-600', action: () => { navigator.clipboard.writeText(referralLink); toast.success('Link copied!'); } },
-                            { id: 'Pricing', icon: Tag, color: 'from-sky-500 to-sky-600', action: () => setPriceSheetOpen(true) },
+                            { id: 'Support', icon: Headphones, color: 'from-sky-500 to-sky-600', action: () => setAppTab('support') },
                           ].map((srv, idx) => (
                             <button key={idx} type="button"
                               onClick={() => {
@@ -1146,6 +1125,7 @@ export default function MobileSimulator({
                     a2cAccount={a2cAccount} setA2cAccount={setA2cAccount}
                     a2cPayout={a2cPayout} setA2cPayout={setA2cPayout}
                     toast={toast}
+                    isPurchasing={isPurchasing}
                   />
                 )}
 
@@ -1582,8 +1562,6 @@ export default function MobileSimulator({
                         onConfirm: () => {
                           setConfirmOpen(false);
                           setAppTab('home');
-                          setAuthEmail('');
-                          setAuthPassword('');
                           if (handleLogout) handleLogout();
                           else setCurrentScreen('auth');
                         },
@@ -1791,7 +1769,8 @@ export default function MobileSimulator({
                         ));
                       })()}
                     </div>
-                  )}
+                  </div>
+                )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -1826,7 +1805,6 @@ export default function MobileSimulator({
               })}
             </div>
           </div>
-        )}
 
         {/* ═══════════════════════════════════════
             BOTTOM SHEET OVERLAYS
