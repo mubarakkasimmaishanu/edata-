@@ -99,6 +99,7 @@ interface ServiceFormProps {
   a2cPayout?: number;
   setA2cPayout?: (v: number) => void;
   toast: { success: (m: string) => void; error: (m: string) => void; warning: (m: string) => void; info: (m: string) => void };
+  isPurchasing?: boolean;
 }
 
 export default function ServiceForm(props: ServiceFormProps) {
@@ -111,7 +112,7 @@ export default function ServiceForm(props: ServiceFormProps) {
     handleCheckoutInitiate, onOpenContacts, onBack, currentBalance,
     isValidatingNumber, handleValidateNumber, customerName, validationError,
     a2cBank, setA2cBank, a2cAccount, setA2cAccount, a2cPayout, setA2cPayout,
-    toast,
+    toast, isPurchasing = false,
   } = props;
 
   const [examQuantity, setExamQuantity] = React.useState<number>(1);
@@ -817,10 +818,14 @@ export default function ServiceForm(props: ServiceFormProps) {
       {/* ─── Submit Button ─── */}
       <button
         onClick={handleSubmit}
-        className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.97] mt-1 btn-sheen"
+        disabled={isPurchasing}
+        className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-spring active:scale-[0.97] mt-1 btn-sheen"
       >
-        {isA2C ? 'Convert Airtime to Cash' : `Pay ₦${basePrice.toLocaleString()}`}
-        <ArrowRight className="w-4 h-4" />
+        {isPurchasing ? (
+          <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
+        ) : (
+          <>{isA2C ? 'Convert Airtime to Cash' : `Pay ₦${basePrice.toLocaleString()}`} <ArrowRight className="w-4 h-4" /></>
+        )}
       </button>
     </div>
   );
