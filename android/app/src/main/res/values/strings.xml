@@ -2,7 +2,8 @@
 <resources>
     <string name="app_name">eData</string>
     <string name="title_activity_main">eData</string>
-    <string name="package_name">com.edata.app</string>
-    <string name="custom_url_scheme">com.edata.app</string>
+    <string name="package_name">com.eDATA.app</string>
+    <string name="custom_url_scheme">com.eDATA.app</string>
     <string name="server_client_id">518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com</string>
+    <string name="default_web_client_id">518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com</string>
 </resources>

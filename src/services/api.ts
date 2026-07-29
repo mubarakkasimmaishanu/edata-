@@ -104,7 +104,7 @@ export const api = {
     return data;
   },
 
-  async googleAuth(params: { id_token?: string; email?: string; name?: string; picture?: string; firstname?: string; lastname?: string }) {
+  async googleAuth(params: { id_token?: string; access_token?: string; email?: string; name?: string; picture?: string; firstname?: string; lastname?: string }) {
     const data = await request('/google-auth', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -197,6 +197,7 @@ export const api = {
     amount: number;
     target_number: string;
     transaction_pin: string;
+    quantity?: number;
     plan_id?: number | string;
     promo_id?: number | string;
     bank_name?: string;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import edataLogo from '../assets/edata_logo.png';
@@ -58,84 +58,94 @@ export default function AuthPage({
   // Google Auth State
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
 
+  // Pre-initialize native GoogleAuth on mount
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      import('@codetrix-studio/capacitor-google-auth')
+        .then(({ GoogleAuth }) => {
+          GoogleAuth.initialize({
+            clientId: '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true,
+          }).catch(() => {});
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   // ─── Native & GIS Web Google Sign-In Handler ───
   const handleGoogleSignIn = async () => {
     setGoogleAuthLoading(true);
     const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
 
     try {
-      let idToken = '';
+      let tokenPayload: { id_token?: string; access_token?: string } = {};
 
       if (Capacitor.isNativePlatform()) {
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
         try {
-          await GoogleAuth.initialize({
-            clientId: GOOGLE_CLIENT_ID,
-            scopes: ['profile', 'email'],
-            grantOfflineAccess: true,
-          });
-        } catch {
-          // Ignored if already initialized
+          const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+          const googleUser = await GoogleAuth.signIn();
+          const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || googleUser.authentication?.accessToken || '';
+          if (rawIdToken) {
+            tokenPayload = { id_token: rawIdToken };
+          } else {
+            toast.error('Google Sign-In did not return a valid token. Please try again.');
+            return;
+          }
+        } catch (nativeErr: any) {
+          console.error('Native Google Auth failed:', nativeErr);
+          if (
+            nativeErr?.message?.includes('canceled') ||
+            nativeErr?.message?.includes('cancelled') ||
+            nativeErr?.code === '12501' ||
+            nativeErr?.code === 12501
+          ) {
+            toast.info('Google Sign-In was cancelled.');
+          } else {
+            toast.error(nativeErr?.message || 'Native Google Sign-In failed.');
+          }
+          return;
         }
-        const googleUser = await GoogleAuth.signIn();
-        idToken = googleUser.authentication?.idToken || (googleUser as any).idToken || '';
       } else {
-        idToken = await new Promise<string>((resolve, reject) => {
+        // Web Platform: GIS OAuth Popup Client
+        tokenPayload = await new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
           const loadAndInitGIS = () => {
             try {
-              if (!(window as any).google?.accounts?.id) {
+              if (!(window as any).google?.accounts?.oauth2) {
                 const script = document.createElement('script');
                 script.src = 'https://accounts.google.com/gsi/client';
                 script.async = true;
                 script.defer = true;
-                script.onload = () => runGISPrompt();
+                script.onload = () => runGISPopup();
                 script.onerror = () => reject(new Error('Failed to load Google Identity Services SDK'));
                 document.head.appendChild(script);
               } else {
-                runGISPrompt();
+                runGISPopup();
               }
             } catch (e) {
               reject(e);
             }
           };
 
-          const runGISPrompt = () => {
+          const runGISPopup = () => {
             try {
-              (window as any).google.accounts.id.initialize({
+              const client = (window as any).google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
-                callback: (response: any) => {
-                  if (response.credential) {
-                    resolve(response.credential);
+                scope: 'email profile openid',
+                callback: (tokenRes: any) => {
+                  if (tokenRes.access_token) {
+                    resolve({ access_token: tokenRes.access_token });
+                  } else if (tokenRes.id_token) {
+                    resolve({ id_token: tokenRes.id_token });
                   } else {
-                    reject(new Error('No ID Token received from Google.'));
+                    reject(new Error('Google authentication was cancelled or closed.'));
                   }
                 },
-                auto_select: false,
-                cancel_on_tap_outside: true,
-              });
-
-              (window as any).google.accounts.id.prompt((notification: any) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                  try {
-                    const client = (window as any).google.accounts.oauth2.initTokenClient({
-                      client_id: GOOGLE_CLIENT_ID,
-                      scope: 'email profile openid',
-                      callback: (tokenRes: any) => {
-                        if (tokenRes.id_token) {
-                          resolve(tokenRes.id_token);
-                        } else if (tokenRes.access_token) {
-                          resolve(tokenRes.access_token);
-                        } else {
-                          reject(new Error('Google authentication was cancelled or closed.'));
-                        }
-                      },
-                    });
-                    client.requestAccessToken();
-                  } catch (err) {
-                    reject(err);
-                  }
+                error_callback: (err: any) => {
+                  reject(new Error('Google Sign-In popup error: ' + (err.message || 'Popup closed')));
                 }
               });
+              client.requestAccessToken();
             } catch (err) {
               reject(err);
             }
@@ -145,12 +155,12 @@ export default function AuthPage({
         });
       }
 
-      if (!idToken) {
-        toast.error('Unable to retrieve Google ID Token. Please try again.');
+      if (!tokenPayload.id_token && !tokenPayload.access_token) {
+        toast.error('Unable to retrieve Google Authentication Token. Please try again.');
         return;
       }
 
-      const res = await api.googleAuth({ id_token: idToken });
+      const res = await api.googleAuth(tokenPayload);
       if (res.success && res.data) {
         const loggedUser: UserProfile = {
           ...DEFAULT_USER,
