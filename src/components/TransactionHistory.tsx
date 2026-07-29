@@ -1,0 +1,208 @@
+import React, { useState } from 'react';
+import { Transaction } from '../types';
+import { ChevronLeft, Search, Download, Clock } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import BottomSheet from './BottomSheet';
+
+interface TransactionHistoryProps {
+  transactions: Transaction[];
+  onBack: () => void;
+  onSelectTransaction?: (tx: Transaction) => void;
+}
+
+export default function TransactionHistory({ transactions, onBack }: TransactionHistoryProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
+
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+  };
+
+  const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'A2C'];
+
+  const filteredTransactions = transactions.filter((tx) => {
+    const matchesCategory = categoryFilter === 'All' || tx.type === categoryFilter;
+    const matchesSearch =
+      (tx.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tx.reference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tx.phoneOrMeter || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const downloadPDFReceipt = (tx: Transaction) => {
+    const doc = new jsPDF({ unit: 'mm', format: [80, 130] });
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 80, 130, 'F');
+
+    doc.setTextColor(56, 189, 248);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('eData Mobile', 40, 12, { align: 'center' });
+
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(8);
+    doc.text('TRANSACTION RECEIPT', 40, 17, { align: 'center' });
+
+    doc.setDrawColor(51, 65, 85);
+    doc.line(8, 22, 72, 22);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatMoney(tx.amount), 40, 32, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.setTextColor(tx.status === 'Completed' ? 52 : 244, tx.status === 'Completed' ? 211 : 63, tx.status === 'Completed' ? 153 : 94);
+    doc.text(`Status: ${tx.status}`, 40, 38, { align: 'center' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+
+    let y = 48;
+    const addRow = (label: string, value: string) => {
+      doc.text(label, 10, y);
+      doc.setTextColor(255, 255, 255);
+      doc.text(value, 70, y, { align: 'right' });
+      doc.setTextColor(148, 163, 184);
+      y += 6;
+    };
+
+    addRow('Service:', tx.type || 'VTU');
+    addRow('Product:', tx.productName || 'Purchase');
+    addRow('Target:', tx.phoneOrMeter || 'N/A');
+    addRow('Reference:', tx.reference || tx.id);
+    addRow('Date:', tx.date || 'Today');
+
+    doc.save(`eData_Receipt_${tx.reference || tx.id}.pdf`);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-20">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-all cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-base font-bold text-white">Transaction History</h1>
+            <p className="text-xs text-slate-400">{transactions.length} total transactions</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 px-4 py-4 space-y-4">
+        {/* Search & Category Filter */}
+        <div className="space-y-2.5">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search reference, phone, or service..."
+              className="w-full bg-slate-800 border border-slate-700/70 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-sky-500"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  categoryFilter === cat ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Transactions List */}
+        {filteredTransactions.length === 0 ? (
+          <div className="p-8 bg-slate-800/40 border border-slate-800 rounded-2xl text-center">
+            <Clock className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+            <p className="text-xs text-slate-400">No matching transactions found.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredTransactions.map((tx) => (
+              <div
+                key={tx.id || tx.reference}
+                onClick={() => setActiveReceipt(tx)}
+                className="p-3.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 rounded-2xl flex items-center justify-between cursor-pointer transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
+                    tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                    tx.status === 'Failed' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
+                  }`}>
+                    {tx.type === 'Airtime' ? '📞' : tx.type === 'Data' ? '📡' : tx.type === 'Cable TV' ? '📺' : '⚡'}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-white line-clamp-1">{tx.productName || tx.type}</h4>
+                    <p className="text-[11px] text-slate-400">{tx.date || 'Recent'} • Ref: {tx.reference || tx.id}</p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xs font-bold text-slate-100">{formatMoney(tx.amount)}</span>
+                  <span className={`block text-[10px] font-medium ${
+                    tx.status === 'Completed' ? 'text-emerald-400' :
+                    tx.status === 'Failed' ? 'text-rose-400' : 'text-amber-400'
+                  }`}>
+                    {tx.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Receipt Modal */}
+      {activeReceipt && (
+        <BottomSheet
+          open={!!activeReceipt}
+          onClose={() => setActiveReceipt(null)}
+          title="Transaction Receipt"
+        >
+          <div className="space-y-4 py-2">
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
+              <div className="text-center">
+                <span className="text-[10px] uppercase text-sky-400 font-semibold tracking-wider">Amount Paid</span>
+                <h3 className="text-2xl font-extrabold text-white mt-0.5">{formatMoney(activeReceipt.amount)}</h3>
+                <span className={`inline-block px-2.5 py-0.5 mt-1 rounded-full text-[10px] font-bold ${
+                  activeReceipt.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                }`}>
+                  {activeReceipt.status}
+                </span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 text-xs space-y-2">
+                <div className="flex justify-between"><span className="text-slate-400">Service</span><span className="text-white font-medium">{activeReceipt.type}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Description</span><span className="text-white font-medium">{activeReceipt.productName}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Target</span><span className="text-white font-medium">{activeReceipt.phoneOrMeter}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Reference</span><span className="text-sky-400 font-mono">{activeReceipt.reference || activeReceipt.id}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Date</span><span className="text-white font-medium">{activeReceipt.date}</span></div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => downloadPDFReceipt(activeReceipt)}
+              className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Download className="w-4 h-4" /> Download PDF Receipt
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+    </div>
+  );
+}

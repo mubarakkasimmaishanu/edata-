@@ -1,13 +1,21 @@
 apply plugin: 'com.android.application'
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
 android {
-    namespace = "com.edata.app"
+    namespace = "com.eDATA.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.edata.app"
+        applicationId "com.eDATA.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
+        versionCode 9
         versionName "2.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -18,11 +26,16 @@ android {
     }
     signingConfigs {
         release {
-            if (project.hasProperty('RELEASE_STORE_FILE')) {
-                storeFile file(RELEASE_STORE_FILE)
-                storePassword RELEASE_STORE_PASSWORD
-                keyAlias RELEASE_KEY_ALIAS
-                keyPassword RELEASE_KEY_PASSWORD
+            def storeFileProp = project.findProperty('RELEASE_STORE_FILE') ?: localProperties.getProperty('RELEASE_STORE_FILE')
+            def storePasswordProp = project.findProperty('RELEASE_STORE_PASSWORD') ?: localProperties.getProperty('RELEASE_STORE_PASSWORD')
+            def keyAliasProp = project.findProperty('RELEASE_KEY_ALIAS') ?: localProperties.getProperty('RELEASE_KEY_ALIAS')
+            def keyPasswordProp = project.findProperty('RELEASE_KEY_PASSWORD') ?: localProperties.getProperty('RELEASE_KEY_PASSWORD')
+
+            if (storeFileProp) {
+                storeFile file(storeFileProp)
+                storePassword storePasswordProp
+                keyAlias keyAliasProp
+                keyPassword keyPasswordProp
             }
         }
     }

@@ -17,6 +17,8 @@ export interface UserProfile {
   hasPendingUpgrade?: boolean;
   upgradeFee?: number;
   photo?: string | null;
+  avatar?: string | null;
+  picture?: string | null;
 }
 
 export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
@@ -65,6 +67,7 @@ export interface AppNotification {
   id: number | string;
   title: string;
   message: string;
+  type?: string;
   image?: string | null;
   target_group?: string;
   created_at: string;
