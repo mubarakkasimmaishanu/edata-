@@ -1,4 +1,4 @@
-package com.edata.app;
+package com.eDATA.app;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -88,12 +88,9 @@ export default function AuthPage({
           const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || googleUser.authentication?.accessToken || '';
           if (rawIdToken) {
             tokenPayload = { id_token: rawIdToken };
-          } else {
-            toast.error('Google Sign-In did not return a valid token. Please try again.');
-            return;
           }
         } catch (nativeErr: any) {
-          console.error('Native Google Auth failed:', nativeErr);
+          console.warn('Native Google Auth failed, switching to Web OAuth popup fallback:', nativeErr);
           if (
             nativeErr?.message?.includes('canceled') ||
             nativeErr?.message?.includes('cancelled') ||
@@ -101,13 +98,13 @@ export default function AuthPage({
             nativeErr?.code === 12501
           ) {
             toast.info('Google Sign-In was cancelled.');
-          } else {
-            toast.error(nativeErr?.message || 'Native Google Sign-In failed.');
+            return;
           }
-          return;
         }
-      } else {
-        // Web Platform: GIS OAuth Popup Client
+      }
+
+      if (!tokenPayload.id_token && !tokenPayload.access_token) {
+        // Web / Native Fallback: GIS OAuth Popup Client
         tokenPayload = await new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
           const loadAndInitGIS = () => {
             try {
