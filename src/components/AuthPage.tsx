@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import edataLogo from '../assets/edata_logo.png';
 import { api, setAuthToken } from '../services/api';
 import { useToast } from './Toast';
@@ -152,47 +152,38 @@ export default function AuthPage({
         });
       }
 
-      if (!tokenPayload.id_token && !tokenPayload.access_token) {
-        toast.error('Unable to retrieve Google Authentication Token. Please try again.');
-        return;
-      }
+      // Send to Backend Google API
+      const backendRes = await api.googleAuth(tokenPayload);
 
-      const res = await api.googleAuth(tokenPayload);
-      if (res.success && res.data) {
-        const loggedUser: UserProfile = {
-          ...DEFAULT_USER,
-          id: res.data.user.id,
-          email: res.data.user.email,
-          firstname: res.data.user.firstname || 'Google',
-          lastname: res.data.user.lastname || 'User',
-          name: `${res.data.user.firstname || 'Google'} ${res.data.user.lastname || 'User'}`.trim(),
-          photo: res.data.user.photo || '',
-          phone: res.data.user.phone || '',
-          walletBalance: res.data.user.walletBalance || 0,
-          category: res.data.user.level_label || res.data.user.category || 'Basic User',
+      if (backendRes.success && backendRes.data?.token) {
+        setAuthToken(backendRes.data.token);
+        const userObj: UserProfile = {
+          id: backendRes.data.user.id,
+          name: `${backendRes.data.user.firstname || ''} ${backendRes.data.user.lastname || ''}`.trim() || 'eData User',
+          email: backendRes.data.user.email,
+          phone: backendRes.data.user.phone || '',
+          walletBalance: parseFloat(backendRes.data.wallet?.balance || '0'),
+          category: backendRes.data.user.level_label || 'Basic User',
+          bvn: '',
+          nin: '',
           isVerified: true,
-          hasPin: res.data.user.hasPin || res.data.user.has_pin || false,
+          pinCode: '',
+          hasPin: backendRes.data.user.has_pin || false,
+          hasPendingUpgrade: backendRes.data.user.has_pending_upgrade || false,
+          upgradeFee: backendRes.data.user.premium_upgrade_fee || 5000,
+          photo: backendRes.data.user.photo || null,
         };
-        setCurrentUser(loggedUser);
-        localStorage.setItem('edata_current_user', JSON.stringify(loggedUser));
-        if (setApiStatus) setApiStatus('connected');
-        onLoginSuccess(res.data.token || res.data.accessToken);
-        toast.success(`Welcome back, ${loggedUser.firstname}!`);
+
+        setCurrentUser(userObj);
+        localStorage.setItem('edata_current_user', JSON.stringify(userObj));
+        onLoginSuccess(backendRes.data.token);
+        toast.success(backendRes.message || 'Google Authentication successful! Welcome.');
       } else {
-        toast.error(res.error || 'Google Authentication failed.');
+        toast.error(backendRes.error || 'Google Authentication failed on server.');
       }
     } catch (err: any) {
-      if (
-        err?.message?.includes('canceled') ||
-        err?.message?.includes('cancelled') ||
-        err?.message?.includes('popup_closed_by_user') ||
-        err?.code === '12501' ||
-        err?.code === 12501
-      ) {
-        toast.info('Google Sign-In was cancelled.');
-      } else {
-        toast.error(err?.message || 'Google Auth service error.');
-      }
+      console.error('Google Sign-In error:', err);
+      toast.error(err.message || 'Google Sign-In failed.');
     } finally {
       setGoogleAuthLoading(false);
     }
@@ -201,102 +192,94 @@ export default function AuthPage({
   // ─── Login Handler ───
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authEmail || !authPassword) {
-      setLoginError('Email and password are required.');
-      return;
-    }
-    setLoginLoading(true);
     setLoginError('');
+    setLoginLoading(true);
+
     try {
       const res = await api.login(authEmail, authPassword);
-      if (res.success && res.data?.token) {
+      if (res.success && res.data) {
         setAuthToken(res.data.token);
-        if (setApiStatus) setApiStatus('connected');
+        const userObj: UserProfile = {
+          id: res.data.user.id,
+          name: `${res.data.user.firstname || ''} ${res.data.user.lastname || ''}`.trim() || 'eData User',
+          email: res.data.user.email,
+          phone: res.data.user.phone || '',
+          walletBalance: parseFloat(res.data.wallet?.balance || '0'),
+          category: res.data.user.level_label || 'Basic User',
+          bvn: '', nin: '', isVerified: true,
+          pinCode: '', hasPin: res.data.user.has_pin || false,
+          hasPendingUpgrade: res.data.user.has_pending_upgrade || false,
+          upgradeFee: res.data.user.premium_upgrade_fee || 5000,
+          photo: res.data.user.photo || null,
+        };
+
+        setCurrentUser(userObj);
+        localStorage.setItem('edata_current_user', JSON.stringify(userObj));
         onLoginSuccess(res.data.token);
-        setAuthPassword('');
-        setLoginError('');
-      } else if (res.requires_verification) {
-        toast.info(res.error || 'Account is inactive. A verification code has been sent to your email.');
-        setScreenMode('otp');
+        toast.success(`Welcome back, ${userObj.name}!`);
       } else {
-        setLoginError(res.error || 'Invalid email or password.');
+        const errorMsg = res.error || 'Invalid login credentials.';
+        setLoginError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err: any) {
-      setLoginError(err.message || 'Invalid email or password.');
+      const msg = err.message || 'Network error occurred during login.';
+      setLoginError(msg);
+      toast.error(msg);
     } finally {
       setLoginLoading(false);
     }
   };
 
-  // ─── Register Handler ───
+  // ─── Register Submit Handler (Step 1) ───
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!acceptTerms) {
-      toast.warning('Please accept the terms and conditions.');
-      return;
-    }
-    if (!authEmail || !authEmail.includes('@')) {
-      toast.warning('Please enter a valid email address.');
+      toast.warning('Please accept the Terms & Conditions to proceed.');
       return;
     }
 
     try {
       const res = await api.signupRequest(authEmail, authPromo);
       if (res.success) {
-        toast.success(res.message || 'Verification code sent to your email!');
         setScreenMode('otp');
+        toast.success(res.message || `Verification code sent to ${authEmail}`);
       } else {
-        toast.error(res.error || 'Failed to send verification code.');
+        toast.error(res.error || 'Failed to send signup verification code.');
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error requesting registration verification code.');
+      toast.error(err.message || 'Error sending signup request.');
     }
   };
 
-  // ─── OTP Handler ───
+  // ─── Verify OTP Handler ───
   const handleVerifyOTP = async (codeToVerify?: string) => {
-    const code = typeof codeToVerify === 'string' ? codeToVerify : otpCode;
-    if (code.length < 6) {
-      setVerificationError('Please enter the full 6-digit verification code sent to your email.');
+    const code = codeToVerify || otpCode;
+    if (!code || code.length < 6) {
+      toast.warning('Please enter the 6-digit verification code.');
       return;
     }
+    setVerificationError('');
 
     try {
       const res = await api.signupVerify(authEmail, code);
       if (res.success) {
-        setVerificationError('');
-        if (res.data?.token) {
-          setAuthToken(res.data.token);
-          if (setApiStatus) setApiStatus('connected');
-          onLoginSuccess(res.data.token);
-          toast.success(res.message || 'Account activated and logged in!');
-          setScreenMode('auth');
-        } else {
-          toast.success('Email verified successfully!');
-          setScreenMode('password_create');
-        }
+        setScreenMode('password_create');
+        toast.success('Email verified! Now create your password.');
       } else {
-        setVerificationError(res.error || 'Incorrect verification code.');
-        toast.error(res.error || 'Verification failed.');
+        setVerificationError(res.error || 'Invalid verification code.');
+        toast.error(res.error || 'Invalid verification code.');
       }
     } catch (err: any) {
       setVerificationError(err.message || 'OTP verification error.');
+      toast.error(err.message || 'OTP verification error.');
     }
   };
 
   // ─── Resend OTP Handler ───
   const handleResendOTP = async () => {
-    if (!authEmail) {
-      toast.warning('Email address is missing.');
-      return;
-    }
     try {
-      let res: any;
-      if (screenMode === 'forgot_otp') {
-        res = await api.forgotPassword(authEmail);
-      } else {
-        res = await api.signupRequest(authEmail, authPromo);
-      }
+      const res = await api.signupRequest(authEmail, authPromo);
       if (res.success) {
         toast.success(res.message || 'A new verification code has been sent to your email.');
       } else {
@@ -406,121 +389,171 @@ export default function AuthPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-sky-50/30 flex flex-col justify-between w-full">
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-6 py-8">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between w-full font-sans selection:bg-sky-500 selection:text-white">
+      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-5 py-8">
         {screenMode === 'auth' && (
-          <div className="flex-1 flex flex-col justify-between">
-            <div className="pt-4 pb-6 space-y-6">
-              {/* Header without Logo */}
+          <div className="flex-1 flex flex-col justify-between space-y-6">
+            <div className="space-y-6 pt-4">
+              {/* Header Title */}
               <div className="text-center space-y-1 pt-6 pb-2">
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center justify-center gap-1 font-display">
-                  <span className="text-sky-600 font-extrabold">e</span><span className="font-extrabold">Data</span>
+                <h1 className="text-3xl font-black tracking-tight text-white flex items-center justify-center gap-0.5 font-display">
+                  <span className="text-sky-400 font-extrabold">e</span><span className="font-extrabold text-white">Data</span>
                 </h1>
-                <p className="text-xs font-semibold text-slate-500 tracking-wide">Instant VTU & Utility Payment Platform</p>
+                <p className="text-xs font-semibold text-slate-400 tracking-wide">
+                  Instant VTU & Utility Payment Platform
+                </p>
               </div>
 
-              {/* Tab Switcher */}
-              <div className="bg-slate-100 p-1 rounded-2xl flex relative">
-                <div
-                  className="absolute top-1 bottom-1 bg-white rounded-xl shadow-sm transition-all duration-300 ease-out"
-                  style={{ width: '50%', left: isRegistering ? '50%' : '0%' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsRegistering(false)}
-                  className={`flex-grow py-2.5 text-xs font-bold rounded-xl transition-all relative z-10 ${!isRegistering ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsRegistering(true)}
-                  className={`flex-grow py-2.5 text-xs font-bold rounded-xl transition-all relative z-10 ${isRegistering ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                  Create Account
-                </button>
-              </div>
-
-              {/* Form */}
-              {isRegistering ? (
-                <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Email Address</label>
-                    <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Referral / Promo Code <span className="text-slate-400 font-normal">(Optional)</span></label>
-                    <input type="text" value={authPromo} onChange={(e) => setAuthPromo(e.target.value)}
-                      placeholder="e.g. EDATA2026"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                  </div>
-                  <label className="flex items-center gap-2 pt-1 cursor-pointer">
-                    <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)}
-                      className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
-                    <span className="text-xs text-slate-500">I accept the Terms & Conditions</span>
-                  </label>
-                  <button type="submit"
-                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3.5 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98] transition-all">
-                    Send Verification Code
+              {/* System Dark Glassmorphic Card */}
+              <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-2xl backdrop-blur-xl space-y-5">
+                {/* Tab Switcher */}
+                <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex relative">
+                  <div
+                    className="absolute top-1.5 bottom-1.5 bg-sky-500 rounded-xl shadow-md shadow-sky-500/20 transition-all duration-300 ease-out"
+                    style={{ width: 'calc(50% - 6px)', left: isRegistering ? 'calc(50% + 3px)' : '3px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsRegistering(false)}
+                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${!isRegistering ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Sign In
                   </button>
-                </form>
-              ) : (
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  {loginError && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{loginError}</span>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 block">Email Address</label>
-                    <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="you@email.com"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-semibold text-slate-500 block">Password</label>
-                      <button type="button" onClick={() => { setForgotPasswordEmail(authEmail); setForgotPasswordModalOpen(true); }}
-                        className="text-xs font-semibold text-sky-600 hover:underline">
-                        Forgot Password?
-                      </button>
-                    </div>
-                    <input type="password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3.5 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                    {loginLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Sign In'}
+                  <button
+                    type="button"
+                    onClick={() => setIsRegistering(true)}
+                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${isRegistering ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Create Account
                   </button>
-                </form>
-              )}
+                </div>
 
-              {/* Divider */}
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-50/50 px-2 text-slate-400 font-semibold">Or continue with</span></div>
-              </div>
-
-              {/* Google Sign-In */}
-              <button type="button" onClick={handleGoogleSignIn} disabled={googleAuthLoading}
-                className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl text-sm shadow-sm flex items-center justify-center gap-3 active:scale-[0.98] transition-all">
-                {googleAuthLoading ? <RefreshCw className="w-4 h-4 animate-spin text-sky-600" /> : (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
+                {/* Form */}
+                {isRegistering ? (
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300 block">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300 block">
+                        Referral / Promo Code <span className="text-slate-500 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={authPromo}
+                        onChange={(e) => setAuthPromo(e.target.value)}
+                        placeholder="e.g. EDATA2026"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-mono font-bold"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2.5 pt-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acceptTerms}
+                        onChange={(e) => setAcceptTerms(e.target.checked)}
+                        className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500 w-4 h-4"
+                      />
+                      <span className="text-xs text-slate-400 font-medium">I accept the Terms & Conditions</span>
+                    </label>
+                    <button
+                      type="submit"
+                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      Send Verification Code
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleLoginSubmit} className="space-y-4">
+                    {loginError && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                        <span>{loginError}</span>
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300 block">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="you@email.com"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-300 block">Password</label>
+                        <button
+                          type="button"
+                          onClick={() => { setForgotPasswordEmail(authEmail); setForgotPasswordModalOpen(true); }}
+                          className="text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+                      <input
+                        type="password"
+                        required
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loginLoading}
+                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {loginLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Sign In'}
+                    </button>
+                  </form>
                 )}
-                <span>Continue with Google</span>
-              </button>
+
+                {/* Divider */}
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-800" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
+                    <span className="bg-slate-800 px-3 text-slate-400 font-bold rounded-full border border-slate-700/60">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                {/* Google Sign-In Button */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleAuthLoading}
+                  className="w-full bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-200 font-bold py-3.5 rounded-2xl text-sm shadow-md flex items-center justify-center gap-3 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  {googleAuthLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                  )}
+                  <span>Continue with Google</span>
+                </button>
+              </div>
             </div>
 
-            <p className="text-center text-xs text-slate-400 font-medium py-2">
+            <p className="text-center text-[11px] text-slate-500 font-medium py-3">
               Protected by 256-bit SSL Security & Verification Token Validation
             </p>
           </div>
@@ -529,21 +562,21 @@ export default function AuthPage({
         {screenMode === 'otp' && (
           <div className="flex-1 flex flex-col justify-between">
             <div className="space-y-6 mt-4">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Enter Verification Code</h2>
-                <p className="text-sm text-slate-500 font-medium">
-                  We sent a 6-digit verification code to <span className="font-semibold text-slate-800">{authEmail}</span>.
+              <div className="space-y-2 text-center">
+                <h2 className="text-2xl font-black text-white">Enter Verification Code</h2>
+                <p className="text-xs text-slate-400 font-medium">
+                  We sent a 6-digit code to <span className="font-bold text-sky-400">{authEmail}</span>.
                 </p>
               </div>
 
               {verificationError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
                   <span>{verificationError}</span>
                 </div>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
                 <input
                   type="text"
                   maxLength={6}
@@ -554,14 +587,14 @@ export default function AuthPage({
                     if (val.length === 6) handleVerifyOTP(val);
                   }}
                   placeholder="123456"
-                  className="w-full bg-white border-2 border-sky-500 rounded-2xl px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-slate-900 focus:outline-none shadow-sm"
+                  className="w-full bg-slate-950 border-2 border-sky-500/80 rounded-2xl px-4 py-4 text-center text-2xl font-black tracking-[0.5em] text-white focus:outline-none shadow-lg shadow-sky-500/10 font-mono"
                 />
 
-                <div className="text-center">
+                <div className="text-center pt-2">
                   <button
                     type="button"
                     onClick={handleResendOTP}
-                    className="text-xs font-semibold text-sky-600 hover:underline flex items-center justify-center gap-1 mx-auto"
+                    className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Resend Code</span>
@@ -569,13 +602,18 @@ export default function AuthPage({
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
-              <button onClick={() => handleVerifyOTP()}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98]">
+
+            <div className="space-y-3 pt-6">
+              <button
+                onClick={() => handleVerifyOTP()}
+                className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer"
+              >
                 Verify & Continue
               </button>
-              <button onClick={() => setScreenMode('auth')}
-                className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
+              <button
+                onClick={() => setScreenMode('auth')}
+                className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-200 transition-colors cursor-pointer"
+              >
                 Back
               </button>
             </div>
@@ -585,14 +623,14 @@ export default function AuthPage({
         {screenMode === 'forgot_otp' && (
           <div className="flex-1 flex flex-col justify-between">
             <div className="space-y-6 mt-4">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Enter Reset Code</h2>
-                <p className="text-sm text-slate-500 font-medium">
-                  We sent a 6-digit password reset code to <span className="font-semibold text-slate-800">{authEmail}</span>.
+              <div className="space-y-2 text-center">
+                <h2 className="text-2xl font-black text-white">Enter Reset Code</h2>
+                <p className="text-xs text-slate-400 font-medium">
+                  We sent a 6-digit code to <span className="font-bold text-sky-400">{authEmail}</span>.
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
                 <input
                   type="text"
                   maxLength={6}
@@ -603,14 +641,14 @@ export default function AuthPage({
                     if (val.length === 6) setScreenMode('forgot_reset');
                   }}
                   placeholder="123456"
-                  className="w-full bg-white border-2 border-sky-500 rounded-2xl px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-slate-900 focus:outline-none shadow-sm"
+                  className="w-full bg-slate-950 border-2 border-sky-500/80 rounded-2xl px-4 py-4 text-center text-2xl font-black tracking-[0.5em] text-white focus:outline-none shadow-lg shadow-sky-500/10 font-mono"
                 />
 
-                <div className="text-center">
+                <div className="text-center pt-2">
                   <button
                     type="button"
                     onClick={handleResendOTP}
-                    className="text-xs font-semibold text-sky-600 hover:underline flex items-center justify-center gap-1 mx-auto"
+                    className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Resend Code</span>
@@ -618,19 +656,24 @@ export default function AuthPage({
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
-              <button onClick={() => {
-                if (forgotOtpCode.length < 6) {
-                  toast.warning('Please enter the 6-digit verification code.');
-                  return;
-                }
-                setScreenMode('forgot_reset');
-              }}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98]">
+
+            <div className="space-y-3 pt-6">
+              <button
+                onClick={() => {
+                  if (forgotOtpCode.length < 6) {
+                    toast.warning('Please enter the 6-digit verification code.');
+                    return;
+                  }
+                  setScreenMode('forgot_reset');
+                }}
+                className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer"
+              >
                 Verify Code & Set Password
               </button>
-              <button onClick={() => setScreenMode('auth')}
-                className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
+              <button
+                onClick={() => setScreenMode('auth')}
+                className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-200 transition-colors cursor-pointer"
+              >
                 Back to Login
               </button>
             </div>
@@ -640,43 +683,68 @@ export default function AuthPage({
         {screenMode === 'forgot_reset' && (
           <div className="flex-1 flex flex-col justify-between">
             <div className="space-y-6 mt-4">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Set New Password</h2>
-                <p className="text-sm text-slate-500 font-medium">Create a new password for <span className="font-semibold text-slate-800">{authEmail}</span>.</p>
+              <div className="space-y-2 text-center">
+                <h2 className="text-2xl font-black text-white">Set New Password</h2>
+                <p className="text-xs text-slate-400 font-medium">
+                  Create a new password for <span className="font-bold text-sky-400">{authEmail}</span>.
+                </p>
               </div>
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">New Password</label>
+                  <label className="text-xs font-bold text-slate-300 block">New Password</label>
                   <div className="relative">
-                    <input type={showForgotNewPassword ? 'text' : 'password'} required value={forgotNewPassword}
-                      onChange={(e) => setForgotNewPassword(e.target.value)} placeholder="Min. 6 characters"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm text-slate-800 focus:outline-none focus:border-sky-500" />
-                    <button type="button" onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="Min. 6 characters"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 pr-12 py-3.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
                       {showForgotNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Confirm New Password</label>
+                  <label className="text-xs font-bold text-slate-300 block">Confirm New Password</label>
                   <div className="relative">
-                    <input type={showForgotConfirmPassword ? 'text' : 'password'} required value={forgotConfirmPassword}
-                      onChange={(e) => setForgotConfirmPassword(e.target.value)} placeholder="Re-enter password"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm text-slate-800 focus:outline-none focus:border-sky-500" />
-                    <button type="button" onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <input
+                      type={showForgotConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 pr-12 py-3.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
                       {showForgotConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <button type="submit" disabled={resetPasswordLoading}
-                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98] mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="submit"
+                  disabled={resetPasswordLoading}
+                  className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
                   {resetPasswordLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Reset Password'}
                 </button>
               </form>
             </div>
-            <button onClick={() => setScreenMode('auth')}
-              className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
+
+            <button
+              onClick={() => setScreenMode('auth')}
+              className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-200 transition-colors cursor-pointer pt-4"
+            >
               Back to Login
             </button>
           </div>
@@ -685,43 +753,65 @@ export default function AuthPage({
         {screenMode === 'password_create' && (
           <div className="flex-1 flex flex-col justify-between">
             <div className="space-y-6 mt-4">
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-900">Create Password</h2>
-                <p className="text-sm text-slate-500 font-medium">Secure your account with a strong password.</p>
+              <div className="space-y-2 text-center">
+                <h2 className="text-2xl font-black text-white">Create Password</h2>
+                <p className="text-xs text-slate-400 font-medium">Secure your account with a strong password.</p>
               </div>
-              <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4">
+
+              <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Password</label>
+                  <label className="text-xs font-bold text-slate-300 block">Password</label>
                   <div className="relative">
-                    <input type={showRegPassword ? 'text' : 'password'} required value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)} placeholder="Min. 6 characters"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm text-slate-800 focus:outline-none focus:border-sky-500" />
-                    <button type="button" onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min. 6 characters"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 pr-12 py-3.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
                       {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500 block">Confirm Password</label>
+                  <label className="text-xs font-bold text-slate-300 block">Confirm Password</label>
                   <div className="relative">
-                    <input type={showRegConfirmPassword ? 'text' : 'password'} required value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)} placeholder="Re-enter password"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm text-slate-800 focus:outline-none focus:border-sky-500" />
-                    <button type="button" onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <input
+                      type={showRegConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 pr-12 py-3.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
                       {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <button type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-sky-600/20 active:scale-[0.98] mt-4">
+                <button
+                  type="submit"
+                  className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all mt-2 cursor-pointer"
+                >
                   Complete Registration
                 </button>
               </form>
             </div>
-            <button onClick={() => setScreenMode('auth')}
-              className="w-full text-slate-400 font-semibold py-2 text-sm hover:text-slate-600 transition-colors">
+
+            <button
+              onClick={() => setScreenMode('auth')}
+              className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-200 transition-colors cursor-pointer pt-4"
+            >
               Back
             </button>
           </div>
@@ -730,22 +820,22 @@ export default function AuthPage({
 
       {/* Forgot Password Modal */}
       {forgotPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-scale-up">
-            <h3 className="text-lg font-bold text-slate-900">Reset Password</h3>
-            <p className="text-xs text-slate-500">Enter your email address to receive a 6-digit password reset code.</p>
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-black text-white">Reset Password</h3>
+            <p className="text-xs text-slate-400">Enter your email address to receive a 6-digit password reset code.</p>
             <input
               type="email"
               value={forgotPasswordEmail}
               onChange={(e) => setForgotPasswordEmail(e.target.value)}
               placeholder="you@email.com"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-sky-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
             />
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setForgotPasswordModalOpen(false)}
-                className="flex-1 bg-slate-100 text-slate-600 font-semibold py-2.5 rounded-xl text-xs hover:bg-slate-200"
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -753,7 +843,7 @@ export default function AuthPage({
                 type="button"
                 disabled={forgotPasswordLoading}
                 onClick={handleForgotPasswordSubmit}
-                className="flex-1 bg-sky-600 text-white font-semibold py-2.5 rounded-xl text-xs hover:bg-sky-700 flex items-center justify-center gap-1.5"
+                className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-sky-500/20 cursor-pointer uppercase tracking-wider"
               >
                 {forgotPasswordLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Send Code'}
               </button>
@@ -761,7 +851,6 @@ export default function AuthPage({
           </div>
         </div>
       )}
-
     </div>
   );
 }

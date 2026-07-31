@@ -3,25 +3,42 @@ import ServiceForm from './ServiceForm';
 import { ProductItem, UserProfile } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
-import BottomSheet from './BottomSheet';
+import PinScreen from './PinScreen';
 import { ChevronLeft, Wifi } from 'lucide-react';
 
 interface BuyDataProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  initialNetwork?: string;
+  initialPlanId?: number | null;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function BuyData({ currentUser, products, onBack, onSuccess }: BuyDataProps) {
+export default function BuyData({ currentUser, products, initialNetwork, initialPlanId, onBack, onSuccess }: BuyDataProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
-  const [detectedOperator, setDetectedOperator] = useState('');
+  const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
-  const [pinSheetOpen, setPinSheetOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [showPinScreen, setShowPinScreen] = useState(false);
+
+  React.useEffect(() => {
+    if (initialNetwork) {
+      setDetectedOperator(initialNetwork);
+    }
+    if (initialPlanId && products && products.length > 0) {
+      const found = products.find(p => 
+        p.id === `plan-${initialPlanId}` || 
+        p.id === String(initialPlanId) || 
+        p.id.includes(`-${initialPlanId}-`) || 
+        p.id.startsWith(`plan-${initialPlanId}-`)
+      );
+      if (found) {
+        setSelectedProduct(found);
+      }
+    }
+  }, [initialNetwork, initialPlanId, products]);
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -60,36 +77,43 @@ export default function BuyData({ currentUser, products, onBack, onSuccess }: Bu
       toast.error('Insufficient wallet balance.');
       return;
     }
-    setPinSheetOpen(true);
+    setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async () => {
-    if (!pinInput || pinInput.length !== 4) {
-      toast.warning('Please enter your 4-digit Transaction PIN.');
-      return;
-    }
+  const handleConfirmPurchase = async (pinInput: string) => {
     if (!selectedProduct) return;
-    setIsPurchasing(true);
-    try {
-      const planId = parseInt(selectedProduct.id.replace('plan-', ''), 10) || 1;
-      const res = await api.purchase({
-        service_id: 2, // Data service
-        amount: getDynamicPrice(selectedProduct) - promoDiscount,
-        target_number: targetNumber,
-        plan_id: planId,
-        transaction_pin: pinInput
-      });
-      toast.success(res.message || 'Data bundle purchase successful!');
-      setPinSheetOpen(false);
-      setPinInput('');
-      if (onSuccess) onSuccess();
-      onBack();
-    } catch (err: any) {
-      toast.error(err.message || 'Transaction failed.');
-    } finally {
-      setIsPurchasing(false);
-    }
+    const planId = parseInt(selectedProduct.id.replace('plan-', ''), 10) || 1;
+    const res = await api.purchase({
+      service_id: 2, // Data service
+      amount: getDynamicPrice(selectedProduct) - promoDiscount,
+      target_number: targetNumber,
+      plan_id: planId,
+      transaction_pin: pinInput
+    });
+    toast.success(res.message || 'Data bundle purchase successful!');
+    if (onSuccess) onSuccess();
+    onBack();
   };
+
+  if (showPinScreen && selectedProduct) {
+    const finalPrice = getDynamicPrice(selectedProduct) - promoDiscount;
+    return (
+      <PinScreen
+        mode="purchase"
+        summary={{
+          title: selectedProduct.name,
+          subtitle: `${selectedProduct.operator || detectedOperator} Data Bundle`,
+          amount: finalPrice,
+          recipient: targetNumber,
+          provider: selectedProduct.operator || detectedOperator,
+          iconType: 'data',
+        }}
+        onBack={() => setShowPinScreen(false)}
+        onSuccess={() => setShowPinScreen(false)}
+        onSubmitPurchase={handleConfirmPurchase}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
@@ -146,35 +170,6 @@ export default function BuyData({ currentUser, products, onBack, onSuccess }: Bu
           toast={toast}
         />
       </div>
-
-      <BottomSheet
-        open={pinSheetOpen}
-        onClose={() => setPinSheetOpen(false)}
-        title="Enter Transaction PIN"
-      >
-        <div className="space-y-4 py-2">
-          <p className="text-xs text-slate-300 text-center font-medium">
-            Confirm purchase of <strong className="text-white font-black">{selectedProduct?.name}</strong> for <strong className="text-white font-mono font-bold">{targetNumber}</strong>
-          </p>
-
-          <input
-            type="password"
-            maxLength={4}
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-            placeholder="••••"
-            className="w-full text-center text-2xl font-black tracking-widest bg-slate-800 border-2 border-slate-700 rounded-2xl py-3 text-white focus:outline-none focus:border-sky-500 font-mono"
-          />
-
-          <button
-            onClick={handleConfirmPurchase}
-            disabled={isPurchasing || pinInput.length !== 4}
-            className="w-full py-3.5 bg-sky-600 hover:bg-sky-700 text-white font-black rounded-2xl text-xs transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-lg shadow-sky-600/20 active:scale-[0.98] btn-sheen font-display uppercase tracking-wider"
-          >
-            {isPurchasing ? 'Processing...' : 'Confirm Payment'}
-          </button>
-        </div>
-      </BottomSheet>
     </div>
   );
 }

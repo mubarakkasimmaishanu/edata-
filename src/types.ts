@@ -88,3 +88,15 @@ export interface ManualBank {
   account_name: string;
   account_number: string;
 }
+
+export interface QuickAction {
+  id: number | string;
+  title: string;
+  service_type: 'data' | 'airtime' | 'cable' | 'electricity' | 'exams' | 'a2c';
+  network: string;
+  plan_id?: number | null;
+  icon: string;
+  display_order: number;
+  status: number;
+}
+
