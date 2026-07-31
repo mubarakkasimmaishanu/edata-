@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Bell, Info, CheckCircle, AlertTriangle, RefreshCw, CheckCheck, X, Calendar, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Bell, Info, RefreshCw, CheckCheck, Trash2, Calendar } from 'lucide-react';
 import { AppNotification } from '../types';
 import { api, resolveImageUrl } from '../services/api';
 import { useToast } from './Toast';
@@ -61,7 +61,7 @@ export default function Notifications({ notifications: propNotifications = [], o
           read: false
         }));
       } else {
-        formatted = defaultNotifications;
+        formatted = [];
       }
 
       setNotificationsList(formatted);
@@ -92,6 +92,27 @@ export default function Notifications({ notifications: propNotifications = [], o
     toast.success('All notifications marked as read.');
   };
 
+  const handleClearAll = async () => {
+    try {
+      await api.deleteNotification('all');
+    } catch {}
+    setNotificationsList([]);
+    if (onRefreshUnreadCount) onRefreshUnreadCount(0);
+    toast.success('All notifications cleared.');
+  };
+
+  const handleDeleteSingle = async (e: React.MouseEvent, id: any) => {
+    e.stopPropagation();
+    try {
+      await api.deleteNotification(id);
+    } catch {}
+    const updated = notificationsList.filter(n => n.id !== id);
+    setNotificationsList(updated);
+    const unread = updated.filter(n => !n.read).length;
+    if (onRefreshUnreadCount) onRefreshUnreadCount(unread);
+    toast.success('Notification removed.');
+  };
+
   const handleOpenNotification = async (notif: any) => {
     setSelectedNotif(notif);
     if (!notif.read) {
@@ -107,19 +128,19 @@ export default function Notifications({ notifications: propNotifications = [], o
   const unreadCount = notificationsList.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28 font-display">
       {/* ── Top Header Bar ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md">
+      <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-2xl border-b border-slate-900 px-4 py-3.5 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-slate-800 rounded-2xl text-slate-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+            className="p-1.5 hover:bg-slate-900 rounded-2xl text-slate-400 hover:text-white transition-all active:scale-95 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
           <div>
             <h1 className="text-base font-black text-white font-display">Notifications</h1>
-            <p className="text-[11px] text-slate-400 font-medium">Tap any notification to view full details</p>
+            <p className="text-[11px] text-slate-400 font-medium">Tap any notification to view details</p>
           </div>
         </div>
 
@@ -134,10 +155,20 @@ export default function Notifications({ notifications: propNotifications = [], o
             </button>
           )}
 
+          {notificationsList.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="p-2 text-rose-400 hover:text-rose-300 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl transition-all cursor-pointer"
+              title="Clear All Notifications"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             onClick={fetchBackendNotifications}
             disabled={refreshing}
-            className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-all cursor-pointer border border-slate-700/60"
+            className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-all cursor-pointer border border-slate-800"
             title="Refresh Notifications"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-sky-400' : ''}`} />
@@ -147,15 +178,15 @@ export default function Notifications({ notifications: propNotifications = [], o
 
       <main className="flex-1 px-4 py-5 space-y-3.5">
         {loading ? (
-          <div className="p-8 bg-slate-800/60 border border-slate-700/80 rounded-3xl text-center space-y-2">
+          <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-3xl text-center space-y-2">
             <RefreshCw className="w-6 h-6 text-sky-400 animate-spin mx-auto" />
             <p className="text-xs font-bold text-slate-300 font-display">Syncing notifications from backend...</p>
           </div>
         ) : notificationsList.length === 0 ? (
-          <div className="p-8 bg-slate-800/90 border border-slate-700/80 rounded-3xl text-center shadow-xl space-y-2">
-            <Bell className="w-10 h-10 text-slate-500 mx-auto" />
+          <div className="p-8 bg-slate-900/90 border border-slate-800 rounded-3xl text-center shadow-xl space-y-2">
+            <Bell className="w-10 h-10 text-slate-600 mx-auto" />
             <h3 className="text-sm font-black text-white font-display">No Notifications</h3>
-            <p className="text-xs text-slate-400">You're all caught up! No admin notifications found.</p>
+            <p className="text-xs text-slate-400">You're all caught up! No active notifications found.</p>
           </div>
         ) : (
           notificationsList.map((n) => {
@@ -167,13 +198,13 @@ export default function Notifications({ notifications: propNotifications = [], o
                 onClick={() => handleOpenNotification(n)}
                 className={`p-4 rounded-3xl border transition-all cursor-pointer shadow-lg relative group ${
                   isUnread
-                    ? 'bg-slate-800/95 border-sky-500/40 shadow-sky-950/30 hover:border-sky-400'
-                    : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800/90 hover:border-slate-600'
+                    ? 'bg-slate-900/95 border-sky-500/40 shadow-sky-950/30 hover:border-sky-400'
+                    : 'bg-slate-900/60 border-slate-800 hover:bg-slate-900 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-start gap-3.5">
                   {n.image ? (
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-slate-700 bg-slate-950 p-0.5">
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-slate-800 bg-slate-950 p-0.5">
                       <img src={n.image} alt={n.title} className="w-full h-full object-cover rounded-xl" />
                     </div>
                   ) : (
@@ -187,9 +218,19 @@ export default function Notifications({ notifications: propNotifications = [], o
                       <h4 className="text-xs font-black text-white font-display truncate group-hover:text-sky-300 transition-colors">
                         {n.title}
                       </h4>
-                      {isUnread && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse shrink-0" title="Unread" />
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isUnread && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" title="Unread" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSingle(e, n.id)}
+                          className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Delete notification"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed font-medium line-clamp-2">
                       {n.message}
@@ -216,7 +257,7 @@ export default function Notifications({ notifications: propNotifications = [], o
           <div className="space-y-4 py-2 text-slate-100">
             {/* Optional Image Banner */}
             {selectedNotif.image && (
-              <div className="w-full h-48 rounded-2xl overflow-hidden bg-slate-950 border border-slate-700 shadow-md">
+              <div className="w-full h-48 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
                 <img
                   src={selectedNotif.image}
                   alt={selectedNotif.title}
@@ -241,7 +282,7 @@ export default function Notifications({ notifications: propNotifications = [], o
             </div>
 
             {/* Notification Body Message Card */}
-            <div className="p-4 bg-slate-800/90 border border-slate-700/80 rounded-2xl space-y-2 shadow-md">
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 shadow-md">
               <p className="text-xs text-slate-200 leading-relaxed font-medium whitespace-pre-wrap">
                 {selectedNotif.message}
               </p>

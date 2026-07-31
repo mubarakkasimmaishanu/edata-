@@ -15,6 +15,11 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const [fundTab, setFundTab] = useState<'virtual' | 'katpay' | 'manual'>('virtual');
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
+  const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string }>({
+    bank_name: 'Moniepoint Microfinance Bank',
+    account_name: 'eData Enterprise',
+    account_number: '6301234567',
+  });
   const [loading, setLoading] = useState(false);
 
   // KatPay state
@@ -38,6 +43,10 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
       const accounts = res.data?.virtual_accounts || res.virtual_accounts || [];
       if (Array.isArray(accounts)) {
         setVirtualAccounts(accounts);
+      }
+      const mb = res.data?.manual_bank || res.manual_bank;
+      if (mb) {
+        setManualBank(mb);
       }
     } catch (err: any) {
       console.warn('Fund Wallet fetch warning:', err);
@@ -173,12 +182,12 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                 <p className="text-xs text-slate-400 mt-1 mb-3">Wema Bank / Monnify Automatic Funding</p>
                 <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-between">
                   <div className="text-left">
-                    <span className="text-[10px] text-slate-400 uppercase">Account Number</span>
-                    <p className="text-base font-mono font-bold text-sky-400">7980123456</p>
-                    <p className="text-[11px] text-slate-300">eData / {currentUser.name}</p>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">{manualBank.bank_name}</span>
+                    <p className="text-base font-mono font-bold text-sky-400">{manualBank.account_number}</p>
+                    <p className="text-[11px] text-slate-300">{manualBank.account_name}</p>
                   </div>
                   <button
-                    onClick={() => copyToClipboard('7980123456', 'Account Number')}
+                    onClick={() => copyToClipboard(manualBank.account_number, 'Account Number')}
                     className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg cursor-pointer"
                   >
                     {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -275,11 +284,11 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           <form onSubmit={handleManualFundingSubmit} className="space-y-4">
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-3">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Manual Deposit Account</h3>
-              <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
-                <p className="text-xs text-slate-400">Bank: <strong className="text-white">Fidelity Bank / Kuda</strong></p>
-                <p className="text-xs text-slate-400">Account Name: <strong className="text-white">eData Global Enterprise</strong></p>
-                <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">5600123490</strong></p>
-              </div>
+                <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
+                  <p className="text-xs text-slate-400">Bank: <strong className="text-white">{manualBank.bank_name}</strong></p>
+                  <p className="text-xs text-slate-400">Account Name: <strong className="text-white">{manualBank.account_name}</strong></p>
+                  <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">{manualBank.account_number}</strong></p>
+                </div>
             </div>
 
             <div className="space-y-3">

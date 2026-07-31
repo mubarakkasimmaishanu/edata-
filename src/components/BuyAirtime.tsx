@@ -3,25 +3,30 @@ import ServiceForm from './ServiceForm';
 import { ProductItem, UserProfile } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
-import BottomSheet from './BottomSheet';
+import PinScreen from './PinScreen';
 import { ChevronLeft, Smartphone } from 'lucide-react';
 
 interface BuyAirtimeProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  initialNetwork?: string;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function BuyAirtime({ currentUser, products, onBack, onSuccess }: BuyAirtimeProps) {
+export default function BuyAirtime({ currentUser, products, initialNetwork, onBack, onSuccess }: BuyAirtimeProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
-  const [detectedOperator, setDetectedOperator] = useState('');
+  const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
-  const [pinSheetOpen, setPinSheetOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [showPinScreen, setShowPinScreen] = useState(false);
+
+  React.useEffect(() => {
+    if (initialNetwork) {
+      setDetectedOperator(initialNetwork);
+    }
+  }, [initialNetwork]);
 
   // Promo state
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -61,35 +66,41 @@ export default function BuyAirtime({ currentUser, products, onBack, onSuccess }:
       toast.error('Insufficient wallet balance.');
       return;
     }
-    setPinSheetOpen(true);
+    setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async () => {
-    if (!pinInput || pinInput.length !== 4) {
-      toast.warning('Please enter your 4-digit Transaction PIN.');
-      return;
-    }
-    setIsPurchasing(true);
-    try {
-      const networkMap: Record<string, number> = { MTN: 1, GLO: 2, AIRTEL: 3, '9MOBILE': 4 };
-      const netId = networkMap[detectedOperator.toUpperCase()] || 1;
-      const res = await api.purchase({
-        service_id: netId,
-        amount: parseFloat(checkoutAmount),
-        target_number: targetNumber,
-        transaction_pin: pinInput
-      });
-      toast.success(res.message || 'Airtime purchase successful!');
-      setPinSheetOpen(false);
-      setPinInput('');
-      if (onSuccess) onSuccess();
-      onBack();
-    } catch (err: any) {
-      toast.error(err.message || 'Transaction failed.');
-    } finally {
-      setIsPurchasing(false);
-    }
+  const handleConfirmPurchase = async (pinInput: string) => {
+    const networkMap: Record<string, number> = { MTN: 1, GLO: 2, AIRTEL: 3, '9MOBILE': 4 };
+    const netId = networkMap[detectedOperator.toUpperCase()] || 1;
+    const res = await api.purchase({
+      service_id: netId,
+      amount: parseFloat(checkoutAmount),
+      target_number: targetNumber,
+      transaction_pin: pinInput
+    });
+    toast.success(res.message || 'Airtime purchase successful!');
+    if (onSuccess) onSuccess();
+    onBack();
   };
+
+  if (showPinScreen) {
+    return (
+      <PinScreen
+        mode="purchase"
+        summary={{
+          title: `${detectedOperator || 'Mobile'} Airtime Top-Up`,
+          subtitle: 'Instant Airtime Purchase',
+          amount: parseFloat(checkoutAmount) - promoDiscount,
+          recipient: targetNumber,
+          provider: detectedOperator,
+          iconType: 'airtime',
+        }}
+        onBack={() => setShowPinScreen(false)}
+        onSuccess={() => setShowPinScreen(false)}
+        onSubmitPurchase={handleConfirmPurchase}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
@@ -146,35 +157,6 @@ export default function BuyAirtime({ currentUser, products, onBack, onSuccess }:
           toast={toast}
         />
       </div>
-
-      <BottomSheet
-        open={pinSheetOpen}
-        onClose={() => setPinSheetOpen(false)}
-        title="Enter Transaction PIN"
-      >
-        <div className="space-y-4 py-2">
-          <p className="text-xs text-slate-300 text-center font-medium">
-            Confirm purchase of <strong className="text-white font-black">₦{checkoutAmount} {detectedOperator} Airtime</strong> for <strong className="text-white font-mono font-bold">{targetNumber}</strong>
-          </p>
-
-          <input
-            type="password"
-            maxLength={4}
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-            placeholder="••••"
-            className="w-full text-center text-2xl font-black tracking-widest bg-slate-800 border-2 border-slate-700 rounded-2xl py-3 text-white focus:outline-none focus:border-sky-500 font-mono"
-          />
-
-          <button
-            onClick={handleConfirmPurchase}
-            disabled={isPurchasing || pinInput.length !== 4}
-            className="w-full py-3.5 bg-sky-600 hover:bg-sky-700 text-white font-black rounded-2xl text-xs transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-lg shadow-sky-600/20 active:scale-[0.98] btn-sheen font-display uppercase tracking-wider"
-          >
-            {isPurchasing ? 'Processing...' : 'Confirm Payment'}
-          </button>
-        </div>
-      </BottomSheet>
     </div>
   );
 }

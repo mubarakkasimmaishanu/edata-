@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider, useToast } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
-import { UserProfile, ProductItem, Transaction } from './types';
+import { UserProfile, ProductItem, Transaction, QuickAction } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 
 import AuthPage from './components/AuthPage';
@@ -20,6 +20,7 @@ import HelpSupport from './components/HelpSupport';
 import Notifications from './components/Notifications';
 import BottomNav from './components/BottomNav';
 import ServicesCatalog from './components/ServicesCatalog';
+import PinScreen from './components/PinScreen';
 
 type ActiveView =
   | 'dashboard'
@@ -34,14 +35,25 @@ type ActiveView =
   | 'history'
   | 'profile'
   | 'support'
-  | 'notifications';
+  | 'notifications'
+  | 'upgrade';
 
-export default function App() {
+function MainApp() {
+  const toast = useToast();
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
   const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [currentUser, setCurrentUser] = useState<UserProfile>(DEFAULT_USER);
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
+  const [preselectedNetwork, setPreselectedNetwork] = useState<string>('');
+  const [preselectedPlanId, setPreselectedPlanId] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('edata_current_user');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_USER;
+  });
   const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
   const [lastSynced, setLastSynced] = useState<string>('Never');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -51,9 +63,17 @@ export default function App() {
   });
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
 
+  // Direct Quick Action Checkout state
+  const [activeQuickAction, setActiveQuickAction] = useState<QuickAction | null>(null);
+  const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
+  const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
+
   const handleSetCurrentUser = (user: UserProfile | ((prev: UserProfile) => UserProfile)) => {
     setCurrentUser(prev => {
       const next = typeof user === 'function' ? user(prev) : user;
+      try {
+        localStorage.setItem('edata_current_user', JSON.stringify(next));
+      } catch {}
       return next;
     });
   };
@@ -122,6 +142,17 @@ export default function App() {
         });
       });
 
+      // Sync Quick Actions from backend REST API
+      if (servicesRes.data?.quick_actions) {
+        setQuickActions(servicesRes.data.quick_actions);
+      } else {
+        try {
+          const qaRes = await api.getQuickActions();
+          const qaList = qaRes.data || qaRes || [];
+          if (Array.isArray(qaList)) setQuickActions(qaList);
+        } catch {}
+      }
+
       setProducts(mappedProducts);
 
       const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
@@ -137,30 +168,44 @@ export default function App() {
       }));
       setTransactions(mappedTx);
 
-      const user = profileRes.data || profileRes;
-      const walletData = walletRes.data || walletRes;
-      setCurrentUser({
-        id: user.id,
-        name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'eData User',
-        email: user.email,
-        phone: user.phone || '',
-        walletBalance: parseFloat(walletData.balance || '0'),
-        category: user.level_label || 'Basic User',
-        bvn: '',
-        nin: '',
+      const user = profileRes.data?.user || profileRes.data || profileRes.user || profileRes;
+      const walletData = walletRes.data?.wallet || walletRes.data || walletRes.wallet || walletRes;
+
+      const rawBalance = walletData?.balance ?? walletData?.walletBalance ?? walletData?.wallet ?? user?.walletBalance ?? user?.balance ?? '0';
+      const parsedBalance = !isNaN(parseFloat(rawBalance)) ? parseFloat(rawBalance) : 0;
+
+      const firstName = user.firstname || user.first_name || '';
+      const lastName = user.lastname || user.last_name || '';
+      const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
+
+      const syncedUser: UserProfile = {
+        id: user.id || currentUser.id,
+        name: computedName,
+        firstname: firstName || currentUser.firstname || '',
+        lastname: lastName || currentUser.lastname || '',
+        email: user.email || currentUser.email || '',
+        phone: user.phone || user.mobile || currentUser.phone || '',
+        walletBalance: parsedBalance,
+        category: user.level_label || user.category || user.user_level || currentUser.category || 'Basic User',
+        bvn: user.bvn || currentUser.bvn || '',
+        nin: user.nin || currentUser.nin || '',
         isVerified: true,
         pinCode: '',
-        hasPin: user.has_pin || false,
-        hasPendingUpgrade: user.has_pending_upgrade || false,
-        upgradeFee: user.premium_upgrade_fee || 5000,
-        photo: resolveImageUrl(user.photo) || null,
-      });
+        hasPin: user.has_pin !== undefined ? Boolean(user.has_pin) : (user.hasPin !== undefined ? Boolean(user.hasPin) : currentUser.hasPin),
+        hasPendingUpgrade: Boolean(user.has_pending_upgrade),
+        upgradeFee: parseFloat(user.premium_upgrade_fee || '5000'),
+        photo: resolveImageUrl(user.photo || user.avatar || user.picture) || currentUser.photo || null,
+        avatar: resolveImageUrl(user.avatar || user.photo || user.picture) || currentUser.avatar || null,
+        picture: resolveImageUrl(user.picture || user.photo || user.avatar) || currentUser.picture || null,
+      };
+
+      handleSetCurrentUser(syncedUser);
 
       setApiStatus('connected');
       setLastSynced(new Date().toLocaleTimeString());
       setCurrentScreen('app');
 
-      // Sync Notifications unread count from exact Yii2 ApiController schema
+      // Sync Notifications unread count
       try {
         const notifsRes = await api.getNotifications();
         const notifArray = notifsRes?.data?.notifications || notifsRes?.notifications || (Array.isArray(notifsRes?.data) ? notifsRes.data : Array.isArray(notifsRes) ? notifsRes : []);
@@ -231,13 +276,109 @@ export default function App() {
     setActiveView('dashboard');
   };
 
-  const navigateTo = (view: string) => {
+  const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
+    // If a Quick Action object was selected, trigger direct PIN checkout flow without changing screen!
+    if (params?.quickAction) {
+      handleQuickActionDirectCheckout(params.quickAction);
+      return;
+    }
+
     setActiveView(view as ActiveView);
+    if (params?.network) setPreselectedNetwork(params.network);
+    else setPreselectedNetwork('');
+    if (params?.planId !== undefined) setPreselectedPlanId(params.planId);
+    else setPreselectedPlanId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleQuickActionDirectCheckout = (action: QuickAction) => {
+    // 1. Resolve product & dynamic item price
+    let itemPrice = 0;
+    let matchingProduct: ProductItem | undefined;
+
+    if (action.plan_id && products.length > 0) {
+      matchingProduct = products.find(p => 
+        p.id === `plan-${action.plan_id}` || 
+        p.id === String(action.plan_id) || 
+        p.id.includes(`-${action.plan_id}-`) ||
+        p.id.startsWith(`plan-${action.plan_id}-`)
+      );
+    }
+
+    if (matchingProduct) {
+      if (currentUser.category === 'Premium User') itemPrice = matchingProduct.pricePremium ?? matchingProduct.priceNormal;
+      else if (currentUser.category === 'Referred User') itemPrice = matchingProduct.priceReferred ?? matchingProduct.priceNormal;
+      else itemPrice = matchingProduct.priceNormal;
+    } else {
+      const titleLower = action.title.toLowerCase();
+      if (titleLower.includes('1gb')) itemPrice = 300;
+      else if (titleLower.includes('2gb')) itemPrice = 600;
+      else if (titleLower.includes('5gb')) itemPrice = 1500;
+      else if (titleLower.includes('waec')) itemPrice = 3500;
+      else itemPrice = 500;
+    }
+
+    // 2. Check if user has Transaction PIN set
+    if (!currentUser.hasPin) {
+      toast.info('Please set up your 4-digit Transaction PIN first.');
+      setActiveQuickAction(action);
+      setQuickActionPrice(itemPrice);
+      setPinScreenMode('set_pin');
+      return;
+    }
+
+    // 3. Preload action & open PIN screen directly with summary details
+    setActiveQuickAction(action);
+    setQuickActionPrice(itemPrice);
+    setPinScreenMode('purchase');
+  };
+
+  const handleConfirmQuickActionPurchase = async (pinInput: string, customRecipient?: string, promoCode?: string) => {
+    if (!activeQuickAction) return;
+
+    if (quickActionPrice > currentUser.walletBalance) {
+      toast.error(`Insufficient wallet balance. Required: ₦${quickActionPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })}, Current Balance: ₦${currentUser.walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`);
+      return;
+    }
+
+    const netUpper = (activeQuickAction.network || 'MTN').toUpperCase();
+    const serviceType = activeQuickAction.service_type || 'data';
+
+    let serviceId = 2; // Data by default
+    if (serviceType === 'airtime') {
+      const netMap: Record<string, number> = { MTN: 1, GLO: 2, AIRTEL: 3, '9MOBILE': 4 };
+      serviceId = netMap[netUpper] || 1;
+    } else if (serviceType === 'data') {
+      serviceId = 2;
+    } else if (serviceType === 'exams') {
+      serviceId = 3;
+    } else if (serviceType === 'cable') {
+      serviceId = 4;
+    } else if (serviceType === 'electricity') {
+      serviceId = 5;
+    } else if (serviceType === 'a2c') {
+      serviceId = 6;
+    }
+
+    const recipientNum = customRecipient || currentUser.phone || '08000000000';
+
+    const res = await api.purchase({
+      service_id: serviceId,
+      amount: quickActionPrice,
+      target_number: recipientNum,
+      plan_id: activeQuickAction.plan_id || undefined,
+      transaction_pin: pinInput,
+      promo_code: promoCode,
+    });
+
+    toast.success(res.message || `${activeQuickAction.title} purchase successful!`);
+    setPinScreenMode(null);
+    setActiveQuickAction(null);
+    handleGlobalRefresh();
+  };
+
   return (
-    <ToastProvider>
+    <>
       {showSplash && <SplashScreen />}
       <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
         <div className="w-full flex-1 flex flex-col">
@@ -255,6 +396,7 @@ export default function App() {
                 <UserDashboard
                   currentUser={currentUser}
                   transactions={transactions}
+                  quickActions={quickActions}
                   onNavigate={navigateTo}
                   onRefresh={handleGlobalRefresh}
                   isSyncing={isSyncing}
@@ -274,6 +416,7 @@ export default function App() {
                 <BuyAirtime
                   currentUser={currentUser}
                   products={products}
+                  initialNetwork={preselectedNetwork}
                   onBack={() => navigateTo('dashboard')}
                   onSuccess={handleGlobalRefresh}
                 />
@@ -283,6 +426,8 @@ export default function App() {
                 <BuyData
                   currentUser={currentUser}
                   products={products}
+                  initialNetwork={preselectedNetwork}
+                  initialPlanId={preselectedPlanId}
                   onBack={() => navigateTo('dashboard')}
                   onSuccess={handleGlobalRefresh}
                 />
@@ -361,12 +506,78 @@ export default function App() {
                 />
               )}
 
+              {activeView === 'upgrade' && (
+                <PinScreen
+                  mode="upgrade_pin"
+                  userEmail={currentUser.email}
+                  onBack={() => navigateTo('dashboard')}
+                  onSuccess={() => {
+                    setCurrentUser(prev => ({ ...prev, category: 'Premium User' }));
+                    handleGlobalRefresh();
+                    navigateTo('dashboard');
+                  }}
+                />
+              )}
+
               {/* Floating Glassmorphic Bottom Navigation */}
               <BottomNav activeView={activeView} onNavigate={navigateTo} />
+
+              {/* ── Direct Quick Action PIN Checkout Screen ── */}
+              {pinScreenMode && (
+                <PinScreen
+                  mode={pinScreenMode}
+                  userEmail={currentUser.email}
+                  summary={
+                    pinScreenMode === 'purchase' && activeQuickAction
+                      ? {
+                          title: activeQuickAction.title,
+                          subtitle: `${activeQuickAction.network} • Instant Delivery`,
+                          amount: quickActionPrice,
+                          recipient: (activeQuickAction.service_type === 'exams' || activeQuickAction.service_type === 'exam')
+                            ? undefined
+                            : (currentUser.phone || '08000000000'),
+                          provider: activeQuickAction.network,
+                          iconType: (activeQuickAction.service_type as any) || 'data',
+                          details: [
+                            { label: 'Service', value: (activeQuickAction.service_type || 'data').toUpperCase() },
+                            { label: 'Provider', value: activeQuickAction.network },
+                          ],
+                        }
+                      : undefined
+                  }
+                  onBack={() => {
+                    setPinScreenMode(null);
+                    setActiveQuickAction(null);
+                  }}
+                  onSuccess={() => {
+                    if (pinScreenMode === 'set_pin') {
+                      setCurrentUser(prev => ({ ...prev, hasPin: true }));
+                      if (activeQuickAction) {
+                        toast.success('PIN created successfully! Continuing purchase authorization.');
+                        setPinScreenMode('purchase');
+                      } else {
+                        setPinScreenMode(null);
+                      }
+                    } else {
+                      setPinScreenMode(null);
+                      setActiveQuickAction(null);
+                    }
+                  }}
+                  onSubmitPurchase={handleConfirmQuickActionPurchase}
+                />
+              )}
             </>
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <MainApp />
     </ToastProvider>
   );
 }

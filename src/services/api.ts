@@ -32,7 +32,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
   const publicEndpoints = [
     '/login', '/signup', '/signup-request', '/signup-verify',
     '/signup-complete', '/google-auth', '/detect-network',
-    '/forgot-password', '/reset-password'
+    '/forgot-password', '/reset-password', '/quick-actions'
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
@@ -200,6 +200,7 @@ export const api = {
     quantity?: number;
     plan_id?: number | string;
     promo_id?: number | string;
+    promo_code?: string;
     bank_name?: string;
     account_number?: string;
   }) {
@@ -303,11 +304,43 @@ export const api = {
     });
   },
 
+  async deleteNotification(id?: number | 'all') {
+    return request('/notifications/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id: id ?? 'all' }),
+    });
+  },
+
   async deleteAccount(password: string) {
     return request('/delete-account', {
       method: 'POST',
       body: JSON.stringify({ password }),
     });
+  },
+
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/upload-photo`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    return response.json();
+  },
+
+  async validatePromoCode(code: string, amount: number, serviceTypeId?: number | string) {
+    return request('/validate-promo', {
+      method: 'POST',
+      body: JSON.stringify({ code, amount, service_type_id: serviceTypeId }),
+    });
+  },
+
+  async getQuickActions() {
+    return request('/quick-actions');
   },
 };
 

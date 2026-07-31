@@ -1,23 +1,57 @@
 import React, { useState } from 'react';
-import { UserProfile, Transaction } from '../types';
+import { UserProfile, Transaction, QuickAction } from '../types';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
   BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User
 } from 'lucide-react';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
+import gloIcon from '@/assets/icons/glo.png';
+import nineMobileIcon from '@/assets/icons/9mobile.png';
 import dstvIcon from '@/assets/icons/dstv.png';
 import gotvIcon from '@/assets/icons/gotv.png';
+import startimesIcon from '@/assets/icons/startimes.png';
 import waecIcon from '@/assets/icons/waec.png';
-import supportIcon from '@/assets/icons/support.png';
+import necoIcon from '@/assets/icons/neco.png';
+import aedcIcon from '@/assets/icons/aedc.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 import { useToast } from './Toast';
 import { resolveImageUrl } from '../services/api';
 
+const ICON_MAP: Record<string, string> = {
+  mtn: mtnIcon,
+  airtel: airtelIcon,
+  glo: gloIcon,
+  '9mobile': nineMobileIcon,
+  dstv: dstvIcon,
+  gotv: gotvIcon,
+  startimes: startimesIcon,
+  waec: waecIcon,
+  neco: necoIcon,
+  electricity: aedcIcon,
+  a2c: walletIcon,
+};
+
+function getActionIcon(iconName?: string, network?: string): string {
+  const iconLower = (iconName || '').toLowerCase();
+  const netLower = (network || '').toLowerCase();
+  if (ICON_MAP[iconLower]) return ICON_MAP[iconLower];
+  if (ICON_MAP[netLower]) return ICON_MAP[netLower];
+  if (netLower.includes('mtn')) return mtnIcon;
+  if (netLower.includes('airtel')) return airtelIcon;
+  if (netLower.includes('glo')) return gloIcon;
+  if (netLower.includes('9mobile')) return nineMobileIcon;
+  if (netLower.includes('dstv')) return dstvIcon;
+  if (netLower.includes('gotv')) return gotvIcon;
+  if (netLower.includes('waec')) return waecIcon;
+  return mtnIcon;
+}
+
 interface UserDashboardProps {
   currentUser: UserProfile;
   transactions: Transaction[];
-  onNavigate: (view: string) => void;
+  quickActions?: QuickAction[];
+  onNavigate: (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => void;
   onRefresh?: () => void;
   isSyncing?: boolean;
   apiStatus: 'connected' | 'offline';
@@ -28,6 +62,7 @@ interface UserDashboardProps {
 export default function UserDashboard({
   currentUser,
   transactions,
+  quickActions = [],
   onNavigate,
   onRefresh,
   isSyncing = false,
@@ -38,20 +73,30 @@ export default function UserDashboard({
   const toast = useToast();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
 
-  const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture);
+  const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture || currentUser.photo);
+  const displayName = currentUser.firstname
+    ? `${currentUser.firstname} ${currentUser.lastname || ''}`.trim()
+    : (currentUser.name && currentUser.name !== 'User' && currentUser.name !== 'DEFAULT_USER'
+        ? currentUser.name
+        : currentUser.email
+        ? currentUser.email.split('@')[0]
+        : 'eData User');
+  const avatarInitial = displayName ? displayName[0].toUpperCase() : 'U';
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
   };
 
-  // Quick Actions 5-column list matching Image 1
-  const quickActions = [
-    { id: 'data', name: 'MTN Data', label: 'MTN Data', icon: mtnIcon },
-    { id: 'airtime', name: 'Airtime', label: 'Airtime', icon: airtelIcon },
-    { id: 'cable', name: 'DStv', label: 'DStv', icon: dstvIcon },
-    { id: 'cable', name: 'GOtv', label: 'GOtv', icon: gotvIcon },
-    { id: 'exams', name: 'WAEC', label: 'WAEC', icon: waecIcon },
+  // Fallback quick actions if backend has not loaded any yet
+  const defaultActions: QuickAction[] = [
+    { id: 1, title: 'MTN Data', service_type: 'data', network: 'MTN', icon: 'mtn', display_order: 1, status: 1 },
+    { id: 2, title: 'Airtime', service_type: 'airtime', network: 'Airtel', icon: 'airtel', display_order: 2, status: 1 },
+    { id: 3, title: 'DStv', service_type: 'cable', network: 'DSTV', icon: 'dstv', display_order: 3, status: 1 },
+    { id: 4, title: 'GOtv', service_type: 'cable', network: 'GOTV', icon: 'gotv', display_order: 4, status: 1 },
+    { id: 5, title: 'WAEC', service_type: 'exams', network: 'WAEC', icon: 'waec', display_order: 5, status: 1 },
   ];
+
+  const actionsToDisplay = (quickActions && quickActions.length > 0) ? quickActions : defaultActions;
 
   // Services 8-grid list matching Image 1 & 2
   const services = [
@@ -70,28 +115,35 @@ export default function UserDashboard({
       {/* ── 1. Top Header App Bar (Matching Image 1) ── */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
-          {/* User Avatar Circle */}
-          <button
-            onClick={() => onNavigate('profile')}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 border-2 border-sky-400/40 p-0.5 flex items-center justify-center shadow-md overflow-hidden shrink-0 cursor-pointer active:scale-95 transition-transform relative"
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={currentUser.name} className="w-full h-full object-cover rounded-full" />
-            ) : (
-              <span className="text-white font-black text-sm font-display">
-                {currentUser.name ? currentUser.name[0].toUpperCase() : 'M'}
+          {/* User Avatar Circle + Membership Badge Column */}
+          <div className="flex flex-col items-center shrink-0">
+            <button
+              onClick={() => onNavigate('profile')}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 border-2 border-sky-400/40 p-0.5 flex items-center justify-center shadow-md overflow-hidden shrink-0 cursor-pointer active:scale-95 transition-transform relative"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <span className="text-white font-black text-sm font-display">
+                  {avatarInitial}
+                </span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-sky-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[8px] font-black text-white">
+                ✓
               </span>
-            )}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-sky-500 rounded-full border-2 border-slate-900 flex items-center justify-center text-[8px] font-black text-white">
-              ✓
+            </button>
+
+            {/* Membership Tier Badge under image */}
+            <span className="mt-1 px-1.5 py-0.5 text-[7.5px] font-black uppercase tracking-wider rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30 font-display whitespace-nowrap">
+              {currentUser.category || 'Basic User'}
             </span>
-          </button>
+          </div>
 
           {/* User Welcome Text */}
-          <div className="text-left">
+          <div className="text-left flex flex-col justify-center">
             <span className="text-[11px] font-medium text-slate-400 block leading-none">Welcome back</span>
-            <span className="text-sm font-black text-white font-display tracking-tight block mt-0.5">
-              {currentUser.name || 'mubarakkasim006'}
+            <span className="text-sm font-black text-white font-display tracking-tight block mt-1 truncate max-w-[170px] sm:max-w-xs">
+              {displayName}
             </span>
           </div>
         </div>
@@ -114,8 +166,11 @@ export default function UserDashboard({
             title="Notifications"
           >
             <Bell className="w-4.5 h-4.5 text-slate-300" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9.5px] font-black min-w-4.5 h-4.5 px-1 rounded-full flex items-center justify-center border border-slate-950 shadow-md font-mono">
+                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -142,9 +197,9 @@ export default function UserDashboard({
 
           {/* Middle Row: Balance Digits + Eye Toggle + Add Money Capsule */}
           <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-3xl font-black font-mono tracking-tight text-white drop-shadow-sm tabular-nums">
-                {isBalanceHidden ? '₦ • • • • • • • •' : formatMoney(currentUser.walletBalance)}
+            <div className="flex items-center gap-2 min-w-0 shrink">
+              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white drop-shadow-sm tabular-nums whitespace-nowrap">
+                {isBalanceHidden ? '₦ ••••••••' : formatMoney(currentUser.walletBalance)}
               </span>
 
               <button
@@ -195,20 +250,24 @@ export default function UserDashboard({
           </div>
 
           <div className="grid grid-cols-5 gap-2">
-            {quickActions.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => onNavigate(item.id)}
-                className="flex flex-col items-center justify-center gap-1.5 transition-all group cursor-pointer active:scale-95"
-              >
-                <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
-                  <img src={item.icon} alt={item.name} className="w-full h-full object-contain rounded-full" />
-                </div>
-                <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display truncate w-full text-center">
-                  {item.label}
-                </span>
-              </button>
-            ))}
+            {actionsToDisplay.map((item, idx) => {
+              const iconSrc = getActionIcon(item.icon, item.network);
+              return (
+                <button
+                  key={item.id || idx}
+                  onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
+                  className="flex flex-col items-center justify-center gap-1.5 transition-all group cursor-pointer active:scale-95"
+                  title={item.title}
+                >
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
+                    <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
+                  </div>
+                  <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display truncate w-full text-center">
+                    {item.title}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -251,7 +310,7 @@ export default function UserDashboard({
             </div>
 
             <button
-              onClick={() => onNavigate('profile')}
+              onClick={() => onNavigate('upgrade')}
               className="bg-sky-500 hover:bg-sky-600 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-lg transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
             >
               Upgrade ₦5,000

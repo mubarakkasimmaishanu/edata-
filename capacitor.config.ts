@@ -14,10 +14,13 @@ const config: CapacitorConfig = {
       forceCodeForRefreshToken: true
     },
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 0,
+      launchAutoHide: true,
       backgroundColor: "#0f172a",
       showSpinner: false,
-      androidScaleType: "CENTER_CROP"
+      androidScaleType: "CENTER_CROP",
+      splashFullScreen: true,
+      splashImmersive: true
     }
   }
 };

@@ -3,7 +3,7 @@ import ServiceForm from './ServiceForm';
 import { ProductItem, UserProfile } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
-import BottomSheet from './BottomSheet';
+import PinScreen from './PinScreen';
 import { ChevronLeft, Repeat } from 'lucide-react';
 
 interface AirtimeToCashProps {
@@ -23,9 +23,7 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
   const [a2cAccount, setA2cAccount] = useState('');
   const [a2cPayout, setA2cPayout] = useState(0);
 
-  const [pinSheetOpen, setPinSheetOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [showPinScreen, setShowPinScreen] = useState(false);
 
   const getDynamicPrice = (p: ProductItem) => p.priceNormal;
 
@@ -43,35 +41,46 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
       toast.warning('Please provide payout bank details.');
       return;
     }
-    setPinSheetOpen(true);
+    setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async () => {
-    if (!pinInput || pinInput.length !== 4) {
-      toast.warning('Please enter your 4-digit Transaction PIN.');
-      return;
-    }
-    setIsPurchasing(true);
-    try {
-      const res = await api.purchase({
-        service_id: 6, // A2C
-        amount: parseFloat(checkoutAmount),
-        target_number: targetNumber,
-        transaction_pin: pinInput,
-        bank_name: a2cBank,
-        account_number: a2cAccount
-      });
-      toast.success(res.message || 'Airtime to Cash request submitted successfully!');
-      setPinSheetOpen(false);
-      setPinInput('');
-      if (onSuccess) onSuccess();
-      onBack();
-    } catch (err: any) {
-      toast.error(err.message || 'Submission failed.');
-    } finally {
-      setIsPurchasing(false);
-    }
+  const handleConfirmPurchase = async (pinInput: string) => {
+    const res = await api.purchase({
+      service_id: 6, // A2C
+      amount: parseFloat(checkoutAmount),
+      target_number: targetNumber,
+      transaction_pin: pinInput,
+      bank_name: a2cBank,
+      account_number: a2cAccount
+    });
+    toast.success(res.message || 'Airtime to Cash request submitted successfully!');
+    if (onSuccess) onSuccess();
+    onBack();
   };
+
+  if (showPinScreen) {
+    return (
+      <PinScreen
+        mode="purchase"
+        summary={{
+          title: `Airtime to Cash Conversion`,
+          subtitle: `${detectedOperator || 'Airtime'} to Bank Transfer`,
+          amount: parseFloat(checkoutAmount),
+          recipient: targetNumber,
+          provider: detectedOperator,
+          iconType: 'a2c',
+          details: [
+            { label: 'Bank Name', value: a2cBank },
+            { label: 'Account No', value: a2cAccount },
+            { label: 'Expected Payout', value: `₦${a2cPayout.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+          ],
+        }}
+        onBack={() => setShowPinScreen(false)}
+        onSuccess={() => setShowPinScreen(false)}
+        onSubmitPurchase={handleConfirmPurchase}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
@@ -134,35 +143,6 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
           toast={toast}
         />
       </div>
-
-      <BottomSheet
-        open={pinSheetOpen}
-        onClose={() => setPinSheetOpen(false)}
-        title="Enter Transaction PIN"
-      >
-        <div className="space-y-4 py-2">
-          <p className="text-xs text-slate-300 text-center font-medium">
-            Confirm conversion of <strong className="text-white font-black">₦{checkoutAmount} {detectedOperator} Airtime</strong> to Cash.
-          </p>
-
-          <input
-            type="password"
-            maxLength={4}
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-            placeholder="••••"
-            className="w-full text-center text-2xl font-black tracking-widest bg-slate-800 border-2 border-slate-700 rounded-2xl py-3 text-white focus:outline-none focus:border-sky-500 font-mono"
-          />
-
-          <button
-            onClick={handleConfirmPurchase}
-            disabled={isPurchasing || pinInput.length !== 4}
-            className="w-full py-3.5 bg-sky-600 hover:bg-sky-700 text-white font-black rounded-2xl text-xs transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-lg shadow-sky-600/20 active:scale-[0.98] btn-sheen font-display uppercase tracking-wider"
-          >
-            {isPurchasing ? 'Processing...' : 'Submit Request'}
-          </button>
-        </div>
-      </BottomSheet>
     </div>
   );
 }
