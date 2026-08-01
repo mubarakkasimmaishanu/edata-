@@ -82,9 +82,18 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
 
   const handleConfirmPurchase = async (pinInput: string) => {
     if (!selectedProduct) return;
-    const planId = parseInt(selectedProduct.id.replace('plan-', ''), 10) || 1;
+    const extractedNum = parseInt(String(selectedProduct.id).replace(/^[^\d]*/, ''), 10);
+    const planId = !isNaN(extractedNum) ? extractedNum : 36;
+    
+    // Map carrier network to exact ServiceType ID (2: MTN Data, 4: Airtel Data, 6: Glo Data, 8: 9mobile Data)
+    const opUpper = (selectedProduct.operator || detectedOperator || 'MTN').toUpperCase();
+    const serviceId = opUpper.includes('AIRTEL') ? 4
+      : opUpper.includes('GLO') ? 6
+      : opUpper.includes('9MOBILE') || opUpper.includes('ETISALAT') ? 8
+      : 2;
+
     const res = await api.purchase({
-      service_id: 2, // Data service
+      service_id: serviceId,
       amount: getDynamicPrice(selectedProduct) - promoDiscount,
       target_number: targetNumber,
       plan_id: planId,
