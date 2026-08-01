@@ -75,6 +75,11 @@ export default function AuthPage({
 
   // ─── Native & GIS Web Google Sign-In Handler ───
   const handleGoogleSignIn = async () => {
+    if (!navigator.onLine) {
+      toast.error('No internet connection. Please check your network and try again.');
+      return;
+    }
+
     setGoogleAuthLoading(true);
     const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
 
@@ -84,27 +89,44 @@ export default function AuthPage({
       if (Capacitor.isNativePlatform()) {
         try {
           const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+          try {
+            await GoogleAuth.initialize({
+              clientId: GOOGLE_CLIENT_ID,
+              scopes: ['profile', 'email'],
+              grantOfflineAccess: true,
+            });
+          } catch (_) {
+            // Already initialized or ignore pre-init warnings
+          }
+
           const googleUser = await GoogleAuth.signIn();
           const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || googleUser.authentication?.accessToken || '';
           if (rawIdToken) {
             tokenPayload = { id_token: rawIdToken };
+          } else {
+            toast.error('Unable to retrieve authentication token from Google.');
+            return;
           }
         } catch (nativeErr: any) {
-          console.warn('Native Google Auth failed, switching to Web OAuth popup fallback:', nativeErr);
+          console.warn('Native Google Auth failed:', nativeErr);
+          const errStr = String(nativeErr?.message || nativeErr || '').toLowerCase();
           if (
-            nativeErr?.message?.includes('canceled') ||
-            nativeErr?.message?.includes('cancelled') ||
+            errStr.includes('canceled') ||
+            errStr.includes('cancelled') ||
             nativeErr?.code === '12501' ||
             nativeErr?.code === 12501
           ) {
             toast.info('Google Sign-In was cancelled.');
-            return;
+          } else if (errStr.includes('something went wrong') || errStr.includes('10') || errStr.includes('developer_error')) {
+            toast.error('Google Sign-In setup error: Please register SHA-1 (0D:6E:9B:44...) in Google Cloud Console.');
+          } else {
+            toast.error(nativeErr?.message || 'Google Sign-In failed. Please check internet connection.');
           }
+          // Always return early on Native platform to prevent fallback into WebView script injection
+          return;
         }
-      }
-
-      if (!tokenPayload.id_token && !tokenPayload.access_token) {
-        // Web / Native Fallback: GIS OAuth Popup Client
+      } else {
+        // Web Browser Platform: GIS OAuth Popup Client
         tokenPayload = await new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
           const loadAndInitGIS = () => {
             try {
@@ -114,7 +136,7 @@ export default function AuthPage({
                 script.async = true;
                 script.defer = true;
                 script.onload = () => runGISPopup();
-                script.onerror = () => reject(new Error('Failed to load Google Identity Services SDK'));
+                script.onerror = () => reject(new Error('Unable to load Google Sign-In SDK. Please check your internet connection.'));
                 document.head.appendChild(script);
               } else {
                 runGISPopup();

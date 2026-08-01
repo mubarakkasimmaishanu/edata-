@@ -137,6 +137,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [meterType, setMeterType] = React.useState<'PrePaid' | 'PostPaid'>('PrePaid');
   const [discoOpen, setDiscoOpen] = React.useState<boolean>(false);
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
+  const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
 
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
@@ -605,98 +606,191 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── 3. Data / Cable Plan Dropdown ─── */}
+      {/* ─── 3. Data / Cable Plan Selection ─── */}
       {showProductDropdown && (
-        <div className="space-y-2">
-          {/* Data Type Filter Tabs */}
-          {serviceType === 'data' && (
-            <div className="space-y-1 mb-2">
+        <div className="space-y-3">
+          {serviceType === 'data' && (() => {
+            const dataProds = products.filter(p =>
+              ((p.category as string) === 'Data' || (p.category as string) === 'Data Bundle') &&
+              p.active &&
+              (detectedOperator ? p.operator?.toLowerCase() === detectedOperator.toLowerCase() : true)
+            );
+
+            return (
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                  SELECT DATA PLAN
+                </label>
+
+                {/* Main Trigger Box matching Image 1 */}
+                <button
+                  type="button"
+                  onClick={() => setIsPackageModalOpen(true)}
+                  className="w-full bg-[#161a20] border border-slate-700/80 hover:border-sky-500/50 rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold text-white shadow-md transition-all cursor-pointer active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
+                    <Zap className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span className={`truncate ${selectedProduct ? 'text-white font-bold' : 'text-slate-400 font-semibold'}`}>
+                      {selectedProduct
+                        ? `${selectedProduct.operator || detectedOperator || 'MTN'} ${selectedProduct.name} (${selectedProduct.planType || 'SME'}) — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
+                        : 'Select package'}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+                </button>
+
+                {/* Modal Popup Overlay matching Image 2 */}
+                {isPackageModalOpen && (
+                  <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-[#181d24] border border-slate-700/90 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in">
+                      
+                      {/* Modal Header matching Image 2 */}
+                      <div className="p-4 bg-[#202732] border-b border-slate-700/80 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-4 bg-emerald-400 rounded-full"></div>
+                          <h3 className="text-sm font-black text-white font-display m-0">Select package</h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsPackageModalOpen(false)}
+                          className="w-7 h-7 rounded-xl bg-slate-800 text-slate-400 hover:text-white font-bold flex items-center justify-center transition-colors cursor-pointer text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Modal Body List grouped by Plan Type */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
+                        {dataProds.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-400 font-bold">
+                            No data packages found for selected network.
+                          </div>
+                        ) : (() => {
+                          const groups: Record<string, ProductItem[]> = {};
+                          const order = ['SME', 'GIFTING', 'CORPORATE', 'AWOOF', 'SME2', 'DATA-SHARE', 'OTHER'];
+                          const labels: Record<string, { title: string; color: string }> = {
+                            'SME': { title: 'SME Data Plans', color: 'text-amber-400' },
+                            'GIFTING': { title: 'Gifting Data Plans', color: 'text-emerald-400' },
+                            'CORPORATE': { title: 'Corporate Gifting (CG) Plans', color: 'text-sky-400' },
+                            'AWOOF': { title: 'Awoof Data Plans', color: 'text-rose-400' },
+                            'SME2': { title: 'SME2 Data Plans', color: 'text-amber-300' },
+                            'DATA-SHARE': { title: 'Data Share Plans', color: 'text-purple-400' },
+                            'OTHER': { title: 'Standard Data Plans', color: 'text-slate-300' }
+                          };
+
+                          dataProds.forEach(p => {
+                            const rawType = (p.planType || 'SME').toUpperCase();
+                            let key = 'OTHER';
+
+                            if (rawType === 'SME') key = 'SME';
+                            else if (rawType === 'SME2') key = 'SME2';
+                            else if (rawType === 'GIFTING' || rawType === 'DIRECT-GIFTING') key = 'GIFTING';
+                            else if (rawType === 'CG' || rawType === 'CORPORATE' || rawType.includes('CORP')) key = 'CORPORATE';
+                            else if (rawType === 'AWOOF') key = 'AWOOF';
+                            else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
+                            else key = 'OTHER';
+
+                            if (!groups[key]) groups[key] = [];
+                            groups[key].push(p);
+                          });
+
+                          return order.map(key => {
+                            const items = groups[key];
+                            if (!items || items.length === 0) return null;
+                            const meta = labels[key] || labels['OTHER'];
+
+                            return (
+                              <div key={key} className="space-y-1.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+                                {/* Group Header inside modal */}
+                                <div className="px-2 py-1 flex items-center justify-between border-b border-slate-800">
+                                  <span className={`text-xs font-black font-display uppercase tracking-wider flex items-center gap-1.5 ${meta.color}`}>
+                                    <Zap className="w-3.5 h-3.5" />
+                                    {meta.title}
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                                    {items.length} {items.length === 1 ? 'Plan' : 'Plans'}
+                                  </span>
+                                </div>
+
+                                <div className="divide-y divide-slate-800/80">
+                                  {items.map((p) => {
+                                    const isSelected = selectedProduct?.id === p.id;
+                                    const dynamicPrice = getDynamicPrice(p);
+                                    const opName = p.operator || detectedOperator || 'MTN';
+                                    const typeTag = p.planType ? `(${p.planType})` : '(SME)';
+                                    const displayStr = `${opName} ${p.name} ${typeTag} — ₦${dynamicPrice.toLocaleString('en-NG')} ${typeTag}`;
+
+                                    return (
+                                      <div
+                                        key={p.id}
+                                        onClick={() => {
+                                          setSelectedProduct(p);
+                                          setCheckoutAmount(dynamicPrice.toString());
+                                          setIsPackageModalOpen(false);
+                                        }}
+                                        className={`py-3 px-3 rounded-xl transition-all cursor-pointer text-xs font-mono flex items-center justify-between ${
+                                          isSelected
+                                            ? 'bg-emerald-500/20 text-emerald-300 font-extrabold border-l-4 border-emerald-400'
+                                            : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium'
+                                        }`}
+                                      >
+                                        <span className="leading-snug pr-2">{displayStr}</span>
+                                        {isSelected && (
+                                          <span className="text-[10px] font-black uppercase text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-500/20 shrink-0">
+                                            Active
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Cable TV Dropdown */}
+          {serviceType === 'cable' && (
+            <div className="space-y-1.5">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-                Filter Data Type
+                Select Plan
               </label>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {['ALL', 'SME', 'CG', 'DIRECT-GIFTING', 'SME2', 'DATA-SHARE'].map((typeKey) => {
-                  const isActive = dataTypeFilter === typeKey;
-                  const labelText = typeKey === 'DIRECT-GIFTING' ? 'GIFTING' : typeKey;
-                  return (
-                    <button
-                      key={typeKey}
-                      type="button"
-                      onClick={() => setDataTypeFilter(typeKey)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        isActive
-                          ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 font-black'
-                          : 'bg-slate-800 text-slate-300 border border-slate-700/80 hover:bg-slate-750'
-                      }`}
-                    >
-                      {labelText}
-                    </button>
-                  );
-                })}
+              <div className="relative">
+                <select
+                  value={selectedProduct?.id || ''}
+                  onChange={(e) => {
+                    const prod = products.find(p => p.id === e.target.value);
+                    if (prod) {
+                      setSelectedProduct(prod);
+                      setCheckoutAmount(getDynamicPrice(prod).toString());
+                    }
+                  }}
+                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-xs font-black text-white appearance-none pr-10 shadow-md cursor-pointer focus:border-sky-400 focus:outline-none"
+                >
+                  {products
+                    .filter(p => {
+                      const matchCat = (p.category as string) === 'Cable' || p.category === 'Cable TV';
+                      const matchOp = detectedOperator ? p.operator?.toLowerCase() === detectedOperator.toLowerCase() : true;
+                      return matchCat && p.active && matchOp;
+                    })
+                    .map(p => (
+                      <option key={p.id} value={p.id} className="bg-slate-800 text-white">
+                        {p.name} (₦{getDynamicPrice(p).toLocaleString()})
+                      </option>
+                    ))
+                  }
+                </select>
+                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
           )}
-
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-            {serviceType === 'electricity' ? 'Electricity Provider'
-              : serviceType === 'cable' ? 'Select Plan'
-              : serviceType === 'exam' ? 'Examination Body'
-              : 'Select Data Package'}
-          </label>
-
-          <div className="relative">
-            <select
-              value={selectedProduct?.id || ''}
-              onChange={(e) => {
-                const prod = products.find(p => p.id === e.target.value);
-                if (prod) {
-                  setSelectedProduct(prod);
-                  if (serviceType !== 'electricity') {
-                    setCheckoutAmount(getDynamicPrice(prod).toString());
-                  }
-                }
-              }}
-              className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-xs font-black text-white appearance-none pr-10 shadow-md cursor-pointer focus:border-sky-400 focus:outline-none"
-            >
-              {products
-                .filter(p => {
-                  const matchCat = (p.category as string) === productCategoryFilter
-                    || (productCategoryFilter === 'Cable' && p.category === 'Cable TV')
-                    || (productCategoryFilter === 'Exam' && p.category === 'Exam Token');
-                  const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
-                    ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
-                    : true;
-                  const matchType = (serviceType === 'data' && dataTypeFilter !== 'ALL')
-                    ? (p.planType?.toUpperCase() === dataTypeFilter || (dataTypeFilter === 'DIRECT-GIFTING' && p.planType?.toUpperCase() === 'DIRECT-GIFTING'))
-                    : true;
-                  return matchCat && p.active && matchOp && matchType;
-                })
-                .map(p => {
-                  const tag = p.planType ? `[${p.planType}] ` : '';
-                  const displayName = `${tag}${p.name} (₦${getDynamicPrice(p).toLocaleString()})`;
-                  return (
-                    <option key={p.id} value={p.id} className="bg-slate-800 text-white">
-                      {displayName}
-                    </option>
-                  );
-                })
-              }
-              {products.filter(p => {
-                const matchCat = (p.category as string) === productCategoryFilter
-                  || (productCategoryFilter === 'Cable' && p.category === 'Cable TV');
-                const matchOp = (serviceType === 'data' || serviceType === 'cable') && detectedOperator
-                  ? p.operator?.toLowerCase() === detectedOperator.toLowerCase()
-                  : true;
-                const matchType = (serviceType === 'data' && dataTypeFilter !== 'ALL')
-                  ? (p.planType?.toUpperCase() === dataTypeFilter || (dataTypeFilter === 'DIRECT-GIFTING' && p.planType?.toUpperCase() === 'DIRECT-GIFTING'))
-                  : true;
-                return matchCat && p.active && matchOp && matchType;
-              }).length === 0 && (
-                <option value="" className="bg-slate-800 text-white">No packages found for selected filter</option>
-              )}
-            </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
 
           {/* Selected Data Plan Detail Preview Card */}
           {serviceType === 'data' && selectedProduct && (
