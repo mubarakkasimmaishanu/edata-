@@ -1,7 +1,95 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
-/* ─── Design Tokens ─── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Global Light / Dark Theme Overrides ─── */
+.light {
+  color-scheme: light;
+  background-color: #f4f7fb;
+  color: #0f172a;
+}
+
+.dark {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+/* System-wide Light Theme adaptations */
+.light .bg-slate-900,
+.light .bg-slate-950 {
+  background-color: #f4f7fb !important;
+  color: #0f172a;
+}
+
+.light .bg-slate-900\/90,
+.light .bg-slate-900\/95,
+.light .bg-slate-900\/80,
+.light .bg-slate-950\/90,
+.light .bg-slate-950\/80 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #0f172a;
+  border-color: #e2e8f0 !important;
+}
+
+.light .bg-slate-800,
+.light .bg-slate-800\/90,
+.light .bg-slate-800\/80,
+.light .bg-slate-900\/60,
+.light .bg-\[\#161a20\],
+.light .bg-\[\#181d24\],
+.light .bg-\[\#202732\] {
+  background-color: #ffffff !important;
+  color: #0f172a;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.light .border-slate-800,
+.light .border-slate-700,
+.light .border-slate-700\/80,
+.light .border-slate-700\/60 {
+  border-color: #e2e8f0 !important;
+}
+
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-white {
+  color: #0f172a;
+}
+
+.light .text-slate-400,
+.light .text-slate-300 {
+  color: #475569;
+}
+
+/* Preserve bright white text on primary buttons */
+.light .bg-sky-500,
+.light .bg-sky-600,
+.light .bg-\[\#0284c7\],
+.light .bg-emerald-500,
+.light .bg-rose-500,
+.light .bg-sky-500 *,
+.light .bg-sky-600 *,
+.light .bg-\[\#0284c7\] *,
+.light button.bg-sky-500,
+.light button.bg-sky-600,
+.light button.bg-\[\#0284c7\] {
+  color: #ffffff !important;
+}
+
+/* Inputs & Form Elements in Light Mode */
+.light input:not([type="checkbox"]),
+.light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light input::placeholder {
+  color: #94a3b8 !important;
+}
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;

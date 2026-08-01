@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
 import { UserProfile, ProductItem, Transaction, QuickAction } from './types';
@@ -123,10 +124,26 @@ function MainApp() {
       });
 
       dbPlans.forEach((plan) => {
-        const parentSrv = dbServices.find(s => s.id === plan.service_type_id);
-        const operatorName = parentSrv 
-          ? (parentSrv.slug.includes('mtn') ? 'MTN' : parentSrv.slug.includes('glo') ? 'Glo' : parentSrv.slug.includes('airtel') ? 'Airtel' : parentSrv.slug.includes('9mobile') ? '9mobile' : parentSrv.slug.toUpperCase())
-          : 'MTN';
+        const parentSrv = dbServices.find(s => String(s.id) === String(plan.service_type_id));
+        let operatorName = plan.operator;
+
+        if (!operatorName && parentSrv) {
+          const slug = (parentSrv.slug || '').toLowerCase();
+          operatorName = slug.includes('mtn') ? 'MTN'
+            : slug.includes('glo') ? 'Glo'
+            : slug.includes('airtel') ? 'Airtel'
+            : slug.includes('9mobile') ? '9mobile'
+            : parentSrv.slug.toUpperCase();
+        }
+
+        if (!operatorName) {
+          const pName = (plan.name || '').toUpperCase();
+          const sId = Number(plan.service_type_id);
+          if (pName.includes('AIRTEL') || [4, 24, 28].includes(sId)) operatorName = 'Airtel';
+          else if (pName.includes('GLO') || [6, 25, 29].includes(sId)) operatorName = 'Glo';
+          else if (pName.includes('9MOBILE') || [8, 26, 30].includes(sId)) operatorName = '9mobile';
+          else operatorName = 'MTN';
+        }
 
         mappedProducts.push({
           id: `plan-${plan.id}-${plan.service_type_id}`,
@@ -576,8 +593,10 @@ function MainApp() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <MainApp />
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <MainApp />
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

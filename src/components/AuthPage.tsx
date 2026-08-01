@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck, Sun, Moon } from 'lucide-react';
 import edataLogo from '../assets/edata_logo.png';
 import { api, setAuthToken } from '../services/api';
 import { useToast } from './Toast';
+import { useTheme } from '../context/ThemeContext';
 import { UserProfile } from '../types';
 import { DEFAULT_USER, INITIAL_SUBSCRIBERS } from '../data';
 
@@ -23,6 +24,7 @@ export default function AuthPage({
   subscribers = INITIAL_SUBSCRIBERS,
 }: AuthPageProps) {
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [screenMode, setScreenMode] = useState<'auth' | 'otp' | 'password_create' | 'forgot_otp' | 'forgot_reset'>('auth');
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -411,40 +413,81 @@ export default function AuthPage({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between w-full font-sans selection:bg-sky-500 selection:text-white">
+    <div className={`min-h-screen flex flex-col justify-between w-full font-sans transition-colors duration-200 ${
+      theme === 'light' ? 'bg-[#f4f7fb] text-slate-900' : 'bg-slate-900 text-slate-100'
+    }`}>
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-5 py-8">
+        {/* Top Quick Theme Toggle Button */}
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`p-2 rounded-2xl border transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+              theme === 'light'
+                ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
+            }`}
+            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+          >
+            {theme === 'light' ? (
+              <><Moon className="w-4 h-4 text-slate-700" /> <span className="text-[11px]">Dark</span></>
+            ) : (
+              <><Sun className="w-4 h-4 text-amber-400" /> <span className="text-[11px]">Light</span></>
+            )}
+          </button>
+        </div>
+
         {screenMode === 'auth' && (
           <div className="flex-1 flex flex-col justify-between space-y-6">
-            <div className="space-y-6 pt-4">
+            <div className="space-y-6 pt-2">
               {/* Header Title */}
-              <div className="text-center space-y-1 pt-6 pb-2">
-                <h1 className="text-3xl font-black tracking-tight text-white flex items-center justify-center gap-0.5 font-display">
-                  <span className="text-sky-400 font-extrabold">e</span><span className="font-extrabold text-white">Data</span>
+              <div className="text-center space-y-1 pt-4 pb-2">
+                <h1 className="text-3xl font-black tracking-tight flex items-center justify-center gap-0.5 font-display">
+                  <span className="text-[#0284c7] font-extrabold">e</span>
+                  <span className={`font-extrabold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Data</span>
                 </h1>
-                <p className="text-xs font-semibold text-slate-400 tracking-wide">
+                <p className={`text-xs font-semibold tracking-wide ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                   Instant VTU & Utility Payment Platform
                 </p>
               </div>
 
-              {/* System Dark Glassmorphic Card */}
-              <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-2xl backdrop-blur-xl space-y-5">
+              {/* System Card */}
+              <div className={`rounded-3xl p-5 backdrop-blur-xl space-y-5 transition-all ${
+                theme === 'light'
+                  ? 'bg-white border border-slate-200/80 shadow-xl shadow-slate-200/60'
+                  : 'bg-slate-800/90 border border-slate-700/80 shadow-2xl'
+              }`}>
                 {/* Tab Switcher */}
-                <div className="bg-slate-950/90 border border-slate-800 p-1.5 rounded-2xl flex relative">
+                <div className={`p-1.5 rounded-2xl flex relative border ${
+                  theme === 'light' ? 'bg-[#f1f5f9] border-slate-200/80' : 'bg-slate-950/90 border-slate-800'
+                }`}>
                   <div
-                    className="absolute top-1.5 bottom-1.5 bg-sky-500 rounded-xl shadow-md shadow-sky-500/20 transition-all duration-300 ease-out"
+                    className={`absolute top-1.5 bottom-1.5 rounded-xl transition-all duration-300 ease-out ${
+                      theme === 'light'
+                        ? 'bg-white shadow-sm border border-slate-200/60'
+                        : 'bg-sky-500 shadow-md shadow-sky-500/20'
+                    }`}
                     style={{ width: 'calc(50% - 6px)', left: isRegistering ? 'calc(50% + 3px)' : '3px' }}
                   />
                   <button
                     type="button"
                     onClick={() => setIsRegistering(false)}
-                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${!isRegistering ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${
+                      !isRegistering
+                        ? (theme === 'light' ? 'text-slate-900 font-extrabold' : 'text-white font-extrabold')
+                        : (theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200')
+                    }`}
                   >
                     Sign In
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsRegistering(true)}
-                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${isRegistering ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex-grow py-2.5 text-xs font-black rounded-xl transition-all relative z-10 cursor-pointer ${
+                      isRegistering
+                        ? (theme === 'light' ? 'text-slate-900 font-extrabold' : 'text-white font-extrabold')
+                        : (theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200')
+                    }`}
                   >
                     Create Account
                   </button>
@@ -454,26 +497,34 @@ export default function AuthPage({
                 {isRegistering ? (
                   <form onSubmit={handleRegisterSubmit} className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-300 block">Email Address</label>
+                      <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
                         required
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         placeholder="you@email.com"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-medium"
+                        className={`w-full border rounded-2xl px-4 py-3.5 text-sm transition-all font-medium focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
+                          theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                            : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
+                        }`}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-300 block">
-                        Referral / Promo Code <span className="text-slate-500 font-normal">(Optional)</span>
+                      <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
+                        Referral / Promo Code <span className={`${theme === 'light' ? 'text-slate-400' : 'text-slate-500'} font-normal`}>(Optional)</span>
                       </label>
                       <input
                         type="text"
                         value={authPromo}
                         onChange={(e) => setAuthPromo(e.target.value)}
                         placeholder="e.g. EDATA2026"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 uppercase focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-mono font-bold"
+                        className={`w-full border rounded-2xl px-4 py-3.5 text-sm uppercase transition-all font-mono font-bold focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
+                          theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                            : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
+                        }`}
                       />
                     </div>
                     <label className="flex items-center gap-2.5 pt-1 cursor-pointer">
@@ -481,13 +532,13 @@ export default function AuthPage({
                         type="checkbox"
                         checked={acceptTerms}
                         onChange={(e) => setAcceptTerms(e.target.checked)}
-                        className="rounded border-slate-700 bg-slate-950 text-sky-500 focus:ring-sky-500 w-4 h-4"
+                        className="rounded border-slate-300 bg-white text-[#0284c7] focus:ring-sky-500 w-4 h-4"
                       />
-                      <span className="text-xs text-slate-400 font-medium">I accept the Terms & Conditions</span>
+                      <span className={`text-xs font-medium ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>I accept the Terms & Conditions</span>
                     </label>
                     <button
                       type="submit"
-                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer"
+                      className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-600/20 active:scale-[0.98] transition-all cursor-pointer"
                     >
                       Send Verification Code
                     </button>
@@ -495,29 +546,37 @@ export default function AuthPage({
                 ) : (
                   <form onSubmit={handleLoginSubmit} className="space-y-4">
                     {loginError && (
-                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-400 font-medium flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                      <div className={`p-3 border rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                        theme === 'light'
+                          ? 'bg-[#fff1f2] border-rose-200 text-rose-800'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                      }`}>
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
                         <span>{loginError}</span>
                       </div>
                     )}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-300 block">Email Address</label>
+                      <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
                         required
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         placeholder="you@email.com"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all font-medium"
+                        className={`w-full border rounded-2xl px-4 py-3.5 text-sm transition-all font-medium focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
+                          theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                            : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
+                        }`}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-slate-300 block">Password</label>
+                        <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Password</label>
                         <button
                           type="button"
                           onClick={() => { setForgotPasswordEmail(authEmail); setForgotPasswordModalOpen(true); }}
-                          className="text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors"
+                          className="text-xs font-bold text-[#0284c7] hover:text-[#0369a1] transition-colors"
                         >
                           Forgot Password?
                         </button>
@@ -528,15 +587,19 @@ export default function AuthPage({
                         value={authPassword}
                         onChange={(e) => setAuthPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all"
+                        className={`w-full border rounded-2xl px-4 py-3.5 text-sm transition-all font-medium focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
+                          theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                            : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
+                        }`}
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loginLoading}
-                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {loginLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Sign In'}
+                      {loginLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Sign In ->'}
                     </button>
                   </form>
                 )}
@@ -544,10 +607,14 @@ export default function AuthPage({
                 {/* Divider */}
                 <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-800" />
+                    <div className={`w-full border-t ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`} />
                   </div>
                   <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-                    <span className="bg-slate-800 px-3 text-slate-400 font-bold rounded-full border border-slate-700/60">
+                    <span className={`px-3 font-bold rounded-full border ${
+                      theme === 'light'
+                        ? 'bg-white text-slate-400 border-slate-200'
+                        : 'bg-slate-800 text-slate-400 border-slate-700/60'
+                    }`}>
                       Or continue with
                     </span>
                   </div>
@@ -558,7 +625,11 @@ export default function AuthPage({
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={googleAuthLoading}
-                  className="w-full bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-slate-200 font-bold py-3.5 rounded-2xl text-sm shadow-md flex items-center justify-center gap-3 active:scale-[0.98] transition-all cursor-pointer"
+                  className={`w-full border font-bold py-3.5 rounded-2xl text-sm shadow-xs flex items-center justify-center gap-3 active:scale-[0.98] transition-all cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-800'
+                      : 'bg-slate-950/90 hover:bg-slate-900 border-slate-800 text-slate-200'
+                  }`}
                 >
                   {googleAuthLoading ? (
                     <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
@@ -575,7 +646,9 @@ export default function AuthPage({
               </div>
             </div>
 
-            <p className="text-center text-[11px] text-slate-500 font-medium py-3">
+            <p className={`text-center text-[11px] font-medium py-3 ${
+              theme === 'light' ? 'text-slate-400' : 'text-slate-500'
+            }`}>
               Protected by 256-bit SSL Security & Verification Token Validation
             </p>
           </div>
