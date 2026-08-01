@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { UserProfile, Transaction, QuickAction } from '../types';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
 import gloIcon from '@/assets/icons/glo.png';
@@ -70,8 +71,10 @@ export default function UserDashboard({
   unreadNotificationsCount = 0,
   onSelectTransaction
 }: UserDashboardProps) {
+  const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
 
   const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture || currentUser.photo);
   const displayName = currentUser.firstname
@@ -148,8 +151,21 @@ export default function UserDashboard({
           </div>
         </div>
 
-        {/* Right Action Icons: Support & Notifications */}
+        {/* Right Action Icons: Theme, Support & Notifications */}
         <div className="flex items-center gap-2">
+          {/* Quick Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-800 rounded-2xl transition-all active:scale-95 cursor-pointer border border-slate-700/60"
+            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4.5 h-4.5 text-slate-700" />
+            ) : (
+              <Sun className="w-4.5 h-4.5 text-amber-400" />
+            )}
+          </button>
+
           {/* Support Headset Button */}
           <button
             onClick={() => onNavigate('support')}
@@ -220,21 +236,49 @@ export default function UserDashboard({
             </button>
           </div>
 
-          {/* Bottom Area: Automatic Funding Card */}
-          <div
-            onClick={() => onNavigate('fund')}
-            className="p-3.5 bg-sky-950/60 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-sky-900/80 transition-all group"
-          >
-            <div className="space-y-0.5">
-              <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">AUTOMATIC FUNDING</span>
-              <p className="text-xs font-bold text-white font-display group-hover:text-sky-200 transition-colors">
-                Get your dedicated transfer account
-              </p>
-            </div>
-            <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-white border border-white/20 group-hover:translate-x-0.5 transition-transform">
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </div>
+          {/* Bottom Area: Automatic Dedicated Bank Transfer Capsule */}
+          {(() => {
+            const accNum = currentUser.phone ? currentUser.phone.replace(/\D/g, '') : '6301234567';
+            return (
+              <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">AUTOMATIC BANK TRANSFER</span>
+                  </div>
+                  <p className="text-xs font-bold text-white font-mono tracking-wider truncate">
+                    Moniepoint • <span className="text-sky-200">{accNum}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(accNum);
+                      setCopiedAccount(true);
+                      toast.success(`Account number ${accNum} copied! Transfer from any bank app to fund wallet.`);
+                      setTimeout(() => setCopiedAccount(false), 2500);
+                    }}
+                    className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold border border-white/25 flex items-center gap-1 transition-all active:scale-95 cursor-pointer font-display"
+                    title="Copy Account Number"
+                  >
+                    {copiedAccount ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('fund')}
+                    className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl border border-white/25 transition-all active:scale-95 cursor-pointer"
+                    title="Funding Options"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── 3. QUICK ACTIONS Card Section (Matching Image 1 & 2) ── */}
@@ -298,34 +342,50 @@ export default function UserDashboard({
           </div>
         </section>
 
-        {/* ── 5. Reseller License Banner Card (Matching Image 2) ── */}
+        {/* ── 5. Reseller License Banner Card ── */}
         {currentUser.category !== 'Premium User' && (
-          <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 shadow-xl flex items-center justify-between gap-3">
+          <section className={`rounded-3xl p-4 flex items-center justify-between gap-3 transition-all ${
+            theme === 'light'
+              ? 'bg-gradient-to-r from-sky-50/90 via-indigo-50/60 to-blue-50/90 border border-sky-200/80 shadow-md shadow-sky-100/50'
+              : 'bg-slate-800/90 border border-slate-700/80 shadow-xl'
+          }`}>
             <div className="space-y-1">
-              <span className="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30 font-display">
+              <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border font-display ${
+                theme === 'light'
+                  ? 'bg-sky-100 text-sky-700 border-sky-300/80'
+                  : 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+              }`}>
                 BASIC USER • Current Tier
               </span>
-              <h3 className="text-sm font-black text-white font-display pt-0.5">Reseller License</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Get wholesale agent discounts on all purchases.</p>
+              <h3 className={`text-sm font-black font-display pt-0.5 ${
+                theme === 'light' ? 'text-slate-900' : 'text-white'
+              }`}>Reseller License</h3>
+              <p className={`text-[11px] font-medium ${
+                theme === 'light' ? 'text-slate-600' : 'text-slate-400'
+              }`}>Get wholesale agent discounts on all purchases.</p>
             </div>
 
             <button
               onClick={() => onNavigate('upgrade')}
-              className="bg-sky-500 hover:bg-sky-600 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-lg transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
+              className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
             >
               Upgrade ₦5,000
             </button>
           </section>
         )}
 
-        {/* ── 6. Earn / Referral Banner Card (Matching Image 2) ── */}
-        <section className="bg-gradient-to-r from-sky-900 to-indigo-950 border border-sky-500/40 rounded-3xl p-4 shadow-xl flex items-center justify-between text-white">
+        {/* ── 6. Earn / Referral Banner Card ── */}
+        <section className={`rounded-3xl p-4 flex items-center justify-between text-white transition-all ${
+          theme === 'light'
+            ? 'bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#1d4ed8] border border-sky-400/30 shadow-lg shadow-sky-600/15'
+            : 'bg-gradient-to-r from-sky-900 to-indigo-950 border border-sky-500/40 shadow-xl'
+        }`}>
           <div className="space-y-0.5">
             <h4 className="text-sm font-black text-white font-display">Earn up to ₦2,500</h4>
-            <p className="text-[11px] text-sky-200 font-medium">Invite friends and earn dynamic cash payouts</p>
+            <p className="text-[11px] text-sky-100 font-medium">Invite friends and earn dynamic cash payouts</p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-sky-500/20 text-sky-300 border border-sky-400/30 flex items-center justify-center shrink-0">
-            <Gift className="w-5 h-5 text-sky-400" />
+          <div className="w-10 h-10 rounded-2xl bg-white/20 text-white border border-white/25 flex items-center justify-center shrink-0">
+            <Gift className="w-5 h-5 text-white" />
           </div>
         </section>
       </main>

@@ -2,9 +2,10 @@ import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import {
   ChevronLeft, Key, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
-  Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight
+  Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon
 } from 'lucide-react';
 import { useToast } from './Toast';
+import { useTheme } from '../context/ThemeContext';
 import { api, resolveImageUrl } from '../services/api';
 import PinScreen from './PinScreen';
 import PrivacyTerms from './PrivacyTerms';
@@ -20,6 +21,7 @@ interface ProfileSettingsProps {
 
 export default function ProfileSettings({ currentUser, setCurrentUser, onBack, onLogout }: ProfileSettingsProps) {
   const toast = useToast();
+  const { theme, toggleTheme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Full-screen PIN screen state
@@ -225,6 +227,53 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               >
                 {currentUser.phone ? 'Edit' : 'Add Phone'}
               </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ── APPEARANCE & THEME Section ── */}
+        <section className="space-y-3">
+          <div className="px-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 font-display">APPEARANCE & THEME</span>
+          </div>
+
+          <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4.5 space-y-3 shadow-xl shadow-slate-950/20">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                  {theme === 'dark' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5 text-amber-400" />}
+                </div>
+                <div>
+                  <span className="text-xs font-black text-white block font-display">App Theme Mode</span>
+                  <span className="text-[10.5px] text-slate-400 font-medium">Toggle system Dark / Light theme</span>
+                </div>
+              </div>
+
+              {/* Theme Segmented Switcher */}
+              <div className="bg-slate-950 p-1 rounded-xl flex items-center gap-1 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-sky-500 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Moon className="w-3 h-3" /> Dark
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Sun className="w-3 h-3 text-amber-500" /> Light
+                </button>
+              </div>
             </div>
           </div>
         </section>

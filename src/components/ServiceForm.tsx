@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductItem } from '../types';
-import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag } from 'lucide-react';
+import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search } from 'lucide-react';
 import { api } from '../services/api';
 
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -77,7 +77,7 @@ const ELECTRICITY_PROVIDERS = [
   { name: 'PHED', fullName: 'PORT HARCOURT ELECTRIC PHED', icon: phedcIcon },
 ];
 
-const AIRTIME_SHORTCUTS = [100, 200, 300, 500, 1000, 2000];
+const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
 
 interface ServiceFormProps {
@@ -137,12 +137,13 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [meterType, setMeterType] = React.useState<'PrePaid' | 'PostPaid'>('PrePaid');
   const [discoOpen, setDiscoOpen] = React.useState<boolean>(false);
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
+  const [dataSearchQuery, setDataSearchQuery] = React.useState<string>('');
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
 
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
   const showVerifyButton = ['electricity', 'cable'].includes(serviceType);
-  const amountEditable = ['airtime', 'electricity'].includes(serviceType);
+  const amountEditable = ['electricity'].includes(serviceType);
   const showContactPicker = ['airtime', 'data'].includes(serviceType);
   const isA2C = serviceType === 'a2c';
 
@@ -644,7 +645,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
                     <div className="bg-[#181d24] border border-slate-700/90 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in">
                       
-                      {/* Modal Header matching Image 2 */}
+                      {/* Modal Header */}
                       <div className="p-4 bg-[#202732] border-b border-slate-700/80 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-1.5 h-4 bg-emerald-400 rounded-full"></div>
@@ -659,13 +660,79 @@ export default function ServiceForm(props: ServiceFormProps) {
                         </button>
                       </div>
 
+                      {/* Search Bar & Filter Chips Bar */}
+                      <div className="p-3 bg-[#1a202a] border-b border-slate-700/80 space-y-2">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Search plan (e.g. 1GB, SME, 500MB)..."
+                            value={dataSearchQuery}
+                            onChange={(e) => setDataSearchQuery(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-7 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-sky-400 font-medium"
+                          />
+                          {dataSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setDataSearchQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white font-bold px-1"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Category Filter Chips */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
+                          {['ALL', 'SME', 'GIFTING', 'CORPORATE'].map((catKey) => (
+                            <button
+                              key={catKey}
+                              type="button"
+                              onClick={() => setDataTypeFilter(catKey)}
+                              className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                                dataTypeFilter === catKey
+                                  ? 'bg-sky-500 text-white shadow-sm'
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                              }`}
+                            >
+                              {catKey}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Modal Body List grouped by Plan Type */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
-                        {dataProds.length === 0 ? (
-                          <div className="p-6 text-center text-xs text-slate-400 font-bold">
-                            No data packages found for selected network.
-                          </div>
-                        ) : (() => {
+                        {(() => {
+                          let filteredList = dataProds;
+
+                          if (dataTypeFilter !== 'ALL') {
+                            filteredList = filteredList.filter(p => {
+                              const t = (p.planType || 'SME').toUpperCase();
+                              if (dataTypeFilter === 'SME') return t.includes('SME');
+                              if (dataTypeFilter === 'GIFTING') return t.includes('GIFT');
+                              if (dataTypeFilter === 'CORPORATE') return t.includes('CG') || t.includes('CORP');
+                              return true;
+                            });
+                          }
+
+                          if (dataSearchQuery.trim()) {
+                            const q = dataSearchQuery.toLowerCase();
+                            filteredList = filteredList.filter(p =>
+                              p.name.toLowerCase().includes(q) ||
+                              (p.planType && p.planType.toLowerCase().includes(q)) ||
+                              (p.operator && p.operator.toLowerCase().includes(q))
+                            );
+                          }
+
+                          if (filteredList.length === 0) {
+                            return (
+                              <div className="p-6 text-center text-xs text-slate-400 font-bold">
+                                No matching data packages found.
+                              </div>
+                            );
+                          }
+
                           const groups: Record<string, ProductItem[]> = {};
                           const order = ['SME', 'GIFTING', 'CORPORATE', 'AWOOF', 'SME2', 'DATA-SHARE', 'OTHER'];
                           const labels: Record<string, { title: string; color: string }> = {
@@ -678,7 +745,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             'OTHER': { title: 'Standard Data Plans', color: 'text-slate-300' }
                           };
 
-                          dataProds.forEach(p => {
+                          filteredList.forEach(p => {
                             const rawType = (p.planType || 'SME').toUpperCase();
                             let key = 'OTHER';
 
@@ -687,6 +754,12 @@ export default function ServiceForm(props: ServiceFormProps) {
                             else if (rawType === 'GIFTING' || rawType === 'DIRECT-GIFTING') key = 'GIFTING';
                             else if (rawType === 'CG' || rawType === 'CORPORATE' || rawType.includes('CORP')) key = 'CORPORATE';
                             else if (rawType === 'AWOOF') key = 'AWOOF';
+                            else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
+                            else key = 'OTHER';
+
+                            if (!groups[key]) groups[key] = [];
+                            groups[key].push(p);
+                          });
                             else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
                             else key = 'OTHER';
 
@@ -818,7 +891,45 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Amount Input & Quick Shortcuts ─── */}
+      {/* ─── Predefined Amount Selection for Airtime ─── */}
+      {serviceType === 'airtime' && (
+        <div className="space-y-2">
+          <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+            Select Airtime Amount
+          </label>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+            {AIRTIME_SHORTCUTS.map((amt) => {
+              const isSelected = checkoutAmount === amt.toString();
+              return (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCheckoutAmount(amt.toString());
+                  }}
+                  className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
+                    isSelected
+                      ? 'border-sky-400 bg-sky-500/15 text-white ring-2 ring-sky-500/40 shadow-lg shadow-sky-500/20 scale-[1.02]'
+                      : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
+                      <Check className="w-3 h-3 text-white stroke-[3]" />
+                    </div>
+                  )}
+                  <span className="text-base font-black font-mono tracking-tight">
+                    ₦{amt.toLocaleString('en-NG')}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Amount Input (Electricity & A2C) ─── */}
       {(amountEditable || isA2C) && (
         <div className="space-y-2">
           <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
@@ -828,7 +939,6 @@ export default function ServiceForm(props: ServiceFormProps) {
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold font-mono">₦</span>
             <input
               type="text"
-              disabled={!amountEditable && !isA2C}
               placeholder="Enter amount"
               value={checkoutAmount}
               onChange={(e) => {
@@ -843,37 +953,6 @@ export default function ServiceForm(props: ServiceFormProps) {
               className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl pl-9 pr-4 py-3.5 text-sm text-white placeholder-slate-400 font-black font-mono tabular-nums focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 shadow-md"
             />
           </div>
-
-          {/* Quick Amount Shortcuts for Airtime */}
-          {serviceType === 'airtime' && (
-            <div className="pt-1">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5 font-display">
-                Quick Amount Shortcuts
-              </span>
-              <div className="grid grid-cols-6 gap-1.5">
-                {AIRTIME_SHORTCUTS.map((amt) => {
-                  const isSelected = checkoutAmount === amt.toString();
-                  return (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        setCheckoutAmount(amt.toString());
-                      }}
-                      className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all text-center border cursor-pointer ${
-                        isSelected
-                          ? 'bg-sky-500 text-white border-sky-400 shadow-md shadow-sky-500/30 scale-[1.02]'
-                          : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-750 active:scale-95'
-                      }`}
-                    >
-                      ₦{amt.toLocaleString()}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

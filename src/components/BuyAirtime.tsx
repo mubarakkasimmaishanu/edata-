@@ -18,7 +18,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
   const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
-  const [checkoutAmount, setCheckoutAmount] = useState('');
+  const [checkoutAmount, setCheckoutAmount] = useState('100');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
 
