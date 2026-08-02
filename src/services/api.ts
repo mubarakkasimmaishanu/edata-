@@ -32,7 +32,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
   const publicEndpoints = [
     '/login', '/signup', '/signup-request', '/signup-verify',
     '/signup-complete', '/google-auth', '/detect-network',
-    '/forgot-password', '/reset-password', '/quick-actions'
+    '/forgot-password', '/reset-password', '/quick-actions', '/services'
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));

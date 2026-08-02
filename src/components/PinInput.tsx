@@ -116,12 +116,12 @@ export default function PinInput({
               onChange={(e) => handleChange(e, i)}
               onKeyDown={(e) => handleKeyDown(e, i)}
               onFocus={handleFocus}
-              className={`w-14 h-16 sm:w-16 sm:h-18 text-center text-2xl font-black font-mono text-white rounded-2xl border-2 transition-all duration-200 focus:outline-none ${
+              className={`w-14 h-16 sm:w-16 sm:h-18 text-center text-2xl font-black font-mono rounded-2xl border-2 transition-all duration-200 focus:outline-none ${
                 error
-                  ? 'bg-rose-500/10 border-rose-500 text-rose-300 ring-2 ring-rose-500/20'
+                  ? 'bg-rose-500/10 border-rose-500 text-rose-500 ring-2 ring-rose-500/20'
                   : isFilled
-                  ? 'bg-slate-900 border-sky-500 text-white shadow-lg shadow-sky-500/10 ring-2 ring-sky-500/20'
-                  : 'bg-slate-900/80 border-slate-700/80 text-slate-400 focus:border-sky-500 focus:bg-slate-900 focus:ring-2 focus:ring-sky-500/30'
+                  ? 'bg-sky-50 dark:bg-slate-900 border-sky-500 text-sky-950 dark:text-white shadow-lg shadow-sky-500/10 ring-2 ring-sky-500/20'
+                  : 'bg-white dark:bg-slate-900/80 border-slate-300 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             />
             {/* Subtle glow dot when focused or filled */}

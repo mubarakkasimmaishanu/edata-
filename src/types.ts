@@ -19,6 +19,8 @@ export interface UserProfile {
   photo?: string | null;
   avatar?: string | null;
   picture?: string | null;
+  virtualAccount?: VirtualAccount | null;
+  virtualAccounts?: VirtualAccount[];
 }
 
 export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';

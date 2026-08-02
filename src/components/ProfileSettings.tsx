@@ -146,7 +146,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
 
         {/* ── Agent License Upgrade Card Banner ── */}
         {currentUser.category !== 'Premium User' && (
-          <div className="wallet-gradient rounded-3xl p-5 border border-sky-400/20 shadow-xl text-white space-y-3 relative overflow-hidden">
+          <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 rounded-3xl p-5 border border-sky-400/30 shadow-xl text-white space-y-3 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[9px] font-black text-sky-300 uppercase tracking-widest block font-display">AGENT LICENSE UPGRADE</span>
