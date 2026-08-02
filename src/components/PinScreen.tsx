@@ -317,6 +317,35 @@ export default function PinScreen({
     }
   };
 
+  const requiredLength = mode === 'forgot_pin' && step === 2 ? 6 : 4;
+  const isPinComplete = pin.length === requiredLength;
+
+  const getSubmitButtonText = () => {
+    if (mode === 'purchase') {
+      const origAmount = typeof summary?.amount === 'number' ? summary.amount : parseFloat(String(summary?.amount || 0));
+      const finalAmount = Math.max(0, origAmount - promoDiscount);
+      if (finalAmount > 0) {
+        return `Confirm & Pay ₦${finalAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+      }
+      return 'Confirm & Pay';
+    }
+    if (mode === 'upgrade_pin') {
+      return 'Confirm Upgrade (₦5,000.00)';
+    }
+    if (mode === 'set_pin') {
+      return step === 1 ? 'Continue' : 'Confirm & Save PIN';
+    }
+    if (mode === 'change_pin') {
+      return step === 1 ? 'Next' : step === 2 ? 'Continue' : 'Confirm & Update PIN';
+    }
+    if (mode === 'forgot_pin') {
+      if (step === 2) return 'Verify OTP Code';
+      if (step === 3) return 'Continue';
+      return 'Confirm & Reset PIN';
+    }
+    return 'Confirm';
+  };
+
   const renderIcon = () => {
     const netLower = (summary?.provider || summary?.title || summary?.icon || '').toLowerCase();
     let logoSrc = mtnIcon;
@@ -669,7 +698,7 @@ export default function PinScreen({
 
               {/* PinInput Digit Boxes Component */}
               <PinInput
-                length={mode === 'forgot_pin' && step === 2 ? 6 : 4}
+                length={requiredLength}
                 value={pin}
                 onChange={setPin}
                 onComplete={handleComplete}
@@ -687,15 +716,27 @@ export default function PinScreen({
                 </div>
               )}
 
-              {/* Loading Indicator */}
-              {loading && (
-                <div className="text-center pt-2">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-500/10 border border-sky-500/20 rounded-full text-xs font-bold text-sky-400">
-                    <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
-                    <span>Processing authorization...</span>
-                  </div>
-                </div>
-              )}
+              {/* Primary Action / Confirm Button */}
+              <div className="pt-3">
+                <button
+                  type="button"
+                  onClick={() => handleComplete(pin)}
+                  disabled={!isPinComplete || loading}
+                  className="w-full py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.98] cursor-pointer btn-sheen uppercase tracking-wider"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-sky-200" />
+                      <span>{getSubmitButtonText()}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
