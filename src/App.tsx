@@ -299,8 +299,10 @@ function MainApp() {
     };
 
     const token = getAuthToken();
-    fetchAllData();
-    if (!token) {
+    if (token) {
+      setCurrentScreen('app');
+      fetchAllData();
+    } else {
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }
@@ -314,6 +316,8 @@ function MainApp() {
 
   const handleLoginSuccess = (token: string) => {
     setAuthToken(token);
+    setCurrentScreen('app');
+    setActiveView('dashboard');
     fetchAllData();
   };
 
