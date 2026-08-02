@@ -79,6 +79,54 @@
   color: #ffffff !important;
 }
 
+/* ─── Hero Wallet Card High-Contrast Visibility Rules ─── */
+.hero-wallet-card,
+.hero-wallet-card *,
+.light .hero-wallet-card,
+.light .hero-wallet-card *,
+.light .hero-wallet-card button,
+.light .hero-wallet-card button *,
+.light .hero-wallet-card svg,
+.light .hero-wallet-card span,
+.light .hero-wallet-card p {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.light .hero-wallet-card .text-sky-200,
+.light .hero-wallet-card .text-sky-300,
+.hero-wallet-card .text-sky-200,
+.hero-wallet-card .text-sky-300 {
+  color: #bae6fd !important;
+}
+
+/* Glass background buttons inside hero card */
+.light .hero-wallet-card .bg-white\/20,
+.hero-wallet-card .bg-white\/20 {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+}
+
+.light .hero-wallet-card .bg-sky-950\/70,
+.hero-wallet-card .bg-sky-950\/70 {
+  background-color: rgba(12, 74, 110, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Primary white Add Money & Get Virtual Account buttons */
+.light .hero-wallet-card button.bg-white,
+.hero-wallet-card button.bg-white {
+  background-color: #ffffff !important;
+  color: #0c4a6e !important;
+}
+
+.light .hero-wallet-card button.bg-white *,
+.hero-wallet-card button.bg-white * {
+  color: #0c4a6e !important;
+  stroke: #0c4a6e !important;
+}
+
 /* Inputs & Form Elements in Light Mode */
 .light input:not([type="checkbox"]),
 .light select {

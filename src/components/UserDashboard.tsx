@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserProfile, Transaction, QuickAction } from '../types';
+import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
   BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon
@@ -17,7 +17,7 @@ import necoIcon from '@/assets/icons/neco.png';
 import aedcIcon from '@/assets/icons/aedc.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 import { useToast } from './Toast';
-import { resolveImageUrl } from '../services/api';
+import { api, resolveImageUrl } from '../services/api';
 
 const ICON_MAP: Record<string, string> = {
   mtn: mtnIcon,
@@ -75,6 +75,62 @@ export default function UserDashboard({
   const toast = useToast();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [isGeneratingAccount, setIsGeneratingAccount] = useState(false);
+  const [localVirtualAccount, setLocalVirtualAccount] = useState<VirtualAccount | null>(() => {
+    try {
+      const saved = localStorage.getItem('edata_virtual_account');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleGenerateVirtualAccount = async () => {
+    setIsGeneratingAccount(true);
+    try {
+      // 1. Attempt KatPay virtual account generation
+      const genRes = await api.generateVirtualAccount();
+      
+      let fetchedAcc: VirtualAccount | null = null;
+      if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.data?.virtual_account)) {
+        const raw = genRes.data?.virtual_account || genRes.data || genRes;
+        fetchedAcc = {
+          bank_name: raw.bank_name || raw.bank || 'KatPay / Wema Bank',
+          account_number: raw.account_number || raw.accountNo || raw.account_no,
+          account_name: raw.account_name || raw.accountName || displayName,
+        };
+      }
+
+      // 2. Fallback / Refresh wallet data if direct response lacked account_number
+      if (!fetchedAcc || !fetchedAcc.account_number) {
+        const walletRes = await api.getWallet();
+        const vAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
+        if (vAccounts.length > 0 && vAccounts[0].account_number) {
+          fetchedAcc = {
+            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
+            account_number: vAccounts[0].account_number || vAccounts[0].accountNo,
+            account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
+          };
+        }
+      }
+
+      if (fetchedAcc && fetchedAcc.account_number) {
+        setLocalVirtualAccount(fetchedAcc);
+        try {
+          localStorage.setItem('edata_virtual_account', JSON.stringify(fetchedAcc));
+        } catch {}
+        toast.success(`Virtual Account ${fetchedAcc.account_number} ready! Copy to fund your wallet.`);
+        if (onRefresh) onRefresh();
+      } else {
+        toast.info(genRes?.message || 'Virtual Account request submitted. Refreshing dashboard...');
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to generate virtual account right now. Please try again.');
+    } finally {
+      setIsGeneratingAccount(false);
+    }
+  };
 
   const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture || currentUser.photo);
   const displayName = currentUser.firstname
@@ -193,7 +249,7 @@ export default function UserDashboard({
 
       <main className="flex-1 px-4 py-5 space-y-5 max-w-lg mx-auto w-full">
         {/* ── 2. Hero Wallet Balance Card (Matching Image 1 & 2) ── */}
-        <div className="bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-5.5 rounded-[2.2rem] shadow-2xl shadow-sky-950/60 relative overflow-hidden border border-sky-400/30 space-y-4">
+        <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-5.5 rounded-[2.2rem] shadow-2xl shadow-sky-950/60 relative overflow-hidden border border-sky-400/30 space-y-4">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none" />
 
           {/* Top Row: Live Balance Pill + Details > */}
@@ -236,46 +292,75 @@ export default function UserDashboard({
             </button>
           </div>
 
-          {/* Bottom Area: Automatic Dedicated Bank Transfer Capsule */}
+          {/* Bottom Area: Backend KatPay Virtual Account Capsule */}
           {(() => {
-            const accNum = currentUser.phone ? currentUser.phone.replace(/\D/g, '') : '6301234567';
+            const vAcc = localVirtualAccount || currentUser.virtualAccount || (currentUser.virtualAccounts && currentUser.virtualAccounts.length > 0 ? currentUser.virtualAccounts[0] : null);
+
+            if (vAcc && vAcc.account_number) {
+              const accNum = vAcc.account_number;
+              const bankName = vAcc.bank_name || 'Virtual Account';
+              return (
+                <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">VIRTUAL ACCOUNT</span>
+                    </div>
+                    <p className="text-xs font-bold text-white font-mono tracking-wider truncate">
+                      {bankName} • <span className="text-sky-200">{accNum}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(accNum);
+                        setCopiedAccount(true);
+                        toast.success(`Account number ${accNum} copied! Transfer from any bank app to fund wallet.`);
+                        setTimeout(() => setCopiedAccount(false), 2500);
+                      }}
+                      className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold border border-white/25 flex items-center gap-1 transition-all active:scale-95 cursor-pointer font-display"
+                      title="Copy Account Number"
+                    >
+                      {copiedAccount ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('fund')}
+                      className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl border border-white/25 transition-all active:scale-95 cursor-pointer"
+                      title="Funding Options"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
                 <div className="space-y-0.5 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">AUTOMATIC BANK TRANSFER</span>
-                  </div>
-                  <p className="text-xs font-bold text-white font-mono tracking-wider truncate">
-                    Moniepoint • <span className="text-sky-200">{accNum}</span>
+                  <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">VIRTUAL ACCOUNT</span>
+                  <p className="text-xs font-bold text-white font-display">
+                    Instant Bank Transfer Account
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigator.clipboard.writeText(accNum);
-                      setCopiedAccount(true);
-                      toast.success(`Account number ${accNum} copied! Transfer from any bank app to fund wallet.`);
-                      setTimeout(() => setCopiedAccount(false), 2500);
-                    }}
-                    className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold border border-white/25 flex items-center gap-1 transition-all active:scale-95 cursor-pointer font-display"
-                    title="Copy Account Number"
-                  >
-                    {copiedAccount ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('fund')}
-                    className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl border border-white/25 transition-all active:scale-95 cursor-pointer"
-                    title="Funding Options"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateVirtualAccount}
+                  disabled={isGeneratingAccount}
+                  className="px-3 py-1.5 bg-white text-sky-950 hover:bg-sky-50 rounded-xl text-xs font-black shadow-md border border-white/40 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer font-display shrink-0"
+                >
+                  {isGeneratingAccount ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-600" /> Generating...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /> Get Virtual Account</>
+                  )}
+                </button>
               </div>
             );
           })()}

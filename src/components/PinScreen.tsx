@@ -20,6 +20,7 @@ import {
 import PinInput from './PinInput';
 import { api } from '../services/api';
 import { useToast } from './Toast';
+import { useTheme } from '../context/ThemeContext';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -65,6 +66,7 @@ export default function PinScreen({
   isLoading: externalLoading = false,
 }: PinScreenProps) {
   const toast = useToast();
+  const { theme } = useTheme();
   // Input state
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -504,19 +506,39 @@ export default function PinScreen({
 
           {/* ── Reseller Upgrade Summary Card ── */}
           {mode === 'upgrade_pin' && (
-            <div className="bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/20 rounded-3xl p-5 shadow-2xl text-center">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 mx-auto flex items-center justify-center mb-3">
-                <KeyRound className="w-8 h-8 text-amber-400" />
+            <div className={`rounded-3xl p-5 border text-center transition-all ${
+              theme === 'light'
+                ? 'bg-gradient-to-r from-amber-50/90 via-sky-50/70 to-indigo-50/90 border-amber-200/90 shadow-lg shadow-amber-900/5'
+                : 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border-amber-500/20 shadow-2xl'
+            }`}>
+              <div className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-3 border ${
+                theme === 'light'
+                  ? 'bg-amber-100 border-amber-300/80 text-amber-700'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+              }`}>
+                <KeyRound className={`w-8 h-8 ${theme === 'light' ? 'text-amber-700' : 'text-amber-400'}`} />
               </div>
-              <h2 className="text-lg font-black text-white">Upgrade to Reseller Tier</h2>
-              <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
+              <h2 className={`text-lg font-black font-display ${
+                theme === 'light' ? 'text-slate-900' : 'text-white'
+              }`}>Upgrade to Reseller Tier</h2>
+              <p className={`text-xs font-medium mt-1 max-w-xs mx-auto ${
+                theme === 'light' ? 'text-slate-600' : 'text-slate-300'
+              }`}>
                 Enjoy maximum discounts across all airtime, data, and bill services.
               </p>
-              <div className="my-4 py-3 bg-slate-950/80 rounded-2xl border border-amber-500/20">
-                <p className="text-[10px] font-black uppercase text-amber-400/80 tracking-widest">
+              <div className={`my-4 py-3 rounded-2xl border ${
+                theme === 'light'
+                  ? 'bg-white border-amber-300/80 shadow-sm'
+                  : 'bg-slate-950/80 border-amber-500/20'
+              }`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${
+                  theme === 'light' ? 'text-amber-700' : 'text-amber-400/80'
+                }`}>
                   One-time Upgrade Fee
                 </p>
-                <p className="text-3xl font-black text-amber-400 tracking-tight mt-0.5">₦5,000.00</p>
+                <p className={`text-3xl font-black tracking-tight mt-0.5 font-mono ${
+                  theme === 'light' ? 'text-amber-600' : 'text-amber-400'
+                }`}>₦5,000.00</p>
               </div>
             </div>
           )}
@@ -527,10 +549,10 @@ export default function PinScreen({
               <div className="w-16 h-16 rounded-3xl bg-sky-500/10 border border-sky-500/20 mx-auto flex items-center justify-center mb-2">
                 <ShieldCheck className="w-8 h-8 text-sky-400" />
               </div>
-              <h2 className="text-xl font-black text-white">
+              <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 {step === 1 ? 'Create 4-Digit PIN' : 'Confirm Your 4-Digit PIN'}
               </h2>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+              <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                 {step === 1
                   ? 'Set a secure 4-digit transaction PIN to protect your wallet and authorize purchases.'
                   : 'Re-enter your 4-digit PIN to verify and save.'}
@@ -544,14 +566,14 @@ export default function PinScreen({
               <div className="w-16 h-16 rounded-3xl bg-sky-500/10 border border-sky-500/20 mx-auto flex items-center justify-center mb-2">
                 <Lock className="w-8 h-8 text-sky-400" />
               </div>
-              <h2 className="text-xl font-black text-white">
+              <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 {step === 1
                   ? 'Enter Current PIN'
                   : step === 2
                   ? 'Enter New 4-Digit PIN'
                   : 'Confirm New 4-Digit PIN'}
               </h2>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
+              <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                 {step === 1
                   ? 'Enter your current 4-digit Transaction PIN.'
                   : step === 2
@@ -567,13 +589,13 @@ export default function PinScreen({
               <div className="w-16 h-16 rounded-3xl bg-sky-500/10 border border-sky-500/20 mx-auto flex items-center justify-center mb-1">
                 <Mail className="w-8 h-8 text-sky-400" />
               </div>
-              <h2 className="text-xl font-black text-white">Reset Transaction PIN</h2>
+              <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Reset Transaction PIN</h2>
 
               {step === 1 && (
                 <div className="space-y-4 pt-2">
-                  <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
+                  <p className={`text-xs leading-relaxed max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                     We will send a security verification OTP code to your account email{' '}
-                    <strong className="text-white font-mono">{userEmail || 'registered address'}</strong>.
+                    <strong className={`font-mono ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{userEmail || 'registered address'}</strong>.
                   </p>
                   <button
                     onClick={handleRequestOtp}
@@ -592,17 +614,17 @@ export default function PinScreen({
               )}
 
               {step === 2 && (
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                   Enter the 6-digit OTP code sent to your email.
                 </p>
               )}
               {step === 3 && (
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                   Enter your new 4-digit Transaction PIN.
                 </p>
               )}
               {step === 4 && (
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
                   Re-enter your new 4-digit PIN to confirm.
                 </p>
               )}
@@ -613,7 +635,9 @@ export default function PinScreen({
           {(mode !== 'forgot_pin' || step > 1) && (
             <div className="space-y-4 pt-2">
               <div className="text-center">
-                <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
+                <p className={`text-xs font-black uppercase tracking-wider mb-2 ${
+                  theme === 'light' ? 'text-slate-700 font-display' : 'text-slate-400 font-display'
+                }`}>
                   {mode === 'purchase' || mode === 'upgrade_pin'
                     ? 'Enter 4-Digit Transaction PIN'
                     : mode === 'forgot_pin' && step === 2
@@ -625,15 +649,19 @@ export default function PinScreen({
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-[11px] font-bold text-slate-300 transition-all cursor-pointer mb-3"
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer mb-3 border ${
+                    theme === 'light'
+                      ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-sm'
+                      : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
+                  }`}
                 >
                   {showPin ? (
                     <>
-                      <EyeOff className="w-3.5 h-3.5 text-sky-400" /> Hide Digits
+                      <EyeOff className="w-3.5 h-3.5 text-sky-500" /> Hide Digits
                     </>
                   ) : (
                     <>
-                      <Eye className="w-3.5 h-3.5 text-sky-400" /> Show Digits
+                      <Eye className="w-3.5 h-3.5 text-sky-500" /> Show Digits
                     </>
                   )}
                 </button>

@@ -171,14 +171,14 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           <div className="space-y-4">
             <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl">
               <p className="text-xs text-sky-300">
-                Transfer any amount to the dedicated virtual bank accounts below. Your eData wallet will be credited <strong>instantly</strong>.
+                Transfer any amount to the virtual bank accounts below. Your eData wallet will be credited <strong>instantly</strong>.
               </p>
             </div>
 
             {virtualAccounts.length === 0 ? (
               <div className="p-6 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-center">
                 <Landmark className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <h3 className="text-sm font-semibold text-white">Dedicated Account</h3>
+                <h3 className="text-sm font-semibold text-white">Virtual Account</h3>
                 <p className="text-xs text-slate-400 mt-1 mb-3">Wema Bank / Monnify Automatic Funding</p>
                 <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-between">
                   <div className="text-left">

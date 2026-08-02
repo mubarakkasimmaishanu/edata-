@@ -611,11 +611,21 @@ export default function ServiceForm(props: ServiceFormProps) {
       {showProductDropdown && (
         <div className="space-y-3">
           {serviceType === 'data' && (() => {
-            const dataProds = products.filter(p =>
-              ((p.category as string) === 'Data' || (p.category as string) === 'Data Bundle') &&
-              p.active &&
-              (detectedOperator ? p.operator?.toLowerCase() === detectedOperator.toLowerCase() : true)
-            );
+            const currentOp = (detectedOperator || 'MTN').toLowerCase();
+            let dataProds = products.filter(p => {
+              const catLower = String(p.category || '').toLowerCase();
+              const isDataCat = catLower.includes('data');
+              if (!isDataCat || !p.active) return false;
+
+              if (!currentOp) return true;
+              const pOpLower = String(p.operator || '').toLowerCase();
+              return pOpLower.includes(currentOp) || currentOp.includes(pOpLower);
+            });
+
+            // Fallback: If operator filter returned 0 matching plans, show all active data products
+            if (dataProds.length === 0) {
+              dataProds = products.filter(p => String(p.category || '').toLowerCase().includes('data') && p.active);
+            }
 
             return (
               <div className="space-y-2">
@@ -754,12 +764,6 @@ export default function ServiceForm(props: ServiceFormProps) {
                             else if (rawType === 'GIFTING' || rawType === 'DIRECT-GIFTING') key = 'GIFTING';
                             else if (rawType === 'CG' || rawType === 'CORPORATE' || rawType.includes('CORP')) key = 'CORPORATE';
                             else if (rawType === 'AWOOF') key = 'AWOOF';
-                            else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
-                            else key = 'OTHER';
-
-                            if (!groups[key]) groups[key] = [];
-                            groups[key].push(p);
-                          });
                             else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
                             else key = 'OTHER';
 

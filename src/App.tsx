@@ -96,8 +96,23 @@ function MainApp() {
         api.getServices(),
       ]);
 
-      const dbServices: any[] = servicesRes.data?.services || servicesRes.services || [];
-      const dbPlans: any[] = servicesRes.data?.plans || servicesRes.plans || [];
+      const resData = servicesRes.data || servicesRes;
+      const dbServices: any[] = resData.services || (Array.isArray(resData) ? resData : []);
+      let dbPlans: any[] = resData.plans || resData.data_plans || resData.plans_list || [];
+
+      // Extract nested plans if any service contains a nested 'plans', 'data_plans', 'packages', or 'items' array
+      dbServices.forEach((srv) => {
+        const nestedPlans = srv.plans || srv.data_plans || srv.packages || srv.variations || srv.items;
+        if (Array.isArray(nestedPlans)) {
+          nestedPlans.forEach((np: any) => {
+            dbPlans.push({
+              ...np,
+              service_type_id: np.service_type_id || srv.id,
+              operator: np.operator || srv.slug || srv.name,
+            });
+          });
+        }
+      });
 
       const mappedProducts: ProductItem[] = [];
 
@@ -110,52 +125,59 @@ function MainApp() {
         else if (srv.category_id === 5) category = 'Electricity';
         else if (srv.category_id === 6) category = 'A2C';
 
+        const slugLower = String(srv.slug || srv.name || '').toLowerCase();
+        const opName = slugLower.includes('mtn') ? 'MTN'
+          : slugLower.includes('glo') ? 'Glo'
+          : slugLower.includes('airtel') ? 'Airtel'
+          : slugLower.includes('9mobile') || slugLower.includes('etisalat') ? '9mobile'
+          : (srv.slug || srv.name || 'MTN').toUpperCase();
+
         mappedProducts.push({
           id: String(srv.id),
           category: category,
           name: srv.name,
-          operator: srv.slug.includes('mtn') ? 'MTN' : srv.slug.includes('glo') ? 'Glo' : srv.slug.includes('airtel') ? 'Airtel' : srv.slug.includes('9mobile') ? '9mobile' : srv.slug.toUpperCase(),
-          priceNormal: parseFloat(srv.price),
-          priceReferred: parseFloat(srv.price),
-          pricePremium: parseFloat(srv.price),
-          active: srv.status === 1,
+          operator: opName,
+          priceNormal: parseFloat(srv.price || '0'),
+          priceReferred: parseFloat(srv.price || '0'),
+          pricePremium: parseFloat(srv.price || '0'),
+          active: srv.status === 1 || srv.status === true || srv.status === undefined,
           description: srv.description || '',
         });
       });
 
       dbPlans.forEach((plan) => {
         const parentSrv = dbServices.find(s => String(s.id) === String(plan.service_type_id));
-        let operatorName = plan.operator;
+        let operatorName = plan.operator || (parentSrv ? parentSrv.slug || parentSrv.name : '');
 
-        if (!operatorName && parentSrv) {
-          const slug = (parentSrv.slug || '').toLowerCase();
-          operatorName = slug.includes('mtn') ? 'MTN'
-            : slug.includes('glo') ? 'Glo'
-            : slug.includes('airtel') ? 'Airtel'
-            : slug.includes('9mobile') ? '9mobile'
-            : parentSrv.slug.toUpperCase();
-        }
+        const opLower = String(operatorName).toLowerCase();
+        const pNameLower = String(plan.name || '').toLowerCase();
+        const combined = `${opLower} ${pNameLower}`;
 
-        if (!operatorName) {
-          const pName = (plan.name || '').toUpperCase();
-          const sId = Number(plan.service_type_id);
-          if (pName.includes('AIRTEL') || [4, 24, 28].includes(sId)) operatorName = 'Airtel';
-          else if (pName.includes('GLO') || [6, 25, 29].includes(sId)) operatorName = 'Glo';
-          else if (pName.includes('9MOBILE') || [8, 26, 30].includes(sId)) operatorName = '9mobile';
-          else operatorName = 'MTN';
-        }
+        if (combined.includes('mtn')) operatorName = 'MTN';
+        else if (combined.includes('airtel')) operatorName = 'Airtel';
+        else if (combined.includes('glo')) operatorName = 'Glo';
+        else if (combined.includes('9mobile') || combined.includes('etisalat')) operatorName = '9mobile';
+        else operatorName = plan.operator || 'MTN';
+
+        let planCat: any = 'Data';
+        const catId = Number(plan.category_id || (parentSrv ? parentSrv.category_id : 2));
+        if (catId === 1) planCat = 'Airtime';
+        else if (catId === 2) planCat = 'Data';
+        else if (catId === 3) planCat = 'Exam Token';
+        else if (catId === 4) planCat = 'Cable TV';
+        else if (catId === 5) planCat = 'Electricity';
 
         mappedProducts.push({
-          id: `plan-${plan.id}-${plan.service_type_id}`,
-          category: 'Data',
-          name: plan.name,
+          id: `plan-${plan.id}-${plan.service_type_id || '0'}`,
+          category: planCat,
+          name: plan.name || 'Data Plan',
           operator: operatorName,
-          priceNormal: parseFloat(plan.price),
-          priceReferred: parseFloat(plan.price),
-          pricePremium: parseFloat(plan.price),
-          active: true,
-          description: plan.description || plan.name,
-          planType: plan.plan_type || 'SME',
+          priceNormal: parseFloat(plan.price || plan.amount || '0'),
+          priceReferred: parseFloat(plan.price || plan.amount || '0'),
+          pricePremium: parseFloat(plan.price || plan.amount || '0'),
+          active: plan.status === undefined || plan.status === 1 || plan.status === true,
+          description: plan.description || plan.name || '',
+          planType: plan.plan_type || plan.type || 'SME',
         });
       });
 
@@ -195,6 +217,19 @@ function MainApp() {
       const lastName = user.lastname || user.last_name || '';
       const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
 
+      const vAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
+      const primaryVAccount = vAccounts.length > 0 && vAccounts[0].account_number ? {
+        bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
+        account_number: vAccounts[0].account_number || vAccounts[0].accountNo || '',
+        account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
+      } : (currentUser.virtualAccount || null);
+
+      if (primaryVAccount && primaryVAccount.account_number) {
+        try {
+          localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
+        } catch {}
+      }
+
       const syncedUser: UserProfile = {
         id: user.id || currentUser.id,
         name: computedName,
@@ -214,6 +249,8 @@ function MainApp() {
         photo: resolveImageUrl(user.photo || user.avatar || user.picture) || currentUser.photo || null,
         avatar: resolveImageUrl(user.avatar || user.photo || user.picture) || currentUser.avatar || null,
         picture: resolveImageUrl(user.picture || user.photo || user.avatar) || currentUser.picture || null,
+        virtualAccount: primaryVAccount,
+        virtualAccounts: vAccounts,
       };
 
       handleSetCurrentUser(syncedUser);
@@ -262,9 +299,8 @@ function MainApp() {
     };
 
     const token = getAuthToken();
-    if (token) {
-      fetchAllData();
-    } else {
+    fetchAllData();
+    if (!token) {
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }
