@@ -257,7 +257,6 @@ function MainApp() {
 
       setApiStatus('connected');
       setLastSynced(new Date().toLocaleTimeString());
-      setCurrentScreen('app');
 
       // Sync Notifications unread count
       try {
@@ -268,10 +267,15 @@ function MainApp() {
       } catch {}
     } catch (err: any) {
       const msg = err?.message?.toLowerCase() || '';
-      if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid credentials')) {
+      if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid credentials') || msg.includes('no authentication token')) {
+        // Token is invalid/expired — force back to login
         setAuthToken(null);
         setCurrentScreen('auth');
+      } else if (!getAuthToken()) {
+        // No token at all — force auth screen
+        setCurrentScreen('auth');
       } else {
+        // Network/server error but token exists — stay on app, show offline
         console.warn('API Sync Notice:', err?.message || err);
       }
       setApiStatus('offline');
@@ -300,9 +304,16 @@ function MainApp() {
 
     const token = getAuthToken();
     if (token) {
+      // Token exists — try to load data; fetchAllData will redirect to auth if token is invalid
       setCurrentScreen('app');
-      fetchAllData();
+      fetchAllData().catch(() => {
+        // If fetchAllData itself throws uncaught, ensure we fall back to auth
+        if (!getAuthToken()) {
+          setCurrentScreen('auth');
+        }
+      });
     } else {
+      // No token — always show login screen
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }

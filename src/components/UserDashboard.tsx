@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -157,22 +157,21 @@ export default function UserDashboard({
 
   const actionsToDisplay = (quickActions && quickActions.length > 0) ? quickActions : defaultActions;
 
-  // Services 8-grid list matching Image 1 & 2
+  // Services grid — 7 core services + "More" navigation card
   const services = [
-    { id: 'airtime', name: 'Airtime', icon: Smartphone, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'data', name: 'Data', icon: Layers, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'cable', name: 'Cable TV', icon: Tv, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'electricity', name: 'Electricity', icon: Lightbulb, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'a2c', name: 'A2C', icon: Repeat, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'exams', name: 'Exam Card', icon: BookOpen, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'referral', name: 'Referral', icon: Gift, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
-    { id: 'support', name: 'Support', icon: Headphones, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' },
+    { id: 'airtime', name: 'Airtime', icon: Smartphone },
+    { id: 'data', name: 'Data', icon: Layers },
+    { id: 'cable', name: 'Cable TV', icon: Tv },
+    { id: 'electricity', name: 'Electricity', icon: Lightbulb },
+    { id: 'a2c', name: 'A2C', icon: Repeat },
+    { id: 'exams', name: 'Exam Card', icon: BookOpen },
+    { id: 'support', name: 'Support', icon: Headphones },
   ];
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-28">
       {/* ── 1. Top Header App Bar (Matching Image 1) ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-lg">
+      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-lg safe-top">
         <div className="flex items-center gap-3">
           {/* User Avatar Circle + Membership Badge Column */}
           <div className="flex flex-col items-center shrink-0">
@@ -400,30 +399,43 @@ export default function UserDashboard({
           </div>
         </section>
 
-        {/* ── 4. SERVICES 8-Grid Section (Matching Image 1 & 2 Circular Icons) ── */}
+        {/* ── 4. SERVICES Grid — Premium Square Cards (SaukiGlobal-inspired) ── */}
         <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 space-y-3.5 shadow-xl">
           <div className="px-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-display">SERVICES</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2.5">
             {services.map((srv) => {
               const Icon = srv.icon;
               return (
                 <button
                   key={srv.id}
                   onClick={() => onNavigate(srv.id)}
-                  className="flex flex-col items-center justify-center gap-2 transition-all group cursor-pointer active:scale-95"
+                  className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
                 >
-                  <div className={`w-12 h-12 rounded-full ${srv.color} flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform`}>
-                    <Icon className="w-5 h-5 stroke-[2.2]" />
+                  <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200">
+                    <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm" />
                   </div>
-                  <span className="text-[10.5px] font-extrabold text-slate-200 font-display tracking-tight text-center">
+                  <span className="text-[10.5px] font-bold text-slate-300 font-display tracking-tight text-center leading-tight group-hover:text-white transition-colors">
                     {srv.name}
                   </span>
                 </button>
               );
             })}
+
+            {/* "More" navigation card — same style as service cards */}
+            <button
+              onClick={() => onNavigate('services')}
+              className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
+            >
+              <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200">
+                <MoreHorizontal className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm" />
+              </div>
+              <span className="text-[10.5px] font-bold text-slate-300 font-display tracking-tight text-center leading-tight group-hover:text-white transition-colors">
+                More
+              </span>
+            </button>
           </div>
         </section>
 
