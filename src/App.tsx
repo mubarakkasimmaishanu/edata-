@@ -345,8 +345,8 @@ function MainApp() {
   };
 
   const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
-    // If a Quick Action object was selected, trigger direct PIN checkout flow without changing screen!
-    if (params?.quickAction) {
+    // If a Quick Action object with a specific plan_id was selected, trigger direct PIN checkout flow
+    if (params?.quickAction && params.quickAction.plan_id) {
       handleQuickActionDirectCheckout(params.quickAction);
       return;
     }

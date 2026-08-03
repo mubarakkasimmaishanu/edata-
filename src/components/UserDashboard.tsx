@@ -14,7 +14,17 @@ import gotvIcon from '@/assets/icons/gotv.png';
 import startimesIcon from '@/assets/icons/startimes.png';
 import waecIcon from '@/assets/icons/waec.png';
 import necoIcon from '@/assets/icons/neco.png';
+import nabtebIcon from '@/assets/icons/nabteb.png';
+import nbaisIcon from '@/assets/icons/nbais.png';
 import aedcIcon from '@/assets/icons/aedc.png';
+import ekedcIcon from '@/assets/icons/ekedc.png';
+import ikejaIcon from '@/assets/icons/ikeja.png';
+import ibedcIcon from '@/assets/icons/ibedc.png';
+import kedcoIcon from '@/assets/icons/kedco.png';
+import kadunaIcon from '@/assets/icons/kaduna.png';
+import josIcon from '@/assets/icons/jos.png';
+import phedcIcon from '@/assets/icons/phedc.png';
+import supportIcon from '@/assets/icons/support.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 import { useToast } from './Toast';
 import { api, resolveImageUrl } from '../services/api';
@@ -29,22 +39,51 @@ const ICON_MAP: Record<string, string> = {
   startimes: startimesIcon,
   waec: waecIcon,
   neco: necoIcon,
+  nabteb: nabtebIcon,
+  nbais: nbaisIcon,
+  aedc: aedcIcon,
+  ekedc: ekedcIcon,
+  ikeja: ikejaIcon,
+  ibedc: ibedcIcon,
+  kedco: kedcoIcon,
+  kaduna: kadunaIcon,
+  kaedco: kadunaIcon,
+  jos: josIcon,
+  jed: josIcon,
+  phedc: phedcIcon,
+  phed: phedcIcon,
   electricity: aedcIcon,
   a2c: walletIcon,
+  support: supportIcon,
 };
 
 function getActionIcon(iconName?: string, network?: string): string {
-  const iconLower = (iconName || '').toLowerCase();
-  const netLower = (network || '').toLowerCase();
+  const iconLower = (iconName || '').toLowerCase().trim();
+  const netLower = (network || '').toLowerCase().trim();
+
   if (ICON_MAP[iconLower]) return ICON_MAP[iconLower];
   if (ICON_MAP[netLower]) return ICON_MAP[netLower];
+
   if (netLower.includes('mtn')) return mtnIcon;
   if (netLower.includes('airtel')) return airtelIcon;
   if (netLower.includes('glo')) return gloIcon;
   if (netLower.includes('9mobile')) return nineMobileIcon;
   if (netLower.includes('dstv')) return dstvIcon;
   if (netLower.includes('gotv')) return gotvIcon;
+  if (netLower.includes('startimes')) return startimesIcon;
   if (netLower.includes('waec')) return waecIcon;
+  if (netLower.includes('neco')) return necoIcon;
+  if (netLower.includes('nabteb')) return nabtebIcon;
+  if (netLower.includes('nbais')) return nbaisIcon;
+  if (netLower.includes('aedc')) return aedcIcon;
+  if (netLower.includes('ekedc')) return ekedcIcon;
+  if (netLower.includes('ikeja')) return ikejaIcon;
+  if (netLower.includes('ibedc')) return ibedcIcon;
+  if (netLower.includes('kedco')) return kedcoIcon;
+  if (netLower.includes('kaduna') || netLower.includes('kaedco')) return kadunaIcon;
+  if (netLower.includes('jos') || netLower.includes('jed')) return josIcon;
+  if (netLower.includes('phed')) return phedcIcon;
+
   return mtnIcon;
 }
 
