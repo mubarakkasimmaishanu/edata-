@@ -37,7 +37,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture);
+  const avatarUrl = resolveImageUrl(currentUser.photo || currentUser.avatar || currentUser.picture);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -53,13 +53,21 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
     setUploadingPhoto(true);
     try {
       const res = await api.uploadAvatar(file);
-      const newUrl = res.avatar || res.data?.avatar;
-      setCurrentUser(prev => ({ ...prev, avatar: newUrl }));
-      toast.success('Profile picture updated!');
+      // API returns { data: { photo: 'url', photo_path: '/path' } }
+      const newUrl = res.data?.photo || res.data?.avatar || res.photo || res.avatar || null;
+      if (newUrl) {
+        const resolved = resolveImageUrl(newUrl);
+        setCurrentUser(prev => ({ ...prev, photo: resolved, avatar: resolved, picture: resolved }));
+        toast.success('Profile picture updated!');
+      } else {
+        toast.error('Upload succeeded but no image URL returned.');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to upload image.');
     } finally {
       setUploadingPhoto(false);
+      // Reset file input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 

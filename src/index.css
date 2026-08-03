@@ -526,12 +526,18 @@ body {
   border-left: 3px solid #0ea5e9;
 }
 
-/* ─── Safe Area ─── */
+/* ─── Safe Area (Status Bar / Notch Protection) ─── */
 @supports(padding: max(0px)) {
   .safe-bottom {
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
   .safe-top {
-    padding-top: max(0px, env(safe-area-inset-top));
+    padding-top: max(28px, env(safe-area-inset-top));
   }
+}
+
+/* Fallback for Android WebView where env() is not supported */
+.safe-top {
+  padding-top: 28px;
+  padding-top: max(28px, env(safe-area-inset-top, 28px));
 }
