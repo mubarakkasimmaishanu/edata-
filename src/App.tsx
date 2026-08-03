@@ -182,12 +182,13 @@ function MainApp() {
       });
 
       // Sync Quick Actions from backend REST API
-      if (servicesRes.data?.quick_actions) {
-        setQuickActions(servicesRes.data.quick_actions);
+      const qaFromServices = resData.quick_actions || servicesRes.data?.quick_actions || servicesRes.quick_actions;
+      if (Array.isArray(qaFromServices)) {
+        setQuickActions(qaFromServices);
       } else {
         try {
           const qaRes = await api.getQuickActions();
-          const qaList = qaRes.data || qaRes || [];
+          const qaList = qaRes.data?.quick_actions || qaRes.data || qaRes || [];
           if (Array.isArray(qaList)) setQuickActions(qaList);
         } catch {}
       }
