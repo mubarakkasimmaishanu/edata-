@@ -120,7 +120,7 @@ export default function AuthPage({
           ) {
             toast.info('Google Sign-In was cancelled.');
           } else if (errStr.includes('something went wrong') || errStr.includes('10') || errStr.includes('developer_error')) {
-            toast.error('Google Sign-In setup error: Please register SHA-1 (0D:6E:9B:44...) in Google Cloud Console.');
+            toast.error('Google Sign-In setup error: Please verify SHA-1 fingerprint registration in Google Cloud Console.');
           } else {
             toast.error(nativeErr?.message || 'Google Sign-In failed. Please check internet connection.');
           }
