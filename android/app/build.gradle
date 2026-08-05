@@ -40,6 +40,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
