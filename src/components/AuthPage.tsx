@@ -31,6 +31,7 @@ export default function AuthPage({
   // Form Fields
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authPromo, setAuthPromo] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -85,8 +86,57 @@ export default function AuthPage({
     setGoogleAuthLoading(true);
     const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
 
+    // Helper for GIS Web Popup Auth
+    const runGISWebOAuth = () => {
+      return new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
+        const loadAndInitGIS = () => {
+          try {
+            if (!(window as any).google?.accounts?.oauth2) {
+              const script = document.createElement('script');
+              script.src = 'https://accounts.google.com/gsi/client';
+              script.async = true;
+              script.defer = true;
+              script.onload = () => triggerGIS();
+              script.onerror = () => reject(new Error('Unable to load Google Sign-In SDK. Please check internet.'));
+              document.head.appendChild(script);
+            } else {
+              triggerGIS();
+            }
+          } catch (e) {
+            reject(e);
+          }
+        };
+
+        const triggerGIS = () => {
+          try {
+            const client = (window as any).google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'email profile openid',
+              callback: (tokenRes: any) => {
+                if (tokenRes.access_token) {
+                  resolve({ access_token: tokenRes.access_token });
+                } else if (tokenRes.id_token) {
+                  resolve({ id_token: tokenRes.id_token });
+                } else {
+                  reject(new Error('Google authentication was cancelled.'));
+                }
+              },
+              error_callback: (err: any) => {
+                reject(new Error('Google Sign-In popup error: ' + (err.message || 'Popup closed')));
+              }
+            });
+            client.requestAccessToken();
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        loadAndInitGIS();
+      });
+    };
+
     try {
-      let tokenPayload: { id_token?: string; access_token?: string } = {};
+      let tokenPayload: { id_token?: string; access_token?: string; email?: string; firstname?: string; lastname?: string; picture?: string } = {};
 
       if (Capacitor.isNativePlatform()) {
         try {
@@ -98,19 +148,28 @@ export default function AuthPage({
               grantOfflineAccess: true,
             });
           } catch (_) {
-            // Already initialized or ignore pre-init warnings
+            // Ignore pre-init warning
           }
 
           const googleUser = await GoogleAuth.signIn();
-          const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || googleUser.authentication?.accessToken || '';
-          if (rawIdToken) {
-            tokenPayload = { id_token: rawIdToken };
+          const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || '';
+          const rawAccessToken = googleUser.authentication?.accessToken || (googleUser as any).accessToken || '';
+          const userEmail = googleUser.email || (googleUser as any).user?.email || '';
+
+          if (rawIdToken || rawAccessToken || userEmail) {
+            tokenPayload = {
+              ...(rawIdToken ? { id_token: rawIdToken } : {}),
+              ...(rawAccessToken ? { access_token: rawAccessToken } : {}),
+              ...(userEmail ? { email: userEmail } : {}),
+              ...(googleUser.givenName ? { firstname: googleUser.givenName } : {}),
+              ...(googleUser.familyName ? { lastname: googleUser.familyName } : {}),
+              ...(googleUser.imageUrl ? { picture: googleUser.imageUrl } : {}),
+            };
           } else {
-            toast.error('Unable to retrieve authentication token from Google.');
-            return;
+            throw new Error('No authentication token obtained from native GoogleAuth');
           }
         } catch (nativeErr: any) {
-          console.warn('Native Google Auth failed:', nativeErr);
+          console.warn('Native Google Auth failed, trying GIS fallback:', nativeErr);
           const errStr = String(nativeErr?.message || nativeErr || '').toLowerCase();
           if (
             errStr.includes('canceled') ||
@@ -119,61 +178,23 @@ export default function AuthPage({
             nativeErr?.code === 12501
           ) {
             toast.info('Google Sign-In was cancelled.');
-          } else if (errStr.includes('something went wrong') || errStr.includes('10') || errStr.includes('developer_error')) {
-            toast.error('Google Sign-In setup error: Please verify SHA-1 fingerprint registration in Google Cloud Console.');
-          } else {
-            toast.error(nativeErr?.message || 'Google Sign-In failed. Please check internet connection.');
+            return;
           }
-          // Always return early on Native platform to prevent fallback into WebView script injection
-          return;
+          // Attempt GIS Web Popup fallback on native webview
+          try {
+            tokenPayload = await runGISWebOAuth();
+          } catch (gisErr: any) {
+            console.error('GIS Fallback error:', gisErr);
+            if (errStr.includes('something went wrong') || errStr.includes('10') || errStr.includes('developer_error')) {
+              toast.error('Google Sign-In setup error: Please verify SHA-1 fingerprint registration in Google Cloud Console.');
+            } else {
+              toast.error(nativeErr?.message || gisErr?.message || 'Google Sign-In failed.');
+            }
+            return;
+          }
         }
       } else {
-        // Web Browser Platform: GIS OAuth Popup Client
-        tokenPayload = await new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
-          const loadAndInitGIS = () => {
-            try {
-              if (!(window as any).google?.accounts?.oauth2) {
-                const script = document.createElement('script');
-                script.src = 'https://accounts.google.com/gsi/client';
-                script.async = true;
-                script.defer = true;
-                script.onload = () => runGISPopup();
-                script.onerror = () => reject(new Error('Unable to load Google Sign-In SDK. Please check your internet connection.'));
-                document.head.appendChild(script);
-              } else {
-                runGISPopup();
-              }
-            } catch (e) {
-              reject(e);
-            }
-          };
-
-          const runGISPopup = () => {
-            try {
-              const client = (window as any).google.accounts.oauth2.initTokenClient({
-                client_id: GOOGLE_CLIENT_ID,
-                scope: 'email profile openid',
-                callback: (tokenRes: any) => {
-                  if (tokenRes.access_token) {
-                    resolve({ access_token: tokenRes.access_token });
-                  } else if (tokenRes.id_token) {
-                    resolve({ id_token: tokenRes.id_token });
-                  } else {
-                    reject(new Error('Google authentication was cancelled or closed.'));
-                  }
-                },
-                error_callback: (err: any) => {
-                  reject(new Error('Google Sign-In popup error: ' + (err.message || 'Popup closed')));
-                }
-              });
-              client.requestAccessToken();
-            } catch (err) {
-              reject(err);
-            }
-          };
-
-          loadAndInitGIS();
-        });
+        tokenPayload = await runGISWebOAuth();
       }
 
       // Send to Backend Google API
@@ -581,18 +602,28 @@ export default function AuthPage({
                           Forgot Password?
                         </button>
                       </div>
-                      <input
-                        type="password"
-                        required
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className={`w-full border rounded-2xl px-4 py-3.5 text-sm transition-all font-medium focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
-                          theme === 'light'
-                            ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
-                            : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
-                        }`}
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type={showAuthPassword ? 'text' : 'password'}
+                          required
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className={`w-full border rounded-2xl pl-4 pr-12 py-3.5 text-sm transition-all font-medium focus:outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-500/20 ${
+                            theme === 'light'
+                              ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                              : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthPassword(!showAuthPassword)}
+                          className="absolute right-3.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                          title={showAuthPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showAuthPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <button
                       type="submit"

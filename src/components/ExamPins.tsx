@@ -79,7 +79,7 @@ export default function ExamPins({ currentUser, products, onBack, onSuccess }: E
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
       {/* ── Top Header ── */}
-      <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md">
+      <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}

@@ -134,7 +134,7 @@ export default function Notifications({ notifications: propNotifications = [], o
       theme === 'light' ? 'bg-[#f4f7fb] text-slate-900' : 'bg-slate-950 text-slate-100'
     }`}>
       {/* ── Top Header Bar ── */}
-      <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b px-4 py-3.5 flex items-center justify-between shadow-md transition-colors ${
+      <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b px-4 py-3.5 flex items-center justify-between shadow-md transition-colors safe-top ${
         theme === 'light' ? 'bg-white/90 border-slate-200/80 shadow-slate-200/50' : 'bg-slate-950/90 border-slate-900'
       }`}>
         <div className="flex items-center gap-3">

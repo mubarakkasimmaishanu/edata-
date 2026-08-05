@@ -12,7 +12,7 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col overflow-y-auto animate-fadeIn font-display">
       {/* ── Top Header Navigation ── */}
-      <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 py-3.5 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 py-3.5 flex items-center justify-between safe-top">
         <button
           onClick={onBack}
           className="p-2 -ml-1 text-slate-400 hover:text-white hover:bg-slate-900 rounded-full transition-all cursor-pointer"
