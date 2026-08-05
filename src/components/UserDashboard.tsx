@@ -124,32 +124,66 @@ export default function UserDashboard({
     }
   });
 
+  useEffect(() => {
+    if (!localVirtualAccount) {
+      api.getWallet()
+        .then((res) => {
+          const vAccounts: any[] = res.data?.virtual_accounts || res.virtual_accounts || (res.data?.virtual_account ? [res.data.virtual_account] : res.virtual_account ? [res.virtual_account] : []);
+          if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no)) {
+            const acc: VirtualAccount = {
+              bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
+              account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
+              account_name: vAccounts[0].account_name || vAccounts[0].accountName || 'eData User',
+            };
+            setLocalVirtualAccount(acc);
+            try {
+              localStorage.setItem('edata_virtual_account', JSON.stringify(acc));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   const handleGenerateVirtualAccount = async () => {
     setIsGeneratingAccount(true);
     try {
-      // 1. Attempt KatPay virtual account generation
-      const genRes = await api.generateVirtualAccount();
-      
       let fetchedAcc: VirtualAccount | null = null;
-      if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.data?.virtual_account)) {
-        const raw = genRes.data?.virtual_account || genRes.data || genRes;
-        fetchedAcc = {
-          bank_name: raw.bank_name || raw.bank || 'KatPay / Wema Bank',
-          account_number: raw.account_number || raw.accountNo || raw.account_no,
-          account_name: raw.account_name || raw.accountName || displayName,
-        };
+      
+      // 1. Attempt KatPay virtual account generation API
+      try {
+        const genRes = await api.generateVirtualAccount();
+        if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.data?.virtual_account)) {
+          const raw = genRes.data?.virtual_account || genRes.data || genRes;
+          fetchedAcc = {
+            bank_name: raw.bank_name || raw.bank || 'KatPay / Wema Bank',
+            account_number: raw.account_number || raw.accountNo || raw.account_no,
+            account_name: raw.account_name || raw.accountName || displayName,
+          };
+        }
+      } catch (e) {
+        console.warn('KatPay direct virtual account generation warning:', e);
       }
 
-      // 2. Fallback / Refresh wallet data if direct response lacked account_number
+      // 2. Fallback / Check wallet accounts from server
       if (!fetchedAcc || !fetchedAcc.account_number) {
         const walletRes = await api.getWallet();
         const vAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
-        if (vAccounts.length > 0 && vAccounts[0].account_number) {
+        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no)) {
           fetchedAcc = {
             bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
-            account_number: vAccounts[0].account_number || vAccounts[0].accountNo,
+            account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
             account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
           };
+        } else {
+          const mb = walletRes.data?.manual_bank || walletRes.manual_bank;
+          if (mb && mb.account_number) {
+            fetchedAcc = {
+              bank_name: mb.bank_name || 'Bank Transfer',
+              account_number: mb.account_number,
+              account_name: mb.account_name || displayName,
+            };
+          }
         }
       }
 
@@ -161,11 +195,12 @@ export default function UserDashboard({
         toast.success(`Virtual Account ${fetchedAcc.account_number} ready! Copy to fund your wallet.`);
         if (onRefresh) onRefresh();
       } else {
-        toast.info(genRes?.message || 'Virtual Account request submitted. Refreshing dashboard...');
-        if (onRefresh) onRefresh();
+        toast.info('Opening wallet funding options...');
+        onNavigate('fund');
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Unable to generate virtual account right now. Please try again.');
+      toast.error(err?.message || 'Opening funding options...');
+      onNavigate('fund');
     } finally {
       setIsGeneratingAccount(false);
     }

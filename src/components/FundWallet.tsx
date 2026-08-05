@@ -114,7 +114,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between safe-top">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -146,7 +146,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
               fundTab === 'virtual' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            ⚡ Auto Bank
+            ⚡ Wallet Account
           </button>
           <button
             onClick={() => setFundTab('katpay')}
@@ -166,33 +166,107 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           </button>
         </div>
 
-        {/* Tab 1: Virtual Accounts */}
+        {/* Tab 1: Virtual / Wallet Accounts */}
         {fundTab === 'virtual' && (
           <div className="space-y-4">
             <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl">
               <p className="text-xs text-sky-300">
-                Transfer any amount to the virtual bank accounts below. Your eData wallet will be credited <strong>instantly</strong>.
+                Transfer any amount to your dedicated <strong>Wallet Account</strong> below. Your eData wallet will be credited <strong>instantly</strong>.
               </p>
             </div>
 
             {virtualAccounts.length === 0 ? (
-              <div className="p-6 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-center">
-                <Landmark className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <h3 className="text-sm font-semibold text-white">Virtual Account</h3>
-                <p className="text-xs text-slate-400 mt-1 mb-3">Wema Bank / Monnify Automatic Funding</p>
-                <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-between">
-                  <div className="text-left">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">{manualBank.bank_name}</span>
-                    <p className="text-base font-mono font-bold text-sky-400">{manualBank.account_number}</p>
-                    <p className="text-[11px] text-slate-300">{manualBank.account_name}</p>
+              <div className="p-6 bg-slate-800/80 border border-slate-700/80 rounded-3xl space-y-4">
+                <div className="text-center space-y-1">
+                  <div className="w-12 h-12 bg-sky-500/10 border border-sky-500/30 rounded-2xl flex items-center justify-center mx-auto mb-2 text-sky-400">
+                    <Landmark className="w-6 h-6" />
                   </div>
+                  <h3 className="text-sm font-black text-white font-display">Wallet Account Setup</h3>
+                  <p className="text-xs text-slate-400">
+                    Generate your dedicated bank transfer account for 24/7 automated instant funding.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 block mb-1">Account Holder Name</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={currentUser.name || `${currentUser.firstname || ''} ${currentUser.lastname || ''}`.trim() || currentUser.email}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-slate-300 font-medium focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 block mb-1">Registered Phone</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={currentUser.phone || '08000000000'}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-slate-300 font-medium focus:outline-none"
+                    />
+                  </div>
+
                   <button
-                    onClick={() => copyToClipboard(manualBank.account_number, 'Account Number')}
-                    className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg cursor-pointer"
+                    type="button"
+                    disabled={loading}
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        let created = false;
+                        try {
+                          const genRes = await api.generateVirtualAccount();
+                          if (genRes && (genRes.account_number || genRes.data?.account_number)) {
+                            created = true;
+                          }
+                        } catch (e) {
+                          console.warn('KatPay direct generation notice:', e);
+                        }
+
+                        // Always refresh wallet to load virtual accounts
+                        const res = await api.getWallet();
+                        const accs = res.data?.virtual_accounts || res.virtual_accounts || [];
+                        if (Array.isArray(accs) && accs.length > 0) {
+                          setVirtualAccounts(accs);
+                          toast.success('Wallet Account generated successfully!');
+                        } else if (created) {
+                          fetchFundData();
+                          toast.success('Wallet Account request processed. Refreshing details...');
+                        } else {
+                          toast.info('Virtual Account request queued. Using default bank account details below.');
+                        }
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Unable to generate virtual account right now.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display mt-2"
                   >
-                    {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Create Wallet Account'}
                   </button>
                 </div>
+
+                {/* Secondary manual bank option if present */}
+                {manualBank && manualBank.account_number && (
+                  <div className="pt-3 border-t border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Alternative Bank Transfer Account</span>
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-between">
+                      <div className="text-left">
+                        <span className="text-[10px] text-sky-400 font-bold uppercase">{manualBank.bank_name}</span>
+                        <p className="text-sm font-mono font-bold text-white tracking-wider">{manualBank.account_number}</p>
+                        <p className="text-[11px] text-slate-400">{manualBank.account_name}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(manualBank.account_number, 'Account Number')}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl cursor-pointer"
+                      >
+                        {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
