@@ -16,9 +16,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
   const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string }>({
-    bank_name: 'Moniepoint Microfinance Bank',
-    account_name: 'eData Enterprise',
-    account_number: '6301234567',
+    bank_name: 'Wema Bank',
+    account_name: 'CIZAR Innovation',
+    account_number: '0127189291',
   });
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const [katpaySubmitting, setKatpaySubmitting] = useState(false);
 
   // Manual funding state
-  const [manualAmount, setManualAmount] = useState('5000');
+  const [manualAmount, setManualAmount] = useState('20000');
   const [manualRef, setManualRef] = useState('');
   const [manualSender, setManualSender] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -89,8 +89,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const handleManualFundingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(manualAmount);
-    if (isNaN(amountNum) || amountNum < 100) {
-      toast.warning('Minimum funding amount is ₦100.');
+    if (isNaN(amountNum) || amountNum < 20000) {
+      toast.warning('Minimum amount for Fund Through Admin is ₦20,000. Redirecting to instant automated funding for smaller amounts...');
+      setFundTab('virtual');
       return;
     }
     if (!manualRef || !manualSender) {
@@ -100,7 +101,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
     setManualSubmitting(true);
     try {
       const res = await api.submitManualDeposit(amountNum, manualRef, manualSender);
-      toast.success(res.message || 'Manual funding notification submitted!');
+      toast.success(res.message || 'Manual deposit notification submitted to Admin dashboard!');
       setManualRef('');
       setManualSender('');
       if (onRefreshWallet) onRefreshWallet();
@@ -162,7 +163,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
               fundTab === 'manual' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            🏦 Manual Bank
+            🏛️ Fund Through Admin
           </button>
         </div>
 
@@ -353,29 +354,41 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           </form>
         )}
 
-        {/* Tab 3: Manual Funding */}
+        {/* Tab 3: Fund Through Admin */}
         {fundTab === 'manual' && (
           <form onSubmit={handleManualFundingSubmit} className="space-y-4">
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-3">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Manual Deposit Account</h3>
-                <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
-                  <p className="text-xs text-slate-400">Bank: <strong className="text-white">{manualBank.bank_name}</strong></p>
-                  <p className="text-xs text-slate-400">Account Name: <strong className="text-white">{manualBank.account_name}</strong></p>
-                  <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">{manualBank.account_number}</strong></p>
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Manual Deposit Account</h3>
+                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-bold font-display">
+                  Min of ₦20,000
+                </span>
+              </div>
+              <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
+                <p className="text-xs text-slate-400">Bank: <strong className="text-white">{manualBank.bank_name}</strong></p>
+                <p className="text-xs text-slate-400">Account Name: <strong className="text-white">{manualBank.account_name}</strong></p>
+                <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">{manualBank.account_number}</strong></p>
+              </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Deposit Amount (₦)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs text-slate-400">Deposit Amount (₦)</label>
+                  <span className="text-[11px] font-extrabold text-amber-400 font-display">Min of ₦20,000</span>
+                </div>
                 <input
                   type="number"
                   value={manualAmount}
                   onChange={(e) => setManualAmount(e.target.value)}
-                  placeholder="5000"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-sky-500"
+                  placeholder="20000"
+                  min="20000"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm font-mono font-bold focus:outline-none focus:border-sky-500"
                   required
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Amounts under ₦20,000 will automatically redirect to instant automated funding options.
+                </p>
               </div>
 
               <div>
@@ -405,9 +418,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
               <button
                 type="submit"
                 disabled={manualSubmitting}
-                className="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-xl text-sm transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                className="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-extrabold rounded-xl text-sm transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer font-display shadow-lg shadow-sky-500/20"
               >
-                {manualSubmitting ? 'Submitting...' : 'Submit Deposit Notification'}
+                {manualSubmitting ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           </form>
