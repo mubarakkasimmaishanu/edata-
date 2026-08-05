@@ -63,11 +63,54 @@ function MainApp() {
     return getAuthToken() ? 'app' : 'auth';
   });
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [viewHistory, setViewHistory] = useState<ActiveView[]>(['dashboard']);
 
   // Direct Quick Action Checkout state
   const [activeQuickAction, setActiveQuickAction] = useState<QuickAction | null>(null);
   const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
+
+  const handleGoBack = () => {
+    if (pinScreenMode) {
+      setPinScreenMode(null);
+      setActiveQuickAction(null);
+      return;
+    }
+
+    if (viewHistory.length > 1) {
+      setViewHistory(prev => {
+        const copy = [...prev];
+        copy.pop();
+        const prevView = copy[copy.length - 1] || 'dashboard';
+        setActiveView(prevView);
+        return copy;
+      });
+    } else if (activeView !== 'dashboard') {
+      setActiveView('dashboard');
+      setViewHistory(['dashboard']);
+    } else {
+      import('@capacitor/app').then(({ App: CapApp }) => {
+        CapApp.exitApp();
+      }).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    let handler: any;
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('backButton', () => {
+        handleGoBack();
+      }).then(h => {
+        handler = h;
+      });
+    }).catch(() => {});
+
+    return () => {
+      if (handler && handler.remove) {
+        handler.remove();
+      }
+    };
+  }, [activeView, viewHistory, pinScreenMode]);
 
   const handleSetCurrentUser = (user: UserProfile | ((prev: UserProfile) => UserProfile)) => {
     setCurrentUser(prev => {
@@ -330,6 +373,7 @@ function MainApp() {
     setAuthToken(token);
     setCurrentScreen('app');
     setActiveView('dashboard');
+    setViewHistory(['dashboard']);
     fetchAllData();
   };
 
@@ -343,6 +387,7 @@ function MainApp() {
     setApiStatus('offline');
     setCurrentScreen('auth');
     setActiveView('dashboard');
+    setViewHistory(['dashboard']);
   };
 
   const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
@@ -352,7 +397,15 @@ function MainApp() {
       return;
     }
 
-    setActiveView(view as ActiveView);
+    const nextView = view as ActiveView;
+    if (nextView !== activeView) {
+      setViewHistory(prev => {
+        if (prev.length > 0 && prev[prev.length - 1] === nextView) return prev;
+        return [...prev, nextView];
+      });
+      setActiveView(nextView);
+    }
+
     if (params?.network) setPreselectedNetwork(params.network);
     else setPreselectedNetwork('');
     if (params?.planId !== undefined) setPreselectedPlanId(params.planId);
@@ -486,7 +539,7 @@ function MainApp() {
                   currentUser={currentUser}
                   products={products}
                   initialNetwork={preselectedNetwork}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -497,7 +550,7 @@ function MainApp() {
                   products={products}
                   initialNetwork={preselectedNetwork}
                   initialPlanId={preselectedPlanId}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -506,7 +559,7 @@ function MainApp() {
                 <CableTV
                   currentUser={currentUser}
                   products={products}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -515,7 +568,7 @@ function MainApp() {
                 <ElectricityBill
                   currentUser={currentUser}
                   products={products}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -524,7 +577,7 @@ function MainApp() {
                 <ExamPins
                   currentUser={currentUser}
                   products={products}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -533,7 +586,7 @@ function MainApp() {
                 <AirtimeToCash
                   currentUser={currentUser}
                   products={products}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
               )}
@@ -541,7 +594,7 @@ function MainApp() {
               {activeView === 'fund' && (
                 <FundWallet
                   currentUser={currentUser}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onRefreshWallet={handleGlobalRefresh}
                 />
               )}
@@ -549,7 +602,7 @@ function MainApp() {
               {activeView === 'history' && (
                 <TransactionHistory
                   transactions={transactions}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                 />
               )}
 
@@ -557,20 +610,20 @@ function MainApp() {
                 <ProfileSettings
                   currentUser={currentUser}
                   setCurrentUser={handleSetCurrentUser}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onLogout={handleLogout}
                 />
               )}
 
               {activeView === 'support' && (
                 <HelpSupport
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                 />
               )}
 
               {activeView === 'notifications' && (
                 <Notifications
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onRefreshUnreadCount={(count) => setUnreadCount(count)}
                 />
               )}
@@ -579,11 +632,11 @@ function MainApp() {
                 <PinScreen
                   mode="upgrade_pin"
                   userEmail={currentUser.email}
-                  onBack={() => navigateTo('dashboard')}
+                  onBack={handleGoBack}
                   onSuccess={() => {
                     setCurrentUser(prev => ({ ...prev, category: 'Premium User' }));
                     handleGlobalRefresh();
-                    navigateTo('dashboard');
+                    handleGoBack();
                   }}
                 />
               )}
