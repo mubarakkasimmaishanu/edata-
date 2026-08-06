@@ -22,6 +22,7 @@ import Notifications from './components/Notifications';
 import BottomNav from './components/BottomNav';
 import ServicesCatalog from './components/ServicesCatalog';
 import PinScreen from './components/PinScreen';
+import ResellerUpgrade from './components/ResellerUpgrade';
 
 type ActiveView =
   | 'dashboard'
@@ -614,6 +615,16 @@ function MainApp() {
                   setCurrentUser={handleSetCurrentUser}
                   onBack={handleGoBack}
                   onLogout={handleLogout}
+                  onNavigate={handleNavigate}
+                />
+              )}
+
+              {activeView === 'upgrade' && (
+                <ResellerUpgrade
+                  currentUser={currentUser}
+                  onBack={handleGoBack}
+                  onSuccess={handleGlobalRefresh}
+                  onNavigate={handleNavigate}
                 />
               )}
 
