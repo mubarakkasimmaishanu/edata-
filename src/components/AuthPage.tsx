@@ -516,11 +516,14 @@ export default function AuthPage({
 
                 {/* Form */}
                 {isRegistering ? (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4" id="register-form" method="post">
                     <div className="space-y-1.5">
                       <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
+                        name="username"
+                        id="register-email"
+                        autoComplete="username email"
                         required
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
@@ -538,6 +541,9 @@ export default function AuthPage({
                       </label>
                       <input
                         type="text"
+                        name="promo"
+                        id="register-promo"
+                        autoComplete="off"
                         value={authPromo}
                         onChange={(e) => setAuthPromo(e.target.value)}
                         placeholder="e.g. EDATA2026"
@@ -565,7 +571,7 @@ export default function AuthPage({
                     </button>
                   </form>
                 ) : (
-                  <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <form onSubmit={handleLoginSubmit} className="space-y-4" id="login-form" method="post">
                     {loginError && (
                       <div className={`p-3 border rounded-2xl text-xs font-semibold flex items-center gap-2 ${
                         theme === 'light'
@@ -580,6 +586,9 @@ export default function AuthPage({
                       <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
+                        name="username"
+                        id="login-email"
+                        autoComplete="username email"
                         required
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
@@ -605,6 +614,9 @@ export default function AuthPage({
                       <div className="relative flex items-center">
                         <input
                           type={showAuthPassword ? 'text' : 'password'}
+                          name="password"
+                          id="login-password"
+                          autoComplete="current-password"
                           required
                           value={authPassword}
                           onChange={(e) => setAuthPassword(e.target.value)}
@@ -816,12 +828,15 @@ export default function AuthPage({
                 </p>
               </div>
 
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl" id="reset-password-form" method="post">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-300 block">New Password</label>
                   <div className="relative">
                     <input
                       type={showForgotNewPassword ? 'text' : 'password'}
+                      name="new-password"
+                      id="reset-new-password"
+                      autoComplete="new-password"
                       required
                       value={forgotNewPassword}
                       onChange={(e) => setForgotNewPassword(e.target.value)}
@@ -842,6 +857,9 @@ export default function AuthPage({
                   <div className="relative">
                     <input
                       type={showForgotConfirmPassword ? 'text' : 'password'}
+                      name="confirm-password"
+                      id="reset-confirm-password"
+                      autoComplete="new-password"
                       required
                       value={forgotConfirmPassword}
                       onChange={(e) => setForgotConfirmPassword(e.target.value)}
@@ -884,12 +902,15 @@ export default function AuthPage({
                 <p className="text-xs text-slate-400 font-medium">Secure your account with a strong password.</p>
               </div>
 
-              <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
+              <form onSubmit={handleRegisterPasswordSubmit} className="space-y-4 bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl" id="create-password-form" method="post">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-300 block">Password</label>
                   <div className="relative">
                     <input
                       type={showRegPassword ? 'text' : 'password'}
+                      name="new-password"
+                      id="reg-new-password"
+                      autoComplete="new-password"
                       required
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
@@ -910,6 +931,9 @@ export default function AuthPage({
                   <div className="relative">
                     <input
                       type={showRegConfirmPassword ? 'text' : 'password'}
+                      name="confirm-password"
+                      id="reg-confirm-password"
+                      autoComplete="new-password"
                       required
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
