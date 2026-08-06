@@ -92,7 +92,7 @@ export default function ChangePasswordScreen({ userEmail, onBack, onSuccess }: C
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/90 border border-slate-800/80 rounded-3xl p-5 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900/90 border border-slate-800/80 rounded-3xl p-5 shadow-2xl" id="change-password-form" method="post">
             {/* Current Password Field */}
             <div>
               <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
@@ -101,6 +101,9 @@ export default function ChangePasswordScreen({ userEmail, onBack, onSuccess }: C
               <div className="relative">
                 <input
                   type={showOldPass ? 'text' : 'password'}
+                  name="current-password"
+                  id="change-old-password"
+                  autoComplete="current-password"
                   value={oldPass}
                   onChange={(e) => setOldPass(e.target.value)}
                   placeholder="Enter current password"
@@ -125,6 +128,9 @@ export default function ChangePasswordScreen({ userEmail, onBack, onSuccess }: C
               <div className="relative">
                 <input
                   type={showNewPass ? 'text' : 'password'}
+                  name="new-password"
+                  id="change-new-password"
+                  autoComplete="new-password"
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
                   placeholder="Enter new strong password"
@@ -149,6 +155,9 @@ export default function ChangePasswordScreen({ userEmail, onBack, onSuccess }: C
               <div className="relative">
                 <input
                   type={showConfirmPass ? 'text' : 'password'}
+                  name="confirm-password"
+                  id="change-confirm-password"
+                  autoComplete="new-password"
                   value={confirmPass}
                   onChange={(e) => setConfirmPass(e.target.value)}
                   placeholder="Re-enter new password to confirm"
