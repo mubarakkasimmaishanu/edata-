@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { Transaction } from '../types';
-import { ChevronLeft, Search, Download, Clock } from 'lucide-react';
+import { ChevronLeft, Search, Download, Clock, Copy, MessageCircle, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import BottomSheet from './BottomSheet';
+import { useToast } from './Toast';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
   onBack: () => void;
-  onSelectTransaction?: (tx: Transaction) => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function TransactionHistory({ transactions, onBack }: TransactionHistoryProps) {
+export default function TransactionHistory({ transactions, onBack, onNavigate }: TransactionHistoryProps) {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
@@ -29,6 +31,35 @@ export default function TransactionHistory({ transactions, onBack }: Transaction
       (tx.phoneOrMeter || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  const handleCopyReference = (ref: string) => {
+    navigator.clipboard.writeText(ref);
+    toast.success('Transaction reference copied to clipboard!');
+  };
+
+  const handleReportIssue = (tx: Transaction) => {
+    const refCode = tx.reference || tx.id;
+    const msg = `Hello eData Support, I need assistance with transaction Ref: ${refCode}\nService: ${tx.productName || tx.type}\nTarget Number: ${tx.phoneOrMeter || 'N/A'}\nAmount: ${formatMoney(tx.amount)}\nDate: ${tx.date || 'Recent'}\nStatus: ${tx.status}`;
+    const whatsappUrl = `https://wa.me/2349031384954?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleRetryTransaction = (tx: Transaction) => {
+    setActiveReceipt(null);
+    if (!onNavigate) return;
+    const typeLower = (tx.type || '').toLowerCase();
+    if (typeLower.includes('airtime')) {
+      onNavigate('airtime');
+    } else if (typeLower.includes('data')) {
+      onNavigate('data');
+    } else if (typeLower.includes('cable')) {
+      onNavigate('cable');
+    } else if (typeLower.includes('electricity')) {
+      onNavigate('electricity');
+    } else {
+      onNavigate('dashboard');
+    }
+  };
 
   const downloadPDFReceipt = (tx: Transaction) => {
     const doc = new jsPDF({ unit: 'mm', format: [80, 130] });
@@ -53,7 +84,7 @@ export default function TransactionHistory({ transactions, onBack }: Transaction
     doc.text(formatMoney(tx.amount), 40, 32, { align: 'center' });
 
     doc.setFontSize(9);
-    doc.setTextColor(tx.status === 'Completed' ? 52 : 244, tx.status === 'Completed' ? 211 : 63, tx.status === 'Completed' ? 153 : 94);
+    doc.setTextColor(tx.status === 'Completed' ? 52 : tx.status === 'Failed' ? 244 : 245, tx.status === 'Completed' ? 211 : tx.status === 'Failed' ? 63 : 158, tx.status === 'Completed' ? 153 : tx.status === 'Failed' ? 94 : 11);
     doc.text(`Status: ${tx.status}`, 40, 38, { align: 'center' });
 
     doc.setFontSize(8);
@@ -171,35 +202,89 @@ export default function TransactionHistory({ transactions, onBack }: Transaction
         <BottomSheet
           open={!!activeReceipt}
           onClose={() => setActiveReceipt(null)}
-          title="Transaction Receipt"
+          title="Transaction Details"
         >
           <div className="space-y-4 py-2">
             <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
               <div className="text-center">
                 <span className="text-[10px] uppercase text-sky-400 font-semibold tracking-wider">Amount Paid</span>
                 <h3 className="text-2xl font-extrabold text-white mt-0.5">{formatMoney(activeReceipt.amount)}</h3>
-                <span className={`inline-block px-2.5 py-0.5 mt-1 rounded-full text-[10px] font-bold ${
-                  activeReceipt.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                <span className={`inline-block px-3 py-1 mt-1 rounded-full text-[11px] font-bold border ${
+                  activeReceipt.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                  activeReceipt.status === 'Failed' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
+                  'bg-amber-500/10 text-amber-400 border-amber-500/30'
                 }`}>
                   {activeReceipt.status}
                 </span>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 text-xs space-y-2">
-                <div className="flex justify-between"><span className="text-slate-400">Service</span><span className="text-white font-medium">{activeReceipt.type}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Description</span><span className="text-white font-medium">{activeReceipt.productName}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Target</span><span className="text-white font-medium">{activeReceipt.phoneOrMeter}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Reference</span><span className="text-sky-400 font-mono">{activeReceipt.reference || activeReceipt.id}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Date</span><span className="text-white font-medium">{activeReceipt.date}</span></div>
+              {/* Status explanation alert */}
+              {activeReceipt.status === 'Pending' && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 font-medium flex items-center gap-2">
+                  <Clock className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>This transaction is currently processing with the carrier provider. If value is not received, report the issue to support below.</span>
+                </div>
+              )}
+              {activeReceipt.status === 'Failed' && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>This transaction failed to complete. Your wallet was not charged or has been automatically refunded.</span>
+                </div>
+              )}
+              {activeReceipt.status === 'Completed' && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 font-medium flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span>Transaction completed. If the recipient hasn't received value, tap Report Issue below to contact support immediately.</span>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-800 text-xs space-y-2.5">
+                <div className="flex justify-between items-center"><span className="text-slate-400">Service</span><span className="text-white font-medium">{activeReceipt.type}</span></div>
+                <div className="flex justify-between items-center"><span className="text-slate-400">Description</span><span className="text-white font-medium">{activeReceipt.productName}</span></div>
+                <div className="flex justify-between items-center"><span className="text-slate-400">Target</span><span className="text-white font-medium">{activeReceipt.phoneOrMeter}</span></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Reference</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sky-400 font-mono font-bold">{activeReceipt.reference || activeReceipt.id}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyReference(activeReceipt.reference || activeReceipt.id)}
+                      className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
+                      title="Copy Reference"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center"><span className="text-slate-400">Date</span><span className="text-white font-medium">{activeReceipt.date}</span></div>
               </div>
             </div>
 
-            <button
-              onClick={() => downloadPDFReceipt(activeReceipt)}
-              className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Download className="w-4 h-4" /> Download PDF Receipt
-            </button>
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={() => handleReportIssue(activeReceipt)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-900/20"
+              >
+                <MessageCircle className="w-4 h-4" /> Report Issue / Contact Support
+              </button>
+
+              {(activeReceipt.status === 'Failed' || activeReceipt.status === 'Pending') && onNavigate && (
+                <button
+                  onClick={() => handleRetryTransaction(activeReceipt)}
+                  className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-900/20"
+                >
+                  <RotateCcw className="w-4 h-4" /> Retry Transaction
+                </button>
+              )}
+
+              <button
+                onClick={() => downloadPDFReceipt(activeReceipt)}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-700"
+              >
+                <Download className="w-4 h-4" /> Download PDF Receipt
+              </button>
+            </div>
           </div>
         </BottomSheet>
       )}

@@ -604,6 +604,7 @@ function MainApp() {
                 <TransactionHistory
                   transactions={transactions}
                   onBack={handleGoBack}
+                  onNavigate={handleNavigate}
                 />
               )}
 
