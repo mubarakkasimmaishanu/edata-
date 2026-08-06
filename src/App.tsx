@@ -466,14 +466,15 @@ function MainApp() {
     const netUpper = (activeQuickAction.network || 'MTN').toUpperCase();
     const serviceType = activeQuickAction.service_type || 'data';
 
-    let serviceId = 2; // Data by default
+    let serviceId = 27; // MTN Data by default
     if (serviceType === 'airtime') {
-      const netMap: Record<string, number> = { MTN: 1, GLO: 2, AIRTEL: 3, '9MOBILE': 4 };
-      serviceId = netMap[netUpper] || 1;
+      const netMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
+      serviceId = netMap[netUpper] || 23;
     } else if (serviceType === 'data') {
-      serviceId = 2;
+      const dataMap: Record<string, number> = { MTN: 27, GLO: 29, AIRTEL: 28, '9MOBILE': 30 };
+      serviceId = dataMap[netUpper] || 27;
     } else if (serviceType === 'exams') {
-      serviceId = 3;
+      serviceId = 13;
     } else if (serviceType === 'cable') {
       serviceId = 4;
     } else if (serviceType === 'electricity') {

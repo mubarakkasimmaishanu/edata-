@@ -85,12 +85,12 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
     const extractedNum = parseInt(String(selectedProduct.id).replace(/^[^\d]*/, ''), 10);
     const planId = !isNaN(extractedNum) ? extractedNum : 36;
     
-    // Map carrier network to exact ServiceType ID (2: MTN Data, 4: Airtel Data, 6: Glo Data, 8: 9mobile Data)
+    // Map carrier network to exact ServiceType ID (27: MTN Data, 28: Airtel Data, 29: Glo Data, 30: 9mobile Data)
     const opUpper = (selectedProduct.operator || detectedOperator || 'MTN').toUpperCase();
-    const serviceId = opUpper.includes('AIRTEL') ? 4
-      : opUpper.includes('GLO') ? 6
-      : opUpper.includes('9MOBILE') || opUpper.includes('ETISALAT') ? 8
-      : 2;
+    const serviceId = opUpper.includes('AIRTEL') ? 28
+      : opUpper.includes('GLO') ? 29
+      : opUpper.includes('9MOBILE') || opUpper.includes('ETISALAT') ? 30
+      : 27;
 
     const res = await api.purchase({
       service_id: serviceId,
