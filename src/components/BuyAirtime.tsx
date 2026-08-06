@@ -70,8 +70,8 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   };
 
   const handleConfirmPurchase = async (pinInput: string) => {
-    const networkMap: Record<string, number> = { MTN: 1, GLO: 2, AIRTEL: 3, '9MOBILE': 4 };
-    const netId = networkMap[detectedOperator.toUpperCase()] || 1;
+    const networkMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
+    const netId = networkMap[detectedOperator.toUpperCase()] || 23;
     const res = await api.purchase({
       service_id: netId,
       amount: parseFloat(checkoutAmount),
