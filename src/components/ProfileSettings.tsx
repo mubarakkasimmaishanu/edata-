@@ -11,15 +11,17 @@ import PinScreen from './PinScreen';
 import PrivacyTerms from './PrivacyTerms';
 import ChangePasswordScreen from './ChangePasswordScreen';
 import EditProfileScreen from './EditProfileScreen';
+import ResellerUpgrade from './ResellerUpgrade';
 
 interface ProfileSettingsProps {
   currentUser: UserProfile;
   setCurrentUser: (user: UserProfile | ((prev: UserProfile) => UserProfile)) => void;
   onBack: () => void;
   onLogout: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function ProfileSettings({ currentUser, setCurrentUser, onBack, onLogout }: ProfileSettingsProps) {
+export default function ProfileSettings({ currentUser, setCurrentUser, onBack, onLogout, onNavigate }: ProfileSettingsProps) {
   const toast = useToast();
   const { theme, toggleTheme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,8 +29,8 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   // Full-screen PIN screen state
   const [pinScreenMode, setPinScreenMode] = useState<'set_pin' | 'change_pin' | 'forgot_pin' | 'upgrade_pin' | null>(null);
 
-  // Full-screen view states for Edit Profile, Change Password, Privacy Policy, Terms
-  const [fullScreenView, setFullScreenView] = useState<'edit_profile' | 'change_password' | 'privacy' | 'terms' | null>(null);
+  // Full-screen view states for Edit Profile, Change Password, Privacy Policy, Terms, Reseller Upgrade
+  const [fullScreenView, setFullScreenView] = useState<'edit_profile' | 'change_password' | 'privacy' | 'terms' | 'reseller_upgrade' | null>(null);
 
   // Biometric toggle state
   const [biometricEnabled, setBiometricEnabled] = useState(true);
@@ -80,7 +82,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-36">
       {/* ── Top Header ── */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
         <div className="flex items-center gap-3">
@@ -110,7 +112,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
         className="hidden"
       />
 
-      <main className="px-4 py-5 space-y-5 flex-1">
+      <main className="px-4 py-5 space-y-5 flex-1 pb-10">
         {/* ── USER AVATAR & NAME CARD ── */}
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-xl text-center relative overflow-hidden">
           <div className="relative inline-block mx-auto mb-3">
@@ -164,7 +166,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
             </div>
 
             <button
-              onClick={() => setPinScreenMode('upgrade_pin')}
+              onClick={() => setFullScreenView('reseller_upgrade')}
               className="w-full bg-white text-sky-950 font-black text-xs py-3 rounded-2xl shadow-lg transition-spring active:scale-95 cursor-pointer btn-sheen uppercase tracking-wider font-display"
             >
               Upgrade Now for ₦5,000
@@ -461,6 +463,19 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
         <PrivacyTerms
           mode="terms"
           onBack={() => setFullScreenView(null)}
+        />
+      )}
+
+      {/* ── Full-Screen Reseller Upgrade Overlay ── */}
+      {fullScreenView === 'reseller_upgrade' && (
+        <ResellerUpgrade
+          currentUser={currentUser}
+          onBack={() => setFullScreenView(null)}
+          onSuccess={() => setFullScreenView(null)}
+          onNavigate={(v) => {
+            setFullScreenView(null);
+            if (onNavigate) onNavigate(v);
+          }}
         />
       )}
     </div>
