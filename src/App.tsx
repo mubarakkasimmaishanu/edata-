@@ -96,6 +96,13 @@ function MainApp() {
     }
   };
 
+  const handleNavigate = (view: ActiveView, network?: string, planId?: number) => {
+    if (network) setPreselectedNetwork(network);
+    if (planId !== undefined) setPreselectedPlanId(planId);
+    setActiveView(view);
+    setViewHistory(prev => [...prev, view]);
+  };
+
   useEffect(() => {
     let handler: any;
     import('@capacitor/app').then(({ App: CapApp }) => {

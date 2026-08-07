@@ -5,6 +5,8 @@ import { jsPDF } from 'jspdf';
 import BottomSheet from './BottomSheet';
 import { useToast } from './Toast';
 
+import { formatMoney } from '../utils/formatters';
+
 interface TransactionHistoryProps {
   transactions: Transaction[];
   onBack: () => void;
@@ -16,10 +18,6 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
-
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
-  };
 
   const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'A2C'];
 
@@ -81,7 +79,7 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(formatMoney(tx.amount), 40, 32, { align: 'center' });
+    doc.text(formatMoney(tx.amount, { useCode: true }), 40, 32, { align: 'center' });
 
     doc.setFontSize(9);
     doc.setTextColor(tx.status === 'Completed' ? 52 : tx.status === 'Failed' ? 244 : 245, tx.status === 'Completed' ? 211 : tx.status === 'Failed' ? 63 : 158, tx.status === 'Completed' ? 153 : tx.status === 'Failed' ? 94 : 11);
