@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types';
+import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
   BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal
@@ -215,10 +216,6 @@ export default function UserDashboard({
         ? currentUser.email.split('@')[0]
         : 'eData User');
   const avatarInitial = displayName ? displayName[0].toUpperCase() : 'U';
-
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
-  };
 
   // Fallback quick actions if backend has not loaded any yet
   const defaultActions: QuickAction[] = [
