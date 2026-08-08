@@ -513,6 +513,7 @@ export default function ServiceForm(props: ServiceFormProps) {
             </label>
             {showContactPicker && (
               <button
+                type="button"
                 onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
                 className="text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-colors active:scale-95 cursor-pointer"
               >
@@ -578,6 +579,15 @@ export default function ServiceForm(props: ServiceFormProps) {
               <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 text-sky-300 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider font-mono">
                 {detectedOperator}
               </span>
+            )}
+            {showContactPicker && !detectedOperator && (
+              <button
+                type="button"
+                onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-all active:scale-95 cursor-pointer bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-xl"
+              >
+                <Phone className="w-3.5 h-3.5" /> Contacts
+              </button>
             )}
           </div>
 

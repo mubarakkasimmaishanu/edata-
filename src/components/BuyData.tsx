@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Wifi } from 'lucide-react';
+import { openContactPicker } from '../utils/contactPicker';
 
 interface BuyDataProps {
   currentUser: UserProfile;
@@ -173,7 +174,7 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
           promoError={promoError}
           handleApplyPromoCode={handleApplyPromoCode}
           handleCheckoutInitiate={handleCheckoutInitiate}
-          onOpenContacts={() => {}}
+          onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           toast={toast}

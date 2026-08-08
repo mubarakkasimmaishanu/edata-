@@ -1,7 +1,9 @@
 /**
  * Utility functions to format monetary amounts reliably across Android WebView, iOS, and Web.
- * Avoids Intl.NumberFormat ('en-NG') quirks where Android ICU data defaults to 'NGN' string or garbled unicode.
+ * Uses explicit Unicode \u20A6 for Naira symbol and en-US numerical formatting.
  */
+
+export const NAIRA_SYMBOL = '\u20A6';
 
 export const formatMoney = (amount: number | string, options?: { useCode?: boolean }): string => {
   const num = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
@@ -14,7 +16,7 @@ export const formatMoney = (amount: number | string, options?: { useCode?: boole
     return `NGN ${formatted}`;
   }
 
-  return `₦${formatted}`;
+  return `${NAIRA_SYMBOL}${formatted}`;
 };
 
 export const formatMoneyCompact = (amount: number | string): string => {
@@ -23,5 +25,5 @@ export const formatMoneyCompact = (amount: number | string): string => {
     maximumFractionDigits: 0,
   });
 
-  return `₦${formatted}`;
+  return `${NAIRA_SYMBOL}${formatted}`;
 };
