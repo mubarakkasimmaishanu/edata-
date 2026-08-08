@@ -12,6 +12,8 @@ import PrivacyTerms from './PrivacyTerms';
 import ChangePasswordScreen from './ChangePasswordScreen';
 import EditProfileScreen from './EditProfileScreen';
 import ResellerUpgrade from './ResellerUpgrade';
+import DeleteAccount from './DeleteAccount';
+import { Gift } from 'lucide-react';
 
 interface ProfileSettingsProps {
   currentUser: UserProfile;
@@ -29,8 +31,8 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   // Full-screen PIN screen state
   const [pinScreenMode, setPinScreenMode] = useState<'set_pin' | 'change_pin' | 'forgot_pin' | 'upgrade_pin' | null>(null);
 
-  // Full-screen view states for Edit Profile, Change Password, Privacy Policy, Terms, Reseller Upgrade
-  const [fullScreenView, setFullScreenView] = useState<'edit_profile' | 'change_password' | 'privacy' | 'terms' | 'reseller_upgrade' | null>(null);
+  // Full-screen view states for Edit Profile, Change Password, Privacy Policy, Terms, Reseller Upgrade, Delete Account
+  const [fullScreenView, setFullScreenView] = useState<'edit_profile' | 'change_password' | 'privacy' | 'terms' | 'reseller_upgrade' | 'delete_account' | null>(null);
 
   // Biometric toggle state
   const [biometricEnabled, setBiometricEnabled] = useState(true);
@@ -401,6 +403,42 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
             </button>
+
+            {/* Referral Program */}
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('referral')}
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 hover:border-purple-500/50 transition-all group text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+                    <Gift className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-white block font-display">Referral Program</span>
+                    <span className="text-[10.5px] text-slate-400 font-medium">Invite friends & earn dynamic cash rewards</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-400 transition-colors" />
+              </button>
+            )}
+
+            {/* Delete Account */}
+            <button
+              onClick={() => setFullScreenView('delete_account')}
+              className="w-full flex items-center justify-between p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 hover:border-rose-500/50 transition-all group text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-rose-300 block font-display">Delete Account</span>
+                  <span className="text-[10.5px] text-rose-400/80 font-medium">Permanently remove user account & data</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:text-rose-300 transition-colors" />
+            </button>
           </div>
         </section>
 
@@ -477,6 +515,19 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
             if (onNavigate) onNavigate(v);
           }}
         />
+      )}
+
+      {/* ── Full-Screen Delete Account Overlay ── */}
+      {fullScreenView === 'delete_account' && (
+        <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
+          <DeleteAccount
+            onBack={() => setFullScreenView(null)}
+            onSuccess={() => {
+              setFullScreenView(null);
+              onLogout();
+            }}
+          />
+        </div>
       )}
     </div>
   );

@@ -543,11 +543,14 @@ export default function UserDashboard({
         )}
 
         {/* ── 6. Earn / Referral Banner Card ── */}
-        <section className={`rounded-3xl p-4 flex items-center justify-between text-white transition-all ${
-          theme === 'light'
-            ? 'bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#1d4ed8] border border-sky-400/30 shadow-lg shadow-sky-600/15'
-            : 'bg-gradient-to-r from-sky-900 to-indigo-950 border border-sky-500/40 shadow-xl'
-        }`}>
+        <section
+          onClick={() => onNavigate('referral')}
+          className={`rounded-3xl p-4 flex items-center justify-between text-white transition-all cursor-pointer active:scale-98 ${
+            theme === 'light'
+              ? 'bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#1d4ed8] border border-sky-400/30 shadow-lg shadow-sky-600/15'
+              : 'bg-gradient-to-r from-sky-900 to-indigo-950 border border-sky-500/40 shadow-xl'
+          }`}
+        >
           <div className="space-y-0.5">
             <h4 className="text-sm font-black text-white font-display">Earn up to ₦2,500</h4>
             <p className="text-[11px] text-sky-100 font-medium">Invite friends and earn dynamic cash payouts</p>
