@@ -541,3 +541,34 @@ body {
   padding-top: 28px;
   padding-top: max(28px, env(safe-area-inset-top, 28px));
 }
+
+/* ─── 60/120Hz High Refresh Rate & GPU Hardware Acceleration ─── */
+html, body {
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Eliminate 300ms mobile touch delay on clickable elements */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hardware Accelerated Layers for Floating & Fixed Elements */
+.fixed, .sticky, [class*="backdrop-blur"] {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* List Item Performance Optimization for High-Density Scrollable Feeds */
+.optimize-list-item {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 80px;
+}
+
