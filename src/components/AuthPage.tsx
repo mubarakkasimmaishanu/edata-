@@ -61,22 +61,70 @@ export default function AuthPage({
   // Google Auth State
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
 
-  // Pre-initialize native GoogleAuth on mount
+  // Web OAuth client ID (used by GIS on the web; native reads it from strings.xml)
+  const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
+
+  // Initialize the correct SDK exactly once per platform
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
+      // Android reads server_client_id from strings.xml — do NOT pass clientId here
       import('@codetrix-studio/capacitor-google-auth')
-        .then(({ GoogleAuth }) => {
-          GoogleAuth.initialize({
-            clientId: '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com',
-            scopes: ['profile', 'email'],
-            grantOfflineAccess: true,
-          }).catch(() => {});
-        })
+        .then(({ GoogleAuth }) => GoogleAuth.initialize())
         .catch(() => {});
+    } else {
+      // Preload Google Identity Services script for the web popup
+      if (!document.getElementById('gis-sdk')) {
+        const s = document.createElement('script');
+        s.id = 'gis-sdk';
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.defer = true;
+        document.head.appendChild(s);
+      }
     }
   }, []);
 
-  // ─── Native & GIS Web Google Sign-In Handler ───
+  // GIS web popup — only used on the web build (not inside the Android WebView)
+  const runGISWebOAuth = () =>
+    new Promise<{ access_token?: string }>((resolve, reject) => {
+      const trigger = () => {
+        const g = (window as any).google;
+        if (!g?.accounts?.oauth2) {
+          reject(new Error('Google Sign-In SDK not ready. Please try again.'));
+          return;
+        }
+        try {
+          const client = g.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'openid email profile',
+            callback: (r: any) =>
+              r?.access_token
+                ? resolve({ access_token: r.access_token })
+                : reject(new Error('Google authentication was cancelled.')),
+            error_callback: (e: any) =>
+              reject(new Error(e?.message || 'Google Sign-In popup closed.')),
+          });
+          client.requestAccessToken();
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      if ((window as any).google?.accounts?.oauth2) {
+        trigger();
+      } else {
+        // Script was preloaded in useEffect but may not be ready yet
+        const existing = document.getElementById('gis-sdk') as HTMLScriptElement | null;
+        if (existing) {
+          existing.addEventListener('load', trigger, { once: true });
+          existing.addEventListener('error', () => reject(new Error('Unable to load Google Sign-In SDK.')), { once: true });
+        } else {
+          reject(new Error('Google Sign-In SDK not loaded.'));
+        }
+      }
+    });
+
+  // ─── Google Sign-In Handler ───
   const handleGoogleSignIn = async () => {
     if (!navigator.onLine) {
       toast.error('No internet connection. Please check your network and try again.');
@@ -84,116 +132,33 @@ export default function AuthPage({
     }
 
     setGoogleAuthLoading(true);
-    const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
-
-    // Helper for GIS Web Popup Auth
-    const runGISWebOAuth = () => {
-      return new Promise<{ id_token?: string; access_token?: string }>((resolve, reject) => {
-        const loadAndInitGIS = () => {
-          try {
-            if (!(window as any).google?.accounts?.oauth2) {
-              const script = document.createElement('script');
-              script.src = 'https://accounts.google.com/gsi/client';
-              script.async = true;
-              script.defer = true;
-              script.onload = () => triggerGIS();
-              script.onerror = () => reject(new Error('Unable to load Google Sign-In SDK. Please check internet.'));
-              document.head.appendChild(script);
-            } else {
-              triggerGIS();
-            }
-          } catch (e) {
-            reject(e);
-          }
-        };
-
-        const triggerGIS = () => {
-          try {
-            const client = (window as any).google.accounts.oauth2.initTokenClient({
-              client_id: GOOGLE_CLIENT_ID,
-              scope: 'email profile openid',
-              callback: (tokenRes: any) => {
-                if (tokenRes.access_token) {
-                  resolve({ access_token: tokenRes.access_token });
-                } else if (tokenRes.id_token) {
-                  resolve({ id_token: tokenRes.id_token });
-                } else {
-                  reject(new Error('Google authentication was cancelled.'));
-                }
-              },
-              error_callback: (err: any) => {
-                reject(new Error('Google Sign-In popup error: ' + (err.message || 'Popup closed')));
-              }
-            });
-            client.requestAccessToken();
-          } catch (err) {
-            reject(err);
-          }
-        };
-
-        loadAndInitGIS();
-      });
-    };
-
     try {
-      let tokenPayload: { id_token?: string; access_token?: string; email?: string; firstname?: string; lastname?: string; picture?: string } = {};
+      let tokenPayload: {
+        id_token?: string;
+        access_token?: string;
+        email?: string;
+        firstname?: string;
+        lastname?: string;
+        picture?: string;
+      } = {};
 
       if (Capacitor.isNativePlatform()) {
-        try {
-          const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-          try {
-            await GoogleAuth.initialize({
-              clientId: GOOGLE_CLIENT_ID,
-              scopes: ['profile', 'email'],
-              grantOfflineAccess: true,
-            });
-          } catch (_) {
-            // Ignore pre-init warning
-          }
-
-          const googleUser = await GoogleAuth.signIn();
-          const rawIdToken = googleUser.authentication?.idToken || (googleUser as any).idToken || '';
-          const rawAccessToken = googleUser.authentication?.accessToken || (googleUser as any).accessToken || '';
-          const userEmail = googleUser.email || (googleUser as any).user?.email || '';
-
-          if (rawIdToken || rawAccessToken || userEmail) {
-            tokenPayload = {
-              ...(rawIdToken ? { id_token: rawIdToken } : {}),
-              ...(rawAccessToken ? { access_token: rawAccessToken } : {}),
-              ...(userEmail ? { email: userEmail } : {}),
-              ...(googleUser.givenName ? { firstname: googleUser.givenName } : {}),
-              ...(googleUser.familyName ? { lastname: googleUser.familyName } : {}),
-              ...(googleUser.imageUrl ? { picture: googleUser.imageUrl } : {}),
-            };
-          } else {
-            throw new Error('No authentication token obtained from native GoogleAuth');
-          }
-        } catch (nativeErr: any) {
-          console.warn('Native Google Auth failed, trying GIS fallback:', nativeErr);
-          const errStr = String(nativeErr?.message || nativeErr || '').toLowerCase();
-          if (
-            errStr.includes('canceled') ||
-            errStr.includes('cancelled') ||
-            nativeErr?.code === '12501' ||
-            nativeErr?.code === 12501
-          ) {
-            toast.info('Google Sign-In was cancelled.');
-            return;
-          }
-          // Attempt GIS Web Popup fallback on native webview
-          try {
-            tokenPayload = await runGISWebOAuth();
-          } catch (gisErr: any) {
-            console.error('GIS Fallback error:', gisErr);
-            if (errStr.includes('something went wrong') || errStr.includes('10') || errStr.includes('developer_error')) {
-              toast.error('Google Sign-In setup error: Please verify SHA-1 fingerprint registration in Google Cloud Console.');
-            } else {
-              toast.error(nativeErr?.message || gisErr?.message || 'Google Sign-In failed.');
-            }
-            return;
-          }
+        // Native: use the plugin. It reads server_client_id from strings.xml.
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser.authentication?.idToken;
+        if (!idToken) {
+          throw new Error('No ID token returned by Google. Check Android OAuth client SHA-1 configuration.');
         }
+        tokenPayload = {
+          id_token: idToken,
+          ...(googleUser.email ? { email: googleUser.email } : {}),
+          ...(googleUser.givenName ? { firstname: googleUser.givenName } : {}),
+          ...(googleUser.familyName ? { lastname: googleUser.familyName } : {}),
+          ...(googleUser.imageUrl ? { picture: googleUser.imageUrl } : {}),
+        };
       } else {
+        // Web: use GIS popup
         tokenPayload = await runGISWebOAuth();
       }
 
@@ -228,7 +193,22 @@ export default function AuthPage({
       }
     } catch (err: any) {
       console.error('Google Sign-In error:', err);
-      toast.error(err.message || 'Google Sign-In failed.');
+      const msg = String(err?.message || err || '').toLowerCase();
+      if (msg.includes('cancel') || err?.code === '12501' || err?.code === 12501) {
+        toast.info('Google Sign-In was cancelled.');
+      } else if (
+        msg.includes('developer_error') ||
+        msg.includes('something went wrong') ||
+        msg.includes(' 10 ') ||
+        msg.endsWith(' 10') ||
+        msg.includes('sha-1')
+      ) {
+        toast.error(
+          "Google Sign-In isn't configured for this build. Register this app's SHA-1 in Google Cloud Console."
+        );
+      } else {
+        toast.error(err?.message || 'Google Sign-In failed.');
+      }
     } finally {
       setGoogleAuthLoading(false);
     }

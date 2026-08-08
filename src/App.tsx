@@ -46,9 +46,27 @@ function MainApp() {
   const toast = useToast();
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
-  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('edata_cached_products');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_PRODUCTS;
+  });
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    try {
+      const saved = localStorage.getItem('edata_cached_transactions');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_TRANSACTIONS;
+  });
+  const [quickActions, setQuickActions] = useState<QuickAction[]>(() => {
+    try {
+      const saved = localStorage.getItem('edata_cached_quick_actions');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [preselectedNetwork, setPreselectedNetwork] = useState<string>('');
   const [preselectedPlanId, setPreselectedPlanId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
@@ -260,6 +278,14 @@ function MainApp() {
         disputeRaised: false,
       }));
       setTransactions(mappedTx);
+
+      try {
+        localStorage.setItem('edata_cached_products', JSON.stringify(mappedProducts));
+        localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx));
+        if (Array.isArray(qaFromServices)) {
+          localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices));
+        }
+      } catch {}
 
       const user = profileRes.data?.user || profileRes.data || profileRes.user || profileRes;
       const walletData = walletRes.data?.wallet || walletRes.data || walletRes.wallet || walletRes;
