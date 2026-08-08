@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Repeat } from 'lucide-react';
+import { openContactPicker } from '../utils/contactPicker';
 
 interface AirtimeToCashProps {
   currentUser: UserProfile;
@@ -131,7 +132,7 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
           promoError=""
           handleApplyPromoCode={() => {}}
           handleCheckoutInitiate={handleCheckoutInitiate}
-          onOpenContacts={() => {}}
+          onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           a2cBank={a2cBank}

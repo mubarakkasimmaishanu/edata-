@@ -572,3 +572,23 @@ button, a, input, select, textarea, [role="button"] {
   contain-intrinsic-size: 0 80px;
 }
 
+/* ─── Universal Cross-Platform Naira Symbol (U+20A6 ₦) Font Fallbacks ─── */
+.font-mono {
+  font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.font-display {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.font-sans {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Explicit Naira Symbol Helper Class */
+.naira-symbol, .naira-sign {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-style: normal;
+}
+
+

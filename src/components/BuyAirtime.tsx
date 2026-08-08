@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Smartphone } from 'lucide-react';
+import { openContactPicker } from '../utils/contactPicker';
 
 interface BuyAirtimeProps {
   currentUser: UserProfile;
@@ -151,7 +152,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           promoError={promoError}
           handleApplyPromoCode={handleApplyPromoCode}
           handleCheckoutInitiate={handleCheckoutInitiate}
-          onOpenContacts={() => {}}
+          onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           toast={toast}
