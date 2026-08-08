@@ -23,6 +23,7 @@ import BottomNav from './components/BottomNav';
 import ServicesCatalog from './components/ServicesCatalog';
 import PinScreen from './components/PinScreen';
 import ResellerUpgrade from './components/ResellerUpgrade';
+import ReferralScreen from './components/ReferralScreen';
 
 type ActiveView =
   | 'dashboard'
@@ -38,7 +39,8 @@ type ActiveView =
   | 'profile'
   | 'support'
   | 'notifications'
-  | 'upgrade';
+  | 'upgrade'
+  | 'referral';
 
 function MainApp() {
   const toast = useToast();
@@ -648,16 +650,11 @@ function MainApp() {
                 />
               )}
 
-              {activeView === 'upgrade' && (
-                <PinScreen
-                  mode="upgrade_pin"
-                  userEmail={currentUser.email}
+              {activeView === 'referral' && (
+                <ReferralScreen
+                  currentUser={currentUser}
                   onBack={handleGoBack}
-                  onSuccess={() => {
-                    setCurrentUser(prev => ({ ...prev, category: 'Premium User' }));
-                    handleGlobalRefresh();
-                    handleGoBack();
-                  }}
+                  onNavigate={navigateTo}
                 />
               )}
 
