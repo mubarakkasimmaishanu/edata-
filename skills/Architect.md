@@ -51,3 +51,13 @@ Used for planning, designing, and structuring code, API endpoints, database sche
     - In-App: `PrivacyTerms.tsx` and `DeleteAccount.tsx` components inside `src/components/`.
     - REST API: `POST api/delete-account` endpoint in `ApiController.php` deactivating user (`status = User::STATUS_BLOCKED`) and revoking keys.
     - Public Web URLs: `https://edata.com.ng/privacy-policy` and `https://edata.com.ng/delete-account` mapped in `frontend/config/main.php` `urlManager.rules`.
+12. **Phone Network Auto-Detection Component (`PhoneNetworkDetector`)**:
+    - Centralized component (`common/components/PhoneNetworkDetector.php`) parsing Nigerian telecom prefixes (`0803`, `0802`, `0805`, `0809`, etc.) and stripping international codes (`+234`/`234`).
+    - Leveraged in REST API (`actionPurchase`, `actionDetectNetwork`) to resolve network operators automatically.
+13. **NaijaResultPins Exam Card Vending Component**:
+    - Default provider integration for exam scratch cards (WAEC, NECO, NBAIS, NABTEB) encapsulated inside `VendingService.php`.
+14. **Plan Type Management & Tier Discount Auto-Pricing Architecture**:
+    - Model `PlanType` (`common/models/PlanType.php`) and CRUD controller `PlanTypeController.php`.
+    - Percentage discount tier auto-pricing in `DataPlan` form, deriving user tier rates dynamically while allowing optional `bundle_id`.
+15. **Location & Telecom Detection Component (`GeoHelper` + MaxMind GeoIP2)**:
+    - Zero-permission IP location and carrier resolution via `GeoHelper` (`common/components/GeoHelper.php`).

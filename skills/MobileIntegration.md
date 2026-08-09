@@ -25,14 +25,14 @@ This document contains the verified configuration and blueprint rules for connec
   5. `GET /index.php?r=api/services` (Bearer Secured): Yields services and plans sorted by `selling_price` with pricing resolved dynamically to user membership tier.
   6. `POST /index.php?r=api/validate` (Bearer Secured): Verifies smartcards/meters.
   7. `POST /index.php?r=api/promo` (Bearer Secured): Evaluates promo code discounts.
-  8. `POST /index.php?r=api/purchase` (Bearer Secured): Debits wallet, logs transaction across all 6 service categories (Airtime, Data, Exam Scratch Cards, Cable TV, Electricity, A2C), and handles provider failovers.
-  9. `GET/POST /index.php?r=api/detect-network` (Bearer Optional): Detects mobile network from phone number, returns operator name, icon, code, and active pricing plans.
-  10. `POST /index.php?r=api/google-auth` (Public): Verifies Google Cloud OAuth JWT ID tokens, auto-registers or authenticates users, and returns bearer tokens.
-  11. `POST /index.php?r=api/forgot-password` (Public): Dispatches 6-digit verification code to user email for password recovery.
-  12. `POST /index.php?r=api/forgot-pin` (Bearer Secured): 2-step OTP flow (`step=request` to send email OTP code, `step=verify` to validate code and update 4-digit PIN).
-  13. `POST /index.php?r=api/set-pin` (Bearer Secured): Sets initial 4-digit Transaction PIN.
-  14. `POST /index.php?r=api/change-pin` (Bearer Secured): Updates existing Transaction PIN.
-  15. `POST /index.php?r=api/upgrade` (Bearer Secured): Deducts VTU Agent fee from wallet, auto-elevates user level to Premium Reseller.
+  28. `POST /index.php?r=api/purchase` (Bearer Secured): Debits wallet, calculates airtime tier percentage discount ($amount \times \frac{effectiveRate}{100}$), supports exam pin multi-quantity ($Q \ge 1$), enforces electricity ₦500 minimum, logs transaction across all 6 service categories, and handles provider failovers.
+  29. `GET/POST /index.php?r=api/detect-network` (Bearer Optional): Detects mobile network from phone number, returns operator name, icon, code, and active pricing plans.
+  30. `POST /index.php?r=api/google-auth` (Public): Verifies Google Cloud OAuth JWT ID tokens (`id_token`) or web OAuth popup access tokens (`access_token`) via Google userinfo API, auto-registers or authenticates users, and returns bearer tokens.
+  31. `POST /index.php?r=api/forgot-password` (Public): Dispatches 6-digit verification code to user email for password recovery.
+  32. `POST /index.php?r=api/forgot-pin` (Bearer Secured): 2-step OTP flow (`step=request` to send email OTP code, `step=verify` to validate code and update 4-digit PIN).
+  33. `POST /index.php?r=api/set-pin` (Bearer Secured): Sets initial 4-digit Transaction PIN.
+  34. `POST /index.php?r=api/change-pin` (Bearer Secured): Updates existing Transaction PIN.
+  35. `POST /index.php?r=api/upgrade` (Bearer Secured): Deducts VTU Reseller upgrade fee from wallet, creates `UpgradeRequest` with `STATUS_PENDING`, keeping user level at `LEVEL_BASIC` until Superadmin review in AdminLTE panel.
   16. `POST /index.php?r=api/signup-request` (Public): Dispatches 6-digit email OTP for mobile registration.
   17. `POST /index.php?r=api/signup-verify` (Public): Validates registration email OTP.
   18. `POST /index.php?r=api/signup-complete` (Public): Completes registration, creates user, profile, wallet, sets transaction PIN & returns bearer token.
@@ -40,6 +40,9 @@ This document contains the verified configuration and blueprint rules for connec
   20. `POST /index.php?r=api/notifications/read` (Bearer Secured): Marks individual or all notifications as read.
   21. `POST /index.php?r=api/katpay/init` (Bearer Secured): Initializes KatPay online payment checkout link (`checkout_url`).
   22. `POST /index.php?r=api/wallet/manual-deposit` (Bearer Secured): Submits manual bank transfer deposit proof for admin review.
+  23. `GET /index.php?r=api/config` (Public/Bearer Optional): Returns system settings including support phone (`support_phone`), support email (`support_email`), app versioning, and feature flags.
+  24. `GET/POST /index.php?r=api/detect-network` (Public/Bearer Optional): Auto-detects Nigerian network carrier from phone number prefix using `PhoneNetworkDetector`.
+
 
 ### Step 3: React Native / React Mobile App Integration [COMPLETED]
 - **API Client Layer:** Centralized service setup in `src/services/api.ts`.
@@ -109,3 +112,34 @@ This document contains the verified configuration and blueprint rules for connec
 - **Zero Login Flash on App Refresh**:
   - Lazily initialized `currentScreen` state in `App.tsx` (`() => getAuthToken() ? 'app' : 'auth'`), preventing the login screen from briefly flashing on browser refresh.
 - **Build Audit**: Verified 100% clean TypeScript compilation (`npx tsc --noEmit`) with 0 errors.
+
+### Step 10: Firebase Console Linking & Native Android Google Auth Configuration [COMPLETED & VERIFIED]
+- **Firebase Project Alignment**: Linked GCP project `saukiglobal-8ab14` to Firebase Console. Registered Android application `com.edata.app` (`eData`).
+- **Fingerprint Registration**: Registered both **Debug SHA-1** (`0D:6E:9B:44:6A:FB:00:CC:A3:A8:EB:7A:5E:EE:0A:75:27:46:69:84`) and **Release Upload SHA-1** (`54:2F:0E:76:32:BF:AF:66:FA:D4:1B:49:04:21:47:C7:D0:8C:72:FB`) in Firebase Console under `com.edata.app`.
+- **`google-services.json` Deployment**: Placed generated `google-services.json` directly into `android/app/google-services.json`. Verified auto-detection by Google Services Gradle plugin (`com.google.gms.google-services`).
+- **Full Capacitor Build Verification**: Successfully executed `npm run build`, `npx cap sync android`, and `./gradlew assembleDebug` with 0 build errors.
+
+### Step 11: Safe Date Formatting & Receipt Modal Fix [COMPLETED & DEPLOYED]
+- **Root Cause Fix**: Resolved V8 date parsing issue (`Invalid Date`) in React mobile simulator by creating `safeFormatDate` helper function in `MobileSimulator.tsx`.
+- **Component Updates**: Applied `safeFormatDate` to Transaction Details BottomSheet modal, transaction history list items, PDF receipt generator, and copy receipt clipboard function.
+- **Production Build & Sync**: Built production web bundle (`npm run build`), synced native Android assets (`npx cap sync android`), and verified clean compilation.
+
+### Step 12: Hostinger Native Mailer & Production Database Recovery [COMPLETED & DEPLOYED]
+- **Native Sendmail Integration**: Updated `common/config/main-local.php` to use Hostinger native sendmail transport (`'dsn' => 'sendmail://localhost'`). Fixes external SMTP authentication blocks (`535 5.7.8 Error: authentication failed`) and delivers 6-digit OTP verification emails directly to Gmail instantly.
+- **Production DB Credential Recovery**: Configured Hostinger MariaDB production credentials in `/home/dev/web/edata.com.ng/public_html/common/config/main-local.php` (`mysql:host=127.0.0.1;dbname=dev_airtime_to_cash`, user `dev_airtime_to_cash`). Verified live database connection with `HOSTINGER_PROD_DB_OK: User count = 18`.
+
+### Step 13: Failed Transaction Auto-Refund & Mobile Synchronization [COMPLETED & VERIFIED]
+- **Backend API & Webhook Auto-Refund**: Enforced automatic wallet refunds (`$order->cancel()`) across all service categories (`AirtimeDataOrder`, `CableTvOrder`, `ElectricityOrder`, `ExamScratchCard`). When provider vending calls return failure or webhooks receive `failed`/`false` notifications, the backend automatically refunds the user's wallet and updates the master `Transaction` status to `STATUS_CANCELLED`.
+- **Mobile Client Integration**: Verified mobile app client (`edata-mobile` at `C:\Users\MY PC\Desktop\edata-mobile`) error handling in `api.ts` and service components (`BuyAirtime.tsx`, `BuyData.tsx`, `CableTV.tsx`, `ElectricityBill.tsx`, `ExamPins.tsx`). Failed API requests return `success: false` without debiting the wallet. Refunded balances and cancelled statuses dynamically reflect on `GET /api/wallet` and `GET /api/transactions`.
+- **Production Build & Verification**: Compiled `edata-mobile` production bundle (`npm run build`) with zero TypeScript errors.
+
+### Step 14: Phone Network Auto-Detection, Reseller Upgrade Details & Transaction Issue Reporting [COMPLETED & VERIFIED]
+- **Phone Network Auto-Detection Integration**: Integrated `PhoneNetworkDetector` component (`common/components/PhoneNetworkDetector.php`) on backend and client-side prefix matching rules in `ServiceForm.tsx` to detect Nigerian network operators (MTN, Airtel, Glo, 9mobile) dynamically as user types or picks phone contacts.
+- **Dedicated Reseller Upgrade Details Page (`ResellerUpgrade.tsx`)**: Built a dedicated Reseller Upgrade page featuring side-by-side tier comparison matrix, discount rate sheets, profit calculator, perks, and FAQs.
+- **Transaction Details Modal Enhancements (`TransactionDetailsModal.tsx`)**: Added status badges, 1-tap reference copying, direct WhatsApp issue reporting links (`https://wa.me/...`), and retry purchase capabilities.
+- **Support Contact API Sync (`actionConfig`)**: Wired `/api/config` REST endpoint to fetch live `support_phone` and `support_email` settings from the web backend `Setting` model.
+- **Android Integration**: Native APK assets (`eData-v2.2.0-release.apk`), Capacitor App lifecycle management, and Android Autofill & Password Manager support.
+
+
+
+

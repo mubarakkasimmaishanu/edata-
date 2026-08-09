@@ -98,4 +98,74 @@ Used for systematic troubleshooting, log analysis, fixing errors, and reproducin
 32. **Admin Ledger & Dashboard Recent Transactions Query Debugging:**
     - Never query `deposit_history` or `transaction` using implicit inner joins with `profile` (`FROM deposit_history, profile`). Use `LEFT JOIN profile ON deposit_history.created_by = profile.user_id LEFT JOIN user ON deposit_history.created_by = user.id` with fallback `COALESCE(NULLIF(TRIM(CONCAT(profile.firstname, ' ', profile.lastname)), ''), user.email, CONCAT('User #', created_by))` so users without profile records (e.g. Google Sign-In users) render reliably in Admin tables.
     - Merge `transaction` and `deposit_history` via `UNION ALL` in `SiteController::actionIndex()` so both deposits and purchases appear in the Admin Dashboard Recent Transactions table.
-
+33. **Hostinger Database Access Denied (SQLSTATE 1698) Debugging:**
+    - If live production pages crash with `PDOException: SQLSTATE[HY000] [1698] Access denied for user 'root'@'localhost'`, `common/config/main-local.php` was overwritten with local development credentials (`root` with no password).
+    - Hostinger production credentials must be set in `/home/dev/web/edata.com.ng/public_html/common/config/main-local.php`:
+      - **DSN**: `mysql:host=127.0.0.1;dbname=dev_airtime_to_cash`
+      - **Username**: `dev_airtime_to_cash`
+      - **Password**: `Airtime_to_cash1?`
+    - Because `main-local.php` is in `.gitignore`, always preserve or deploy production DB credentials when running SSH deployment scripts.
+34. **Hostinger OTP Mailer Transport (`sendmail://localhost`) Debugging:**
+    - If signup or OTP verification emails fail on Hostinger with `535 5.7.8 Error: authentication failed`, external SMTP host connection to `mail.edata.com.ng:587` is blocked.
+    - Set the mailer DSN transport to Hostinger's built-in sendmail binary in `common/config/main-local.php`:
+      `'transport' => ['dsn' => 'sendmail://localhost']`
+    - Hostinger's native sendmail engine delivers real 6-digit OTP verification emails directly to Gmail and other mail providers instantly with 0 errors.
+35. **React / V8 Date Parsing (`Invalid Date`) Debugging:**
+    - If mobile transaction history or receipt modals display `Date: Invalid Date`, the backend API formatted date string (e.g. `"28-Jul-2026 05:28pm"`) is failing under native `new Date(...)` in V8/browser engines.
+    - Use `safeFormatDate` helper in `MobileSimulator.tsx`:
+      ```ts
+      const safeFormatDate = (rawDate: any): string => {
+        if (!rawDate) return 'N/A';
+        if (typeof rawDate !== 'string') return String(rawDate);
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) return d.toLocaleString();
+        const iso = rawDate.replace(' ', 'T');
+        const dIso = new Date(iso);
+        if (!isNaN(dIso.getTime())) return dIso.toLocaleString();
+        const space = rawDate.replace(/-/g, ' ');
+        const dSpace = new Date(space);
+        if (!isNaN(dSpace.getTime())) return dSpace.toLocaleString();
+        return rawDate;
+      };
+      ```
+36. **Firebase & Google OAuth Capacitor Android Integration:**
+    - Register both Debug SHA-1 (`0D:6E:9B:44:6A:FB:00:CC:A3:A8:EB:7A:5E:EE:0A:75:27:46:69:84`) and Release Upload SHA-1 (`54:2F:0E:76:32:BF:AF:66:FA:D4:1B:49:04:21:47:C7:D0:8C:72:FB`) in Firebase Console (`saukiglobal-8ab14`, `com.edata.app`).
+    - Place `google-services.json` inside `android/app/google-services.json`.
+    - Server Client ID: `518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com`.
+37. **`default_web_client_id` for Native Android GoogleAuth Plugin:**
+    - `@codetrix-studio/capacitor-google-auth` on Android requires `<string name="default_web_client_id">CLIENT_ID</string>` in `android/app/src/main/res/values/strings.xml`.
+38. **Vite Production Asset Bundling for Mobile Icons:**
+    - Assets referenced via `@/assets/...` in React components MUST reside in `src/assets/` or `public/assets/` and `vite.config.ts` must map `@` to `path.resolve(__dirname, 'src')`. This ensures Rollup bundles icons into `dist/assets/` and embeds them into the APK.
+39. **KatPay Online Checkout Integration:**
+    - Added `💳 KatPay Online` tab in `FundWallet.tsx` utilizing `api.initKatpay(amount)` to open KatPay's payment gateway (`checkout_url`) in browser for Debit Cards, USSD, and Bank Transfer.
+40. **Yii2 API Signup & CheckProfile Safety:**
+    - `checkProfileComplete()` auto-initializes missing profile records instead of blocking product purchases.
+    - `actionSignupComplete()` wraps `$auth->assign()` in a `try/catch` block and uses `Yii::$app->request->userIP ?: '127.0.0.1'` for safe IP resolution.
+41. **Google Identity Services (GIS) Web `400 (Bad Request)` & `approval_state` Error:**
+    - When testing Google Sign-In in web browsers, calling `google.accounts.id.prompt()` or One Tap triggers `POST https://accounts.google.com/gsi/issue 400 (Bad Request)` if third-party cookies or FedCM rules are enforced.
+    - Solution: Use Google's official GIS OAuth2 token popup client (`google.accounts.oauth2.initTokenClient`) on web browsers to open a clean popup window. Update backend `ApiController::actionGoogleAuth` to verify `access_token` via Google OAuth userinfo endpoint (`https://www.googleapis.com/oauth2/v3/userinfo`).
+42. **Installed Android APK `Failed to load Google Identity Services SDK` Error:**
+    - On installed Android APKs running in WebView, if native `GoogleAuth.signIn()` fails or is cancelled, falling through to inject `<script src="https://accounts.google.com/gsi/client">` fails because Android WebView blocks cross-origin script injection.
+    - Solution: Isolate native Capacitor `@codetrix-studio/capacitor-google-auth` inside `if (Capacitor.isNativePlatform())` with an early return on failure. Native Android will never attempt web GIS script injection inside WebView.
+43. **Google Play Console Package Name Case Sensitivity Mismatch (`com.eDATA.app`):**
+    - Google Play Console package IDs are strictly case-sensitive. Uploading an `.aab` with package `com.edata.app` rejected with: `Your APK or Android App Bundle needs to have the package name com.eDATA.app`.
+    - Solution: Update `applicationId` and `namespace` to `com.eDATA.app` in `build.gradle`, `capacitor.config.ts`, `strings.xml`, and `google-services.json`.
+44. **Google Play Console `Version code 8 has already been used` Error:**
+    - Re-uploading an `.aab` file with a version code that was already used in a previous release attempt throws: `Version code X has already been used. Try another version code.`
+    - Solution: Increment `versionCode` (e.g. from `8` to `9`) in `android/app/build.gradle` and rebuild the bundle via `.\gradlew bundleRelease`.
+45. **Google Play Console `AD_ID` Permission Declaration Error:**
+    - If Play Console advertising ID declaration says the app uses Advertising ID, Play Console rejects bundles missing `AD_ID` permission with: `A manifest file in one of your active artifacts doesn't include the com.google.android.gms.permission.AD_ID permission.`
+    - Solution: Add `<uses-permission android:name="com.google.android.gms.permission.AD_ID" />` to `android/app/src/main/AndroidManifest.xml`.
+46. **Phone Network Auto-Detection & Carrier Fallback Debugging:**
+    - If airtime/data purchases fail with network or provider mismatch errors, check if the phone number prefix was properly parsed by `PhoneNetworkDetector::detect()`.
+    - `PhoneNetworkDetector` normalizes numbers (stripping `+234` or `234`) and tests prefix against standard Nigerian network ranges (MTN: `0803`, `0806`, `0703`, `0903`, `0913`...; Airtel: `0802`, `0808`, `0708`, `0902`, `0912`...; Glo: `0805`, `0807`, `0815`...; 9mobile: `0809`, `0818`...).
+47. **Plan Type Dropdown & Auto-Pricing Debugging:**
+    - If creating/editing a Data Plan in the admin panel fails, verify that `plan_type` is selected from valid values (`SME`, `SME2`, `CG`, `DIRECT-GIFTING`, `DATA-SHARE`).
+    - Baseline cost computes `referred_price` and `premium_price` automatically based on percentage discount rules in `backend/views/data-plan/_form.php`. Note that `bundle_id` (API planId) is optional for custom manual data plans.
+48. **Exam Scratch Pins Vending Debugging:**
+    - Exam cards (WAEC, NECO, NBAIS, NABTEB) default to `NaijaResultPins` provider in `VendingService.php`.
+    - If exam pin purchases fail, check `card_type_id` and `quantity` parameters in `ApiController::actionPurchase()`.
+49. **Support Contact Settings API Sync Debugging:**
+    - If mobile app settings display missing support phone or email, inspect `/api/config` output from `ApiController::actionConfig()`. Verify `Setting::getValue('support_phone')` and `Setting::getValue('support_email')` are present in the `setting` database table.
+50. **Hostinger SSH Deployment Script Target Directory Debugging:**
+    - If running `python scratch/deploy_to_hostinger_live.py` throws permission errors or unexpected branch resets, ensure the script's target directory points to `/home/dev/web/edata.com.ng/public_html` and Paramiko SSH connection credentials use user `dev` at IP `92.112.192.11`.
