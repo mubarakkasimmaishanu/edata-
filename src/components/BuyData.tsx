@@ -176,6 +176,7 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
           handleApplyPromoCode={handleApplyPromoCode}
           handleCheckoutInitiate={handleCheckoutInitiate}
           onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
+          userPhone={currentUser.phone}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           toast={toast}

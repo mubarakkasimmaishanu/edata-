@@ -154,6 +154,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           handleApplyPromoCode={handleApplyPromoCode}
           handleCheckoutInitiate={handleCheckoutInitiate}
           onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
+          userPhone={currentUser.phone}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           toast={toast}

@@ -1,8 +1,9 @@
 import React from 'react';
 import { ProductItem } from '../types';
-import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search } from 'lucide-react';
+import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search, X } from 'lucide-react';
 import { api } from '../services/api';
-import { isValidRecipient, isValidPhoneNumber } from '../utils/phoneValidation';
+import { isValidRecipient, isValidPhoneNumber, normalizePhoneNumber } from '../utils/phoneValidation';
+import { openContactPicker } from '../utils/contactPicker';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -119,6 +120,7 @@ interface ServiceFormProps {
   setA2cPayout?: (v: number) => void;
   toast: { success: (m: string) => void; error: (m: string) => void; warning: (m: string) => void; info: (m: string) => void };
   isPurchasing?: boolean;
+  userPhone?: string;
 }
 
 export default function ServiceForm(props: ServiceFormProps) {
@@ -131,7 +133,7 @@ export default function ServiceForm(props: ServiceFormProps) {
     handleCheckoutInitiate, onOpenContacts, onBack, currentBalance,
     isValidatingNumber, handleValidateNumber, customerName, validationError,
     a2cBank, setA2cBank, a2cAccount, setA2cAccount, a2cPayout, setA2cPayout,
-    toast, isPurchasing = false,
+    toast, isPurchasing = false, userPhone = '',
   } = props;
 
   const [examQuantity, setExamQuantity] = React.useState<number>(1);
@@ -140,6 +142,46 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
   const [dataSearchQuery, setDataSearchQuery] = React.useState<string>('');
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
+  const [isContactModalOpen, setIsContactModalOpen] = React.useState<boolean>(false);
+  const [manualContactInput, setManualContactInput] = React.useState<string>('');
+
+  const handleSelectContactNumber = (phone: string) => {
+    let cleanVal = normalizePhoneNumber(phone);
+    if (cleanVal.length > 11) cleanVal = cleanVal.slice(-11);
+    setTargetNumber(cleanVal);
+    setIsContactModalOpen(false);
+
+    if (showNetworkSelector && cleanVal.length >= 4) {
+      const detected = detectNetworkFromPhone(cleanVal);
+      if (detected) {
+        setDetectedOperator(detected);
+        if (serviceType === 'data') {
+          const match = products.find(p =>
+            ((p.category as string) === 'Data' || (p.category as string) === 'Data Bundle') &&
+            p.active &&
+            p.operator?.toLowerCase() === detected.toLowerCase()
+          );
+          if (match) {
+            setSelectedProduct(match);
+            setCheckoutAmount(getDynamicPrice(match).toString());
+          }
+        }
+      }
+    }
+  };
+
+  const handleOpenContactsClick = async () => {
+    setSelectedCategory(cat);
+    const opened = await openContactPicker(
+      (phone) => handleSelectContactNumber(phone),
+      userPhone || targetNumber || '',
+      toast,
+      () => setIsContactModalOpen(true)
+    );
+    if (!opened) {
+      setIsContactModalOpen(true);
+    }
+  };
 
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
@@ -519,7 +561,7 @@ export default function ServiceForm(props: ServiceFormProps) {
             {showContactPicker && (
               <button
                 type="button"
-                onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
+                onClick={handleOpenContactsClick}
                 className="text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-colors active:scale-95 cursor-pointer"
               >
                 <Phone className="w-3 h-3" /> Contacts
@@ -600,7 +642,7 @@ export default function ServiceForm(props: ServiceFormProps) {
             {showContactPicker && !detectedOperator && (
               <button
                 type="button"
-                onClick={() => { setSelectedCategory(cat); onOpenContacts(); }}
+                onClick={handleOpenContactsClick}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-all active:scale-95 cursor-pointer bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-xl"
               >
                 <Phone className="w-3.5 h-3.5" /> Contacts
@@ -1070,6 +1112,105 @@ export default function ServiceForm(props: ServiceFormProps) {
           <>{isA2C ? 'Convert Airtime to Cash' : `Pay ₦${basePrice.toLocaleString()}`} <ArrowRight className="w-4 h-4" /></>
         )}
       </button>
+
+      {/* ── Contact Selector Fallback Modal ── */}
+      {isContactModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-white flex items-center gap-2 font-display">
+                <Phone className="w-4 h-4 text-sky-400" /> Select Recipient Contact
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsContactModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Select or paste a recipient phone number for airtime/data top-up:
+            </p>
+
+            <div className="space-y-3 pt-1">
+              {/* Quick Fill User Phone if available */}
+              {userPhone && userPhone.length >= 10 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSelectContactNumber(userPhone);
+                    toast.success(`Selected my phone number: ${normalizePhoneNumber(userPhone)}`);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">
+                    👤
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">Use My Phone Number</div>
+                    <div className="text-[10px] text-slate-400 font-mono">{normalizePhoneNumber(userPhone)}</div>
+                  </div>
+                </button>
+              )}
+
+              {/* Paste from Clipboard Option */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      const clean = normalizePhoneNumber(text);
+                      if (clean && isValidPhoneNumber(clean)) {
+                        handleSelectContactNumber(clean);
+                        toast.success(`Pasted phone number: ${clean}`);
+                        return;
+                      }
+                    } catch {}
+                  }
+                  toast.warning('Clipboard does not contain a valid 11-digit phone number.');
+                }}
+                className="w-full flex items-center gap-3 p-3 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">
+                  📋
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Paste from Clipboard</div>
+                  <div className="text-[10px] text-slate-400">Auto-fill copied 11-digit phone number</div>
+                </div>
+              </button>
+
+              {/* Enter Phone Number Input */}
+              <div className="space-y-2 pt-1">
+                <label className="text-[11px] font-bold text-slate-300">Or Type Recipient Number:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    placeholder="e.g. 08142233864"
+                    value={manualContactInput}
+                    onChange={(e) => setManualContactInput(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono font-semibold focus:outline-none focus:border-sky-400"
+                  />
+                  <button
+                    type="button"
+                    disabled={!isValidPhoneNumber(manualContactInput)}
+                    onClick={() => {
+                      handleSelectContactNumber(manualContactInput);
+                      toast.success(`Phone number set: ${manualContactInput}`);
+                    }}
+                    className="bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 text-xs font-black px-4 rounded-xl transition-all cursor-pointer shadow-md"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
