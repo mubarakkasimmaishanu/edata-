@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Smartphone } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
+import { isValidPhoneNumber } from '../utils/phoneValidation';
 
 interface BuyAirtimeProps {
   currentUser: UserProfile;
@@ -55,8 +56,8 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
 
   const handleCheckoutInitiate = () => {
     const amountNum = parseFloat(checkoutAmount);
-    if (!targetNumber || targetNumber.length < 10) {
-      toast.warning('Please enter a valid phone number.');
+    if (!targetNumber || !isValidPhoneNumber(targetNumber)) {
+      toast.warning('Please enter a valid 11-digit phone number.');
       return;
     }
     if (isNaN(amountNum) || amountNum < 50) {
