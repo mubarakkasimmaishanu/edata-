@@ -496,25 +496,32 @@ function MainApp() {
   };
 
   const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
-    // If a Quick Action object with a specific plan_id was selected, trigger direct PIN checkout flow
-    if (params?.quickAction && params.quickAction.plan_id) {
-      handleQuickActionDirectCheckout(params.quickAction);
-      return;
+    let targetView = (view || 'data') as ActiveView;
+    let targetNetwork = params?.network || '';
+    let targetPlanId = params?.planId !== undefined ? params.planId : null;
+
+    if (params?.quickAction) {
+      if (params.quickAction.service_type) {
+        targetView = params.quickAction.service_type as ActiveView;
+      }
+      if (params.quickAction.network) {
+        targetNetwork = params.quickAction.network;
+      }
+      if (params.quickAction.plan_id) {
+        targetPlanId = params.quickAction.plan_id;
+      }
     }
 
-    const nextView = view as ActiveView;
-    if (nextView !== activeView) {
+    if (targetView !== activeView) {
       setViewHistory(prev => {
-        if (prev.length > 0 && prev[prev.length - 1] === nextView) return prev;
-        return [...prev, nextView];
+        if (prev.length > 0 && prev[prev.length - 1] === targetView) return prev;
+        return [...prev, targetView];
       });
-      setActiveView(nextView);
+      setActiveView(targetView);
     }
 
-    if (params?.network) setPreselectedNetwork(params.network);
-    else setPreselectedNetwork('');
-    if (params?.planId !== undefined) setPreselectedPlanId(params.planId);
-    else setPreselectedPlanId(null);
+    setPreselectedNetwork(targetNetwork);
+    setPreselectedPlanId(targetPlanId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -665,6 +672,7 @@ function MainApp() {
                 <CableTV
                   currentUser={currentUser}
                   products={products}
+                  initialProvider={preselectedNetwork}
                   onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
@@ -674,6 +682,7 @@ function MainApp() {
                 <ElectricityBill
                   currentUser={currentUser}
                   products={products}
+                  initialDisco={preselectedNetwork}
                   onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
@@ -683,6 +692,7 @@ function MainApp() {
                 <ExamPins
                   currentUser={currentUser}
                   products={products}
+                  initialProvider={preselectedNetwork}
                   onBack={handleGoBack}
                   onSuccess={handleGlobalRefresh}
                 />
