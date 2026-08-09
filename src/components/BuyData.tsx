@@ -19,7 +19,7 @@ interface BuyDataProps {
 
 export default function BuyData({ currentUser, products, initialNetwork, initialPlanId, onBack, onSuccess }: BuyDataProps) {
   const toast = useToast();
-  const [targetNumber, setTargetNumber] = useState('');
+  const [targetNumber, setTargetNumber] = useState(currentUser.phone || '');
   const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
