@@ -157,17 +157,17 @@ function MainApp() {
     });
   };
 
-  const fetchAllData = async () => {
-    setIsSyncing(true);
+  const fetchAllData = async (silent = false) => {
+    if (!silent) setIsSyncing(true);
     try {
       const [profileRes, walletRes, txRes, servicesRes] = await Promise.all([
-        api.getProfile(),
-        api.getWallet(),
-        api.getTransactions(),
-        api.getServices(),
+        api.getProfile(silent),
+        api.getWallet(silent),
+        api.getTransactions(silent),
+        api.getServices(silent),
       ]);
 
-      const resData = servicesRes.data || servicesRes;
+      const resData = servicesRes?.data || servicesRes || {};
       const dbServices: any[] = resData.services || (Array.isArray(resData) ? resData : []);
       let dbPlans: any[] = resData.plans || resData.data_plans || resData.plans_list || [];
 
@@ -253,13 +253,13 @@ function MainApp() {
       });
 
       // Sync Quick Actions from backend REST API
-      const qaFromServices = resData.quick_actions || servicesRes.data?.quick_actions || servicesRes.quick_actions;
+      const qaFromServices = resData.quick_actions || servicesRes?.data?.quick_actions || servicesRes?.quick_actions;
       if (Array.isArray(qaFromServices)) {
         setQuickActions(qaFromServices);
       } else {
         try {
-          const qaRes = await api.getQuickActions();
-          const qaList = qaRes.data?.quick_actions || qaRes.data || qaRes || [];
+          const qaRes = await api.getQuickActions(silent);
+          const qaList = qaRes?.data?.quick_actions || qaRes?.data || qaRes || [];
           if (Array.isArray(qaList)) setQuickActions(qaList);
         } catch {}
       }
@@ -287,17 +287,23 @@ function MainApp() {
         }
       } catch {}
 
-      const user = profileRes.data?.user || profileRes.data || profileRes.user || profileRes;
-      const walletData = walletRes.data?.wallet || walletRes.data || walletRes.wallet || walletRes;
+      const user = profileRes?.data?.user || profileRes?.data || profileRes?.user || profileRes || {};
+      const walletData = walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || walletRes || {};
 
       const rawBalance = walletData?.balance ?? walletData?.walletBalance ?? walletData?.wallet ?? user?.walletBalance ?? user?.balance ?? '0';
       const parsedBalance = !isNaN(parseFloat(rawBalance)) ? parseFloat(rawBalance) : 0;
+
+      // Real-time live credit notification alert
+      if (silent && currentUser.walletBalance > 0 && parsedBalance > currentUser.walletBalance) {
+        const diff = parsedBalance - currentUser.walletBalance;
+        toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+      }
 
       const firstName = user.firstname || user.first_name || '';
       const lastName = user.lastname || user.last_name || '';
       const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
 
-      const vAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
+      const vAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
       const primaryVAccount = vAccounts.length > 0 && vAccounts[0].account_number ? {
         bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
         account_number: vAccounts[0].account_number || vAccounts[0].accountNo || '',
@@ -340,27 +346,29 @@ function MainApp() {
 
       // Sync Notifications unread count
       try {
-        const notifsRes = await api.getNotifications();
+        const notifsRes = await api.getNotifications(silent);
         const notifArray = notifsRes?.data?.notifications || notifsRes?.notifications || (Array.isArray(notifsRes?.data) ? notifsRes.data : Array.isArray(notifsRes) ? notifsRes : []);
         const unread = notifsRes?.data?.unread_count ?? notifArray.filter((n: any) => !n.is_read && !n.read).length;
         setUnreadCount(unread);
       } catch {}
     } catch (err: any) {
-      const msg = err?.message?.toLowerCase() || '';
-      if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid credentials') || msg.includes('no authentication token')) {
-        // Token is invalid/expired — force back to login
-        setAuthToken(null);
-        setCurrentScreen('auth');
-      } else if (!getAuthToken()) {
-        // No token at all — force auth screen
-        setCurrentScreen('auth');
-      } else {
-        // Network/server error but token exists — stay on app, show offline
-        console.warn('API Sync Notice:', err?.message || err);
+      if (!silent) {
+        const msg = err?.message?.toLowerCase() || '';
+        if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid credentials') || msg.includes('no authentication token')) {
+          // Token is invalid/expired — force back to login
+          setAuthToken(null);
+          setCurrentScreen('auth');
+        } else if (!getAuthToken()) {
+          // No token at all — force auth screen
+          setCurrentScreen('auth');
+        } else {
+          // Network/server error but token exists — stay on app, show offline
+          console.warn('API Sync Notice:', err?.message || err);
+        }
+        setApiStatus('offline');
       }
-      setApiStatus('offline');
     } finally {
-      setIsSyncing(false);
+      if (!silent) setIsSyncing(false);
     }
   };
 
@@ -400,6 +408,67 @@ function MainApp() {
 
     return () => clearTimeout(splashTimer);
   }, []);
+
+  // ── Ultra-Fast Real-Time Background Synchronization Engine (3-Second Heartbeat) ──
+  useEffect(() => {
+    let pollInterval: any = null;
+    let capAppListener: any = null;
+
+    const startPolling = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(() => {
+        if (getAuthToken() && currentScreen === 'app') {
+          fetchAllData(true);
+        }
+      }, 3000);
+    };
+
+    const stopPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
+
+    if (getAuthToken() && currentScreen === 'app') {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+
+    // Immediate Sync on Foreground App Focus (Browser Tab & Native Mobile App Focus)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && getAuthToken() && currentScreen === 'app') {
+        fetchAllData(true);
+        startPolling();
+      } else if (document.visibilityState === 'hidden') {
+        stopPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('appStateChange', (state) => {
+        if (state.isActive && getAuthToken() && currentScreen === 'app') {
+          fetchAllData(true);
+          startPolling();
+        } else if (!state.isActive) {
+          stopPolling();
+        }
+      }).then(l => {
+        capAppListener = l;
+      });
+    }).catch(() => {});
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (capAppListener && capAppListener.remove) {
+        capAppListener.remove();
+      }
+    };
+  }, [currentScreen, currentUser.walletBalance]);
 
   const handleGlobalRefresh = () => {
     fetchAllData();

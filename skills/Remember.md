@@ -1,30 +1,10 @@
-# Remember Skill
-
-Used for persisting patterns, key directories, environmental constraints, and specific decisions across sessions.
-
-## Guidelines
-1. **Maintain Context:** Update documentation whenever critical parts of the application change.
-2. **Environmental Constraints:** Clearly document things like XAMPP setups, local MySQL setups, and port details.
-3. **Traceability:** Link decisions back to user feedback or specific requirements.
-4. **Autonomous Site Inspection & Navigation Consent:** The user has explicitly granted permission for the agent to autonomously browse, crawl, and inspect the local site pages, database state, and configuration tables to diagnose issues, perform visual reviews, and execute end-to-end manual checks.
-5. **Bootstrap/Tailwind hidden Class Conflict:** Yii2 loads Bootstrap CSS, which defines `.hidden { display: none !important; }`. Never use Tailwind's `hidden md:block` directly, as Bootstrap's `!important` will keep it hidden on desktop. Use custom media queries or alternative unique display classes to prevent layout breakdown.
-6. **Color Palette Preservation Constraint (CRITICAL):** The entire mobile app uses a **unified sky-blue color palette**. Every brand accent, icon color, badge, indicator, and decorative element MUST use sky-blue (`text-sky-400`/`text-sky-500`/`text-sky-600`, `bg-sky-50`/`bg-sky-100`/`bg-sky-500`). The only exceptions are: `text-rose-*`/`bg-rose-*` for error/failure states, and `text-slate-*`/`bg-slate-*` for neutral text/backgrounds. NO emerald, amber, cyan, purple, indigo, orange, or any other color family is permitted for brand accents. The wallet gradient (`from-[#0051d5] to-[#0ea5e9]`) and dark mode background (`bg-[#111111]`, `bg-[#1D1D1D]`) are the canonical palette anchors.
-
-## 📅 Project History Log & Decisions
-
-### 2026-07-21
-- **Web Dashboard Service Category Grouping (`frontend/views/dashboard/index.php`)**:
-  - Replaced long individual service provider card lists with 6 main category tiles (**Airtime**, **Data**, **TV Cables**, **Electricity**, **Exam Pins**, **A2C**).
-  - Tapping any category opens its dedicated landing page (`airtime-data/airtime`, `airtime-data/data`, `cable-tv/index`, `electricity/index`, `scratch-card/index`, `a2c/index`) showing all subcategories and options without changing any purchase or API logic.
-  - Deployed live to Hostinger production server (`92.112.192.11`).
-
-- **Web Dashboard Wallet Container Refactoring (`frontend/views/dashboard/index.php`)**:
-  - Removed the redundant "Support Center" card from the dashboard top section (since the floating WhatsApp widget/footer handles support).
-  - Expanded the Sky-Blue Wallet & Dedicated Virtual Account Banner to full width with reduced, compact padding (`p-4 md:p-5`).
-  - Organized dedicated virtual accounts into a sleek, multi-column responsive grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2`) with 1-tap copy buttons.
-
-- **Unified Sky-Blue Color Palette Enforcement (`edata-mobile`)**:
   - Unified all close buttons, primary action buttons, payment submission controls, PDF receipt buttons, and selected quick amount shortcut pills across `MobileSimulator.tsx`, `ServiceForm.tsx`, and `BottomSheet.tsx` to the canonical **Sky-Blue** design system (`bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/15 btn-sheen`).
+
+- **IPv6 Address Stripping & Database Column Expansion Fix**:
+  - Resolved live `SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'ip_address'` crash on login, signup, and Google OAuth endpoints. The crash was caused by `preg_replace('#[^0-9.]#', '', getenv('REMOTE_ADDR'))` stripping colons (`:`) from IPv6 addresses, creating 19+ character numeric strings that exceeded `VARCHAR(15)` column limits.
+  - Added static helper method `User::getClientIp()` in `common/models/User.php` to safely resolve IPv4 and IPv6 addresses up to 45 characters using `Yii::$app->request->userIP` with fallback to `REMOTE_ADDR`.
+  - Replaced legacy `preg_replace` calls across `SiteController.php`, `SignupForm.php`, `AdminSignupForm.php`, and `ApiController.php`.
+  - Created and applied migration `m260731_090000_alter_user_ip_address_column.php` altering `user.ip_address` to `VARCHAR(45) NULL`.
 
 - **Notification Image URL Resolution Fix (Backend API + Mobile App)**:
   - Updated `ApiController::actionNotifications` to dynamically format relative uploaded notification image paths (`/uploads/notifications/...`) into full absolute HTTP/HTTPS URLs (`$hostInfo . $baseUrl . $imagePath`).
@@ -994,6 +974,65 @@ if __name__ == "__main__":
   - **JCenter Dead Repository Resolution**: Replaced dead `jcenter()` repository links with `mavenCentral()` in `@codetrix-studio/capacitor-google-auth/android/build.gradle` and root `build.gradle`.
   - **Adaptive Launcher Icon Linking Fix**: Fixed AAPT linking crash (`ResourceNotFoundException`) by updating `ic_launcher.xml` and `ic_launcher_round.xml` background drawable paths (`@drawable/ic_launcher_background`).
   - **Successful Release Build**: Generated crash-free release APK (`app-release.apk`, `4.52 MB`, `versionCode 8`) at `c:\Users\MY PC\Desktop\edata-mobile\android\app\build\outputs\apk\release\app-release.apk`.
+- **Hostinger Production DB Credential Restoration & Native Sendmail Transport Integration**:
+  - **Database Access Denied Fix**: Restored Hostinger MariaDB production credentials (`mysql:host=127.0.0.1;dbname=dev_airtime_to_cash`, user `dev_airtime_to_cash`, password `Airtime_to_cash1?`) in `/home/dev/web/edata.com.ng/public_html/common/config/main-local.php` following a temporary overwrite with local development credentials (`root` with no password). Verified database connection (`HOSTINGER_PROD_DB_OK: User count = 18`).
+  - **Native OTP Mailer Transport**: Updated `common/config/main-local.php` to use Hostinger native sendmail transport (`'dsn' => 'sendmail://localhost'`). Fixes external SMTP authentication blocks (`535 5.7.8 Error: authentication failed`) and delivers 6-digit OTP verification emails directly to Gmail inboxes instantly with 0 errors.
+- **Firebase Console & Native Google OAuth 2.0 Android Setup**:
+  - Registered both **Debug SHA-1** (`0D:6E:9B:44:6A:FB:00:CC:A3:A8:EB:7A:5E:EE:0A:75:27:46:69:84`) and **Release Upload SHA-1** (`54:2F:0E:76:32:BF:AF:66:FA:D4:1B:49:04:21:47:C7:D0:8C:72:FB`) under app `com.edata.app` in Firebase Console (`saukiglobal-8ab14`).
+  - Saved `google-services.json` into `android/app/google-services.json` and verified Gradle plugin auto-detection (`com.google.gms.google-services`).
+- **Mobile React Date Parsing (`Invalid Date`) Resolution**:
+  - Created `safeFormatDate` helper in `MobileSimulator.tsx` to handle ISO dates, space-separated dates, and pre-formatted string dates. Updated Transaction Details BottomSheet modal, transaction history list items, PDF receipt generator, and copy receipt clipboard function.
+- **Web & Mobile End-to-End Functional & Business Logic Synchronization**:
+  - **Airtime Tier Pricing & Minimum Validation**: Updated `ApiController::actionPurchase()` to calculate airtime cost using the user's membership tier discount percentage rate ($payableAmount = amount \times \frac{effectiveRate}{100}$) matching `AirtimeDataController.php`, and enforced the ₦50 minimum amount check.
+  - **Exam Scratch Pins Multi-Quantity Vending**: Updated `ApiController::actionPurchase()` and `ExamPins.tsx` to support quantity ($Q \ge 1$), pass $Q$ to the SIRP `educational-pins` API payload, and loop creation of $Q$ distinct `ExamScratchCard` records in the database.
+  - **Electricity Minimum Amount Enforcement**: Updated `ApiController::actionPurchase()` to validate the ₦500 minimum threshold for electricity bill purchases.
+  - **Reseller Account Upgrade Parity**: Synchronized `actionUpgrade` in `ApiController.php` to set `UpgradeRequest` status to `STATUS_PENDING`, keeping the fee deducted while preserving the Web source-of-truth workflow where Superadmin approves requests in the AdminLTE dashboard before elevating user privileges.
+- **Google Identity Services (GIS) Web Popup & Dual Token Server Verification**:
+  - Switched Web browser Google Sign-In in `AuthPage.tsx` to use Google's official GIS OAuth2 popup client (`google.accounts.oauth2.initTokenClient`), bypassing One Tap 400 Bad Request iframe errors (`accounts.google.com/gsi/issue 400`).
+  - Updated `ApiController::actionGoogleAuth` to support dual token cryptographic verification: JWT `id_token` via `Google_Client->verifyIdToken()` for native Android, and `access_token` via Google OAuth `userinfo` API (`https://www.googleapis.com/oauth2/v3/userinfo`) for web popups.
+- **Installed Android APK Google Auth Script Injection Isolation**:
+  - Isolated native Capacitor `@codetrix-studio/capacitor-google-auth` inside `if (Capacitor.isNativePlatform())` with an early return on failure in `AuthPage.tsx`. Prevents Android WebView from attempting to inject `https://accounts.google.com/gsi/client` script, resolving the red `Failed to load Google Identity Services SDK` toast error in installed APKs.
+- **Case-Sensitive Package Name Alignment (`com.eDATA.app`) & Version Code 9 Bump**:
+  - Resolved Google Play Console package mismatch error (`Your APK or Android App Bundle needs to have the package name com.eDATA.app`) by updating `applicationId` and `namespace` to `com.eDATA.app` in `build.gradle`, `capacitor.config.ts`, `strings.xml`, and `google-services.json`.
+  - Bumped `versionCode` to `9` in `build.gradle` to resolve `Version code 8 has already been used` error.
+  - Added `<uses-permission android:name="com.google.android.gms.permission.AD_ID" />` to `AndroidManifest.xml` to satisfy Play Console AD_ID declaration error.
+- **Play Console Photo/Video Permissions Declaration & Production Bundle Build**:
+  - Built and signed production `.aab` release bundle (`app-release.aab`, `6.5 MB`, `versionCode 9`, `versionName 2.2.0`) with `edata-release-key.jks` (`SHA-1: 54:2F:0E:76:32:BF:AF:66:FA:D4:1B:49:04:21:47:C7:D0:8C:72:FB`).
+  - Formulated exact compliant text declaration for Google Play Console Photo & Video permissions policy (`READ_MEDIA_IMAGES`).
+
+- **Phone Network Auto-Detection & Carrier Mapping Component (`PhoneNetworkDetector`)**:
+  - Implemented `common/components/PhoneNetworkDetector.php` to resolve Nigerian mobile network prefixes (MTN, Airtel, Glo, 9mobile) automatically from input phone numbers (`0803`, `0802`, `0805`, `0809`, etc.). Sanitizes international formats (`+234...`, `234...`) into standardized 11-digit local numbers.
+  - Integrated network auto-detection fallback into `ApiController::actionPurchase` when carrier IDs are missing or mismatched, ensuring accurate carrier lookup for airtime and data purchases.
+
+- **NaijaResultPins Exam Card Provider Integration**:
+  - Integrated `NaijaResultPins` as the default provider for Exam Scratch Cards (WAEC, NECO, NBAIS, NABTEB) in `common/components/VendingService.php`.
+  - Synchronized exam pin vending across the mobile client and backend REST API.
+
+- **Plan Type Management & Tier Auto-Pricing**:
+  - Created `PlanType` model (`common/models/PlanType.php`) and Admin CRUD controller (`backend/controllers/PlanTypeController.php`) for dynamic Data Plan Type management (`SME`, `SME2`, `CG`, `DIRECT-GIFTING`, `DATA-SHARE`).
+  - Integrated percentage-based discount tier auto-pricing in `DataPlan` form (`backend/views/data-plan/_form.php`), dynamically computing `Basic`, `Referred`, and `Premium`/`Reseller` prices from baseline cost. Made `bundle_id` optional for custom manual data plans.
+
+- **Location & Telecom Carrier Detection (`GeoHelper` + MaxMind GeoIP2)**:
+  - Added `GeoHelper` component (`common/components/GeoHelper.php`) with MaxMind GeoIP2 integration for zero-permission location and telecom carrier detection.
+
+- **Marketing Hierarchy Official Role Title Standardization**:
+  - Standardized marketing role titles across backend models and views to official names: **GA** (Growth Associate), **GAS** (Growth Associate Supervisor), **SBM** (State Business Manager), **RGD** (Regional Growth Director), and **NBD** (National Business Director).
+
+- **Support Contact REST API Sync**:
+  - Extended `/api/config` (`actionConfig`) in `ApiController.php` to sync `support_phone` and `support_email` from website configuration settings directly to the mobile application.
+
+- **Mobile Client Enhancements (`edata-mobile`)**:
+  - Dedicated `ServiceForm.tsx` components for Airtime, Data, Cable TV, Electricity, and Exam Pins with contact picker integration and promo code support.
+  - Dedicated **Reseller Upgrade Details** page (`ResellerUpgrade.tsx`) featuring side-by-side tier comparison matrix, discount rate sheets, profit calculator, perks, and FAQs.
+  - Enhanced **Transaction Details Modal**: 1-tap reference copying, status banners, direct WhatsApp issue reporting links (`https://wa.me/...`), and retry purchase capabilities.
+  - Android Autofill & Google Password Manager support with standard form attributes (`autocomplete="username"`, `autocomplete="current-password"`).
+  - Capacitor App lifecycle management and updated Android release assets (`eData-v2.2.0-release.apk`).
+
+- **Live Hostinger Deployment Script (`scratch/deploy_to_hostinger_live.py`)**:
+  - Updated SSH Paramiko deployment script (`scratch/deploy_to_hostinger_live.py`) with updated checkout target directories, automatic database migrations (`php yii migrate --interactive=0`), and PHP syntax checking (`php -l`).
+
+
+
 
 
 

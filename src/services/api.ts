@@ -26,7 +26,7 @@ export function setAuthToken(token: string | null) {
   }
 }
 
-async function request(endpoint: string, options: RequestInit = {}) {
+async function request(endpoint: string, options: RequestInit = {}, silent: boolean = false) {
   const token = getAuthToken();
 
   const publicEndpoints = [
@@ -37,6 +37,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
   if (!isPublic && !token) {
+    if (silent) return { success: false, error: 'Unauthorized' };
     throw new Error('401 Unauthorized: No authentication token provided.');
   }
 
@@ -70,6 +71,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
     }
 
     if (!response.ok || (data && data.success === false)) {
+      if (silent) return data || { success: false };
       let msg = data?.error || data?.message;
       if (!msg) {
         if (response.status === 404 || response.status === 405) {
@@ -85,6 +87,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
 
     return data || { success: true };
   } catch (err: any) {
+    if (silent) return { success: false };
     if (err.name === 'TypeError' || err.message === 'Failed to fetch' || err.message?.includes('fetch')) {
       throw new Error('Network connection issue. Please check your internet connection.');
     }
@@ -116,8 +119,8 @@ export const api = {
   },
 
 
-  async getProfile() {
-    return request('/profile');
+  async getProfile(silent = false) {
+    return request('/profile', {}, silent);
   },
 
   async updateProfile(data: { firstname?: string; lastname?: string; phone?: string }) {
@@ -141,8 +144,8 @@ export const api = {
     });
   },
 
-  async getWallet() {
-    return request('/wallet');
+  async getWallet(silent = false) {
+    return request('/wallet', {}, silent);
   },
 
   async initKatpay(amount: number) {
@@ -165,12 +168,12 @@ export const api = {
     });
   },
 
-  async getTransactions() {
-    return request('/transactions');
+  async getTransactions(silent = false) {
+    return request('/transactions', {}, silent);
   },
 
-  async getServices() {
-    return request('/services');
+  async getServices(silent = false) {
+    return request('/services', {}, silent);
   },
 
   async detectNetwork(phone: string) {
@@ -293,8 +296,8 @@ export const api = {
     });
   },
 
-  async getNotifications() {
-    return request('/notifications');
+  async getNotifications(silent = false) {
+    return request('/notifications', {}, silent);
   },
 
   async markNotificationRead(id?: number | 'all') {
@@ -339,8 +342,8 @@ export const api = {
     });
   },
 
-  async getQuickActions() {
-    return request('/quick-actions');
+  async getQuickActions(silent = false) {
+    return request('/quick-actions', {}, silent);
   },
 
   async getSupportInfo() {
