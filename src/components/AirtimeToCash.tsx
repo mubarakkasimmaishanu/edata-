@@ -134,6 +134,7 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
           handleApplyPromoCode={() => {}}
           handleCheckoutInitiate={handleCheckoutInitiate}
           onOpenContacts={() => openContactPicker(setTargetNumber, currentUser.phone, toast)}
+          userPhone={currentUser.phone}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
           a2cBank={a2cBank}
