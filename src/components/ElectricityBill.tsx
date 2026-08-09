@@ -9,14 +9,21 @@ import { ChevronLeft, Lightbulb } from 'lucide-react';
 interface ElectricityBillProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  initialDisco?: string;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function ElectricityBill({ currentUser, products, onBack, onSuccess }: ElectricityBillProps) {
+export default function ElectricityBill({ currentUser, products, initialDisco, onBack, onSuccess }: ElectricityBillProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
-  const [detectedOperator, setDetectedOperator] = useState('AEDC');
+  const [detectedOperator, setDetectedOperator] = useState(initialDisco || 'AEDC');
+
+  React.useEffect(() => {
+    if (initialDisco) {
+      setDetectedOperator(initialDisco);
+    }
+  }, [initialDisco]);
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);

@@ -9,14 +9,21 @@ import { ChevronLeft, BookOpen } from 'lucide-react';
 interface ExamPinsProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  initialProvider?: string;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function ExamPins({ currentUser, products, onBack, onSuccess }: ExamPinsProps) {
+export default function ExamPins({ currentUser, products, initialProvider, onBack, onSuccess }: ExamPinsProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('1'); // Quantity
-  const [detectedOperator, setDetectedOperator] = useState('WAEC');
+  const [detectedOperator, setDetectedOperator] = useState(initialProvider || 'WAEC');
+
+  React.useEffect(() => {
+    if (initialProvider) {
+      setDetectedOperator(initialProvider);
+    }
+  }, [initialProvider]);
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);

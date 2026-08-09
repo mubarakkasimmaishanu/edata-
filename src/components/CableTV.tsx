@@ -9,14 +9,21 @@ import { ChevronLeft, Tv } from 'lucide-react';
 interface CableTVProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  initialProvider?: string;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function CableTV({ currentUser, products, onBack, onSuccess }: CableTVProps) {
+export default function CableTV({ currentUser, products, initialProvider, onBack, onSuccess }: CableTVProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
-  const [detectedOperator, setDetectedOperator] = useState('DSTV');
+  const [detectedOperator, setDetectedOperator] = useState(initialProvider || 'DSTV');
+
+  React.useEffect(() => {
+    if (initialProvider) {
+      setDetectedOperator(initialProvider);
+    }
+  }, [initialProvider]);
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
