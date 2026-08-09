@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Wifi } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
+import { isValidPhoneNumber } from '../utils/phoneValidation';
 
 interface BuyDataProps {
   currentUser: UserProfile;
@@ -65,8 +66,8 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
   };
 
   const handleCheckoutInitiate = () => {
-    if (!targetNumber || targetNumber.length < 10) {
-      toast.warning('Please enter a valid phone number.');
+    if (!targetNumber || !isValidPhoneNumber(targetNumber)) {
+      toast.warning('Please enter a valid 11-digit phone number.');
       return;
     }
     if (!selectedProduct) {

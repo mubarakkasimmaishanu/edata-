@@ -2,6 +2,7 @@ import React from 'react';
 import { ProductItem } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search } from 'lucide-react';
 import { api } from '../services/api';
+import { isValidRecipient, isValidPhoneNumber } from '../utils/phoneValidation';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -174,8 +175,12 @@ export default function ServiceForm(props: ServiceFormProps) {
 
   const handleSubmit = () => {
     setSelectedCategory(cat);
-    if (!targetNumber && serviceType !== 'exam') {
-      toast.warning(`Please enter the ${inputLabel.toLowerCase()}.`);
+    if (serviceType !== 'exam' && !isValidRecipient(serviceType, targetNumber)) {
+      if (showNetworkSelector) {
+        toast.warning('Please enter a valid 11-digit phone number.');
+      } else {
+        toast.warning(`Please enter a valid ${inputLabel.toLowerCase()}.`);
+      }
       return;
     }
     if (!isA2C && finalPrice > currentBalance) {
@@ -530,7 +535,15 @@ export default function ServiceForm(props: ServiceFormProps) {
               placeholder={inputPlaceholder}
               value={targetNumber}
               onChange={(e) => {
-                const cleanVal = e.target.value.replace(/\D/g, '');
+                let cleanVal = e.target.value.replace(/\D/g, '');
+                if (showNetworkSelector) {
+                  if (cleanVal.startsWith('234') && cleanVal.length >= 13) {
+                    cleanVal = '0' + cleanVal.slice(3);
+                  }
+                  if (cleanVal.length > 11) {
+                    cleanVal = cleanVal.slice(0, 11);
+                  }
+                }
                 setSelectedCategory(cat);
                 setTargetNumber(cleanVal);
 
@@ -573,7 +586,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }).catch(() => {});
                 }
               }}
-              className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl pl-10 pr-20 py-3.5 text-sm text-white placeholder-slate-400 font-mono font-semibold focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 shadow-md"
+              className={`w-full bg-slate-800/90 border rounded-2xl pl-10 pr-20 py-3.5 text-sm text-white placeholder-slate-400 font-mono font-semibold focus:outline-none focus:ring-4 focus:ring-sky-500/20 shadow-md ${
+                showNetworkSelector && targetNumber && targetNumber.length > 0 && targetNumber.length < 11
+                  ? 'border-amber-500/60 focus:border-amber-400'
+                  : 'border-slate-700/80 focus:border-sky-400'
+              }`}
             />
             {showNetworkSelector && detectedOperator && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 text-sky-300 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider font-mono">

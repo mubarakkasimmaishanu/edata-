@@ -1,8 +1,4 @@
-/**
- * Universal Mobile & Web Contact Picker Utility
- * Automatically invokes native Android/iOS Contact Picker API via Web Contacts API
- * with graceful fallbacks for WebViews and manual paste inputs.
- */
+import { isValidPhoneNumber, normalizePhoneNumber } from './phoneValidation';
 
 export async function openContactPicker(
   onSelectNumber: (phone: string) => void,
@@ -17,15 +13,16 @@ export async function openContactPicker(
       const contacts = await (navigator as any).contacts.select(props, opts);
       if (contacts && contacts.length > 0 && contacts[0].tel && contacts[0].tel.length > 0) {
         let rawPhone = contacts[0].tel[0];
-        let clean = rawPhone.replace(/\D/g, '');
-        if (clean.startsWith('234') && clean.length >= 13) {
-          clean = '0' + clean.slice(3);
-        }
+        let clean = normalizePhoneNumber(rawPhone);
         if (clean.length > 11) {
           clean = clean.slice(-11);
         }
-        onSelectNumber(clean);
-        toast?.success(`Contact selected: ${clean}`);
+        if (isValidPhoneNumber(clean)) {
+          onSelectNumber(clean);
+          toast?.success(`Contact selected: ${clean}`);
+        } else {
+          toast?.error('Selected contact phone number is invalid (11 digits required).');
+        }
         return;
       }
     } catch (err: any) {
@@ -37,21 +34,18 @@ export async function openContactPicker(
   }
 
   // 2. Fallback: Quick input prompt with optional account phone pre-fill
-  const defaultVal = userPhone ? userPhone.replace(/\D/g, '').slice(-11) : '';
-  const input = window.prompt('Enter or paste recipient phone number:', defaultVal);
+  const defaultVal = userPhone ? normalizePhoneNumber(userPhone).slice(-11) : '';
+  const input = window.prompt('Enter or paste recipient phone number (11 digits):', defaultVal);
   if (input) {
-    let clean = input.replace(/\D/g, '');
-    if (clean.startsWith('234') && clean.length >= 13) {
-      clean = '0' + clean.slice(3);
-    }
+    let clean = normalizePhoneNumber(input);
     if (clean.length > 11) {
       clean = clean.slice(-11);
     }
-    if (clean.length >= 10) {
+    if (isValidPhoneNumber(clean)) {
       onSelectNumber(clean);
       toast?.success(`Phone number set: ${clean}`);
     } else if (clean.length > 0) {
-      toast?.error('Invalid phone number entered. Minimum 10 digits required.');
+      toast?.error('Invalid phone number entered. Standard Nigerian phone numbers must be 11 digits.');
     }
   }
 }

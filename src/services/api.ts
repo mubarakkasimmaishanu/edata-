@@ -32,7 +32,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
   const publicEndpoints = [
     '/login', '/signup', '/signup-request', '/signup-verify',
     '/signup-complete', '/google-auth', '/detect-network',
-    '/forgot-password', '/reset-password', '/quick-actions', '/services'
+    '/forgot-password', '/reset-password', '/quick-actions', '/services', '/support'
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
@@ -341,6 +341,10 @@ export const api = {
 
   async getQuickActions() {
     return request('/quick-actions');
+  },
+
+  async getSupportInfo() {
+    return request('/support');
   },
 };
 

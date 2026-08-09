@@ -1,0 +1,16 @@
+# eData VTU & Fintech Robots.txt
+User-agent: *
+Allow: /
+Allow: /assets/
+Allow: /images/
+
+# Block direct access to admin or internal API endpoints
+Disallow: /api/
+Disallow: /admin/
+Disallow: /backend/
+Disallow: /private/
+Disallow: /*?*
+
+# Host & Sitemap location
+Host: https://edata.ng
+Sitemap: https://edata.ng/sitemap.xml

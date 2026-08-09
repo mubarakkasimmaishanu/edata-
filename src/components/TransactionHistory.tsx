@@ -6,6 +6,7 @@ import BottomSheet from './BottomSheet';
 import { useToast } from './Toast';
 
 import { formatMoney } from '../utils/formatters';
+import { api } from '../services/api';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
@@ -35,10 +36,17 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     toast.success('Transaction reference copied to clipboard!');
   };
 
-  const handleReportIssue = (tx: Transaction) => {
+  const handleReportIssue = async (tx: Transaction) => {
     const refCode = tx.reference || tx.id;
     const msg = `Hello eData Support, I need assistance with transaction Ref: ${refCode}\nService: ${tx.productName || tx.type}\nTarget Number: ${tx.phoneOrMeter || 'N/A'}\nAmount: ${formatMoney(tx.amount)}\nDate: ${tx.date || 'Recent'}\nStatus: ${tx.status}`;
-    const whatsappUrl = `https://wa.me/2349031384954?text=${encodeURIComponent(msg)}`;
+    let whatsappNum = '2348104530781';
+    try {
+      const res = await api.getSupportInfo();
+      if (res?.success && res?.data?.whatsapp) {
+        whatsappNum = res.data.whatsapp;
+      }
+    } catch {}
+    const whatsappUrl = `https://wa.me/${whatsappNum}?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, '_blank');
   };
 

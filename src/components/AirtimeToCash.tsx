@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Repeat } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
+import { isValidPhoneNumber } from '../utils/phoneValidation';
 
 interface AirtimeToCashProps {
   currentUser: UserProfile;
@@ -30,8 +31,8 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
 
   const handleCheckoutInitiate = () => {
     const amountNum = parseFloat(checkoutAmount);
-    if (!targetNumber || targetNumber.length < 10) {
-      toast.warning('Please enter the sender phone number.');
+    if (!targetNumber || !isValidPhoneNumber(targetNumber)) {
+      toast.warning('Please enter a valid 11-digit sender phone number.');
       return;
     }
     if (isNaN(amountNum) || amountNum < 1000) {

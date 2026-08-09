@@ -21,6 +21,7 @@ import PinInput from './PinInput';
 import { api } from '../services/api';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
+import { isValidRecipient } from '../utils/phoneValidation';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -97,6 +98,7 @@ export default function PinScreen({
 
   const serviceTypeLower = (summary?.iconType || '').toLowerCase();
   const requiresRecipient = serviceTypeLower !== 'exam' && serviceTypeLower !== 'exams' && serviceTypeLower !== 'upgrade';
+  const isRecipientValid = !requiresRecipient || isValidRecipient(serviceTypeLower, recipientPhone);
 
   const getRecipientLabel = () => {
     switch (serviceTypeLower) {
@@ -180,10 +182,13 @@ export default function PinScreen({
 
     if (mode === 'purchase') {
       if (!onSubmitPurchase) return;
-      if (requiresRecipient && (!recipientPhone || recipientPhone.trim().length < 5)) {
+      if (requiresRecipient && !isRecipientValid) {
         setHasError(true);
-        setErrorMessage(`Please enter a valid ${getRecipientLabel()}.`);
-        toast.error(`Please enter a valid ${getRecipientLabel()}.`);
+        const errorMsg = (serviceTypeLower === 'airtime' || serviceTypeLower === 'data' || serviceTypeLower === 'a2c')
+          ? 'Incomplete or invalid phone number (11 digits required).'
+          : `Please enter a valid ${getRecipientLabel()}.`;
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
         setPin('');
         return;
       }
@@ -516,11 +521,26 @@ export default function PinScreen({
                   <input
                     type="text"
                     value={recipientPhone}
-                    onChange={(e) => setRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => {
+                      let clean = e.target.value.replace(/[^0-9]/g, '');
+                      if (serviceTypeLower === 'airtime' || serviceTypeLower === 'data' || serviceTypeLower === 'a2c') {
+                        if (clean.startsWith('234') && clean.length >= 13) {
+                          clean = '0' + clean.slice(3);
+                        }
+                        if (clean.length > 11) {
+                          clean = clean.slice(0, 11);
+                        }
+                      }
+                      setRecipientPhone(clean);
+                    }}
                     placeholder={getRecipientPlaceholder()}
-                    maxLength={serviceTypeLower === 'airtime' || serviceTypeLower === 'data' ? 11 : 20}
+                    maxLength={serviceTypeLower === 'airtime' || serviceTypeLower === 'data' || serviceTypeLower === 'a2c' ? 11 : 20}
                     disabled={loading}
-                    className="w-full bg-slate-950/90 border border-slate-800 focus:border-sky-500 text-sky-300 font-mono font-bold text-sm px-3.5 py-2.5 rounded-xl transition-all outline-none focus:ring-1 focus:ring-sky-500/50 shadow-inner"
+                    className={`w-full bg-slate-950/90 border font-mono font-bold text-sm px-3.5 py-2.5 rounded-xl transition-all outline-none focus:ring-1 focus:ring-sky-500/50 shadow-inner ${
+                      requiresRecipient && !isRecipientValid
+                        ? 'border-rose-500/80 text-rose-300 focus:border-rose-500'
+                        : 'border-slate-800 focus:border-sky-500 text-sky-300'
+                    }`}
                   />
                 </div>
               )}
@@ -696,15 +716,23 @@ export default function PinScreen({
                 </button>
               </div>
 
+              {/* Recipient Validation Warning Banner */}
+              {mode === 'purchase' && requiresRecipient && !isRecipientValid && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-400 font-semibold mb-3 animate-pulse">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Incomplete {getRecipientLabel().toLowerCase()} (11 digits required).</span>
+                </div>
+              )}
+
               {/* PinInput Digit Boxes Component */}
               <PinInput
                 length={requiredLength}
                 value={pin}
                 onChange={setPin}
                 onComplete={handleComplete}
-                disabled={loading}
+                disabled={loading || (mode === 'purchase' && requiresRecipient && !isRecipientValid)}
                 mask={!showPin}
-                error={hasError}
+                error={hasError || (mode === 'purchase' && requiresRecipient && !isRecipientValid)}
                 autoFocus={true}
               />
 
@@ -721,7 +749,7 @@ export default function PinScreen({
                 <button
                   type="button"
                   onClick={() => handleComplete(pin)}
-                  disabled={!isPinComplete || loading}
+                  disabled={!isPinComplete || (mode === 'purchase' && requiresRecipient && !isRecipientValid) || loading}
                   className="w-full py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.98] cursor-pointer btn-sheen uppercase tracking-wider"
                 >
                   {loading ? (
