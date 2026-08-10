@@ -82,6 +82,56 @@ const ELECTRICITY_PROVIDERS = [
 const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
 
+// ─── Clean Plan Display & Section Title Formatters ───
+export function formatPlanDisplayName(p: ProductItem, defaultOperator: string = 'MTN'): string {
+  let name = (p.name || '').trim();
+  const op = (p.operator || defaultOperator || 'MTN').trim();
+  const pType = (p.planType || '').trim();
+
+  // 1. Remove duplicate leading operator if name already starts with operator
+  if (!name.toLowerCase().startsWith(op.toLowerCase())) {
+    name = `${op} ${name}`;
+  }
+
+  // 2. Remove double closing parentheses if any
+  name = name.replace(/\)\)+/g, ')');
+
+  // 3. Append type tag only if not already present in name
+  if (pType && pType !== 'OTHER') {
+    const pTypeLower = pType.toLowerCase();
+    const nameLower = name.toLowerCase();
+    if (!nameLower.includes(`(${pTypeLower})`) && !nameLower.includes(` ${pTypeLower}`)) {
+      name = `${name} (${pType})`;
+    }
+  }
+
+  return name;
+}
+
+export function formatPlanSectionTitle(rawTitle: string, code: string): string {
+  let title = (rawTitle || code || 'Standard').trim();
+
+  // Clean double parens
+  title = title.replace(/\)\)+/g, ')');
+
+  // Clean duplicate words like "Data Share Data Plans" -> "Data Share Plans"
+  if (/data\s+data/i.test(title)) {
+    title = title.replace(/data\s+data/gi, 'Data');
+  }
+  if (/plans\s+plans/i.test(title)) {
+    title = title.replace(/plans\s+plans/gi, 'Plans');
+  }
+
+  const lower = title.toLowerCase();
+  if (lower.endsWith('plan') || lower.endsWith('plans')) {
+    return title;
+  }
+  if (lower.includes('data')) {
+    return `${title} Plans`;
+  }
+  return `${title} Data Plans`;
+}
+
 interface ServiceFormProps {
   serviceType: 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'a2c';
   serviceLabel: string;
@@ -713,7 +763,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     <Zap className="w-4 h-4 text-sky-400 shrink-0" />
                     <span className={`truncate ${selectedProduct ? 'text-white font-bold' : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
-                        ? `${selectedProduct.operator || detectedOperator || 'MTN'} ${selectedProduct.name} (${selectedProduct.planType || 'SME'}) — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
+                        ? `${formatPlanDisplayName(selectedProduct, detectedOperator)} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
                         : 'Select package'}
                     </span>
                   </div>
@@ -777,20 +827,29 @@ export default function ServiceForm(props: ServiceFormProps) {
 
                           return (
                             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-                              {chipKeys.map((catKey) => (
-                                <button
-                                  key={catKey}
-                                  type="button"
-                                  onClick={() => setDataTypeFilter(catKey)}
-                                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
-                                    dataTypeFilter.toUpperCase() === catKey
-                                      ? 'bg-sky-500 text-white shadow-sm'
-                                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {catKey}
-                                </button>
-                              ))}
+                              {chipKeys.map((catKey) => {
+                                const ptMatch = planTypes.find(p => p.code && p.code.toUpperCase() === catKey);
+                                let chipLabel = catKey;
+                                if (ptMatch && ptMatch.name) {
+                                  chipLabel = ptMatch.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || catKey;
+                                } else {
+                                  chipLabel = catKey.replace(/-DATA-/gi, ' ').replace(/-/g, ' ').trim().toUpperCase();
+                                }
+                                return (
+                                  <button
+                                    key={catKey}
+                                    type="button"
+                                    onClick={() => setDataTypeFilter(catKey)}
+                                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                                      dataTypeFilter.toUpperCase() === catKey
+                                        ? 'bg-sky-500 text-white shadow-sm'
+                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                                    }`}
+                                  >
+                                    {chipLabel}
+                                  </button>
+                                );
+                              })}
                             </div>
                           );
                         })()}
@@ -850,7 +909,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             planTypes.forEach((pt, idx) => {
                               const codeKey = pt.code.toUpperCase();
                               const color = colorPalette[idx % colorPalette.length];
-                              const title = pt.name ? (pt.name.toLowerCase().includes('plan') ? pt.name : `${pt.name} Data Plans`) : `${codeKey} Data Plans`;
+                              const title = formatPlanSectionTitle(pt.name, pt.code);
                               dynamicLabels[codeKey] = { title, color };
                             });
                           }
@@ -872,7 +931,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             else key = rawType;
 
                             if (!dynamicLabels[key]) {
-                              dynamicLabels[key] = { title: `${key} Data Plans`, color: 'text-sky-400' };
+                              dynamicLabels[key] = { title: formatPlanSectionTitle('', key), color: 'text-sky-400' };
                             }
 
                             if (!groups[key]) groups[key] = [];
@@ -911,8 +970,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                                     const isSelected = selectedProduct?.id === p.id;
                                     const dynamicPrice = getDynamicPrice(p);
                                     const opName = p.operator || detectedOperator || 'MTN';
-                                    const typeTag = p.planType ? `(${p.planType})` : '(SME)';
-                                    const displayStr = `${opName} ${p.name} ${typeTag} — ₦${dynamicPrice.toLocaleString('en-NG')} ${typeTag}`;
+                                    const displayStr = `${formatPlanDisplayName(p, opName)} — ₦${dynamicPrice.toLocaleString('en-NG')}`;
 
                                     return (
                                       <div
