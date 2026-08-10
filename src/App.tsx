@@ -588,11 +588,32 @@ function MainApp() {
 
   const handleLogout = () => {
     setAuthToken(null);
-    localStorage.removeItem('edata_token');
-    localStorage.removeItem('edata_current_user');
-    localStorage.removeItem('edata_sandbox');
-    localStorage.removeItem('google_session');
+    // Clear every cache — auth tokens, user profile, wallet virtual
+    // account, AND the admin-managed catalogue caches (products, plan
+    // types, quick actions, service categories, transactions). Without
+    // this, the next user (or the same user after a plan/type change)
+    // would briefly see stale data plucked from the previous session's
+    // localStorage before the first /api/services poll completes.
+    [
+      'edata_token',
+      'edata_current_user',
+      'edata_sandbox',
+      'google_session',
+      'edata_virtual_account',
+      'edata_cached_products',
+      'edata_cached_plan_types',
+      'edata_cached_quick_actions',
+      'edata_cached_service_categories',
+      'edata_cached_transactions',
+    ].forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
     setCurrentUser(DEFAULT_USER);
+    setProducts([]);
+    setPlanTypes([]);
+    setQuickActions([]);
+    setServiceCategories([]);
+    setTransactions([]);
     setApiStatus('offline');
     setCurrentScreen('auth');
     setActiveView('dashboard');
