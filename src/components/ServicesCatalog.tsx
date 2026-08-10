@@ -23,10 +23,16 @@ import walletIcon from '@/assets/icons/airtimetocash.png';
 
 interface ServicesCatalogProps {
   currentUser: UserProfile;
+  /**
+   * Service categories currently marked ACTIVE by the admin. Tiles whose
+   * `adminGated` flag matches an id NOT in this list are hidden. See
+   * App.tsx `serviceCategories` for how it's populated.
+   */
+  serviceCategories?: string[];
   onNavigate: (view: string) => void;
 }
 
-export default function ServicesCatalog({ currentUser, onNavigate }: ServicesCatalogProps) {
+export default function ServicesCatalog({ currentUser, serviceCategories = [], onNavigate }: ServicesCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'telecom' | 'bills' | 'education'>('all');
 
@@ -37,21 +43,35 @@ export default function ServicesCatalog({ currentUser, onNavigate }: ServicesCat
     { id: 'education', label: 'Exams & Pins' },
   ];
 
-  const allServices = [
+  // `adminGated: true` marks tiles whose visibility follows Manage
+  // Services in the admin panel. Tiles without that flag (fund, support,
+  // referral) are app-level nav items and always show.
+  const allServices: {
+    id: string;
+    name: string;
+    desc: string;
+    category: string;
+    icon: any;
+    adminGated?: boolean;
+  }[] = [
     // Telecom
-    { id: 'airtime', name: 'Airtime', desc: 'Instant VTU top-up', category: 'telecom', icon: Smartphone },
-    { id: 'data', name: 'Data', desc: 'All network data bundles', category: 'telecom', icon: Layers },
-    { id: 'a2c', name: 'A2C', desc: 'Airtime to Cash', category: 'telecom', icon: Repeat },
+    { id: 'airtime', name: 'Airtime', desc: 'Instant VTU top-up', category: 'telecom', icon: Smartphone, adminGated: true },
+    { id: 'data', name: 'Data', desc: 'All network data bundles', category: 'telecom', icon: Layers, adminGated: true },
+    { id: 'a2c', name: 'A2C', desc: 'Airtime to Cash', category: 'telecom', icon: Repeat, adminGated: true },
     { id: 'fund', name: 'Fund Wallet', desc: 'Bank transfer', category: 'telecom', icon: Plus },
     // Bills
-    { id: 'cable', name: 'Cable TV', desc: 'DStv, GOtv, StarTimes', category: 'bills', icon: Tv },
-    { id: 'electricity', name: 'Electricity', desc: 'Prepaid & Postpaid', category: 'bills', icon: Lightbulb },
+    { id: 'cable', name: 'Cable TV', desc: 'DStv, GOtv, StarTimes', category: 'bills', icon: Tv, adminGated: true },
+    { id: 'electricity', name: 'Electricity', desc: 'Prepaid & Postpaid', category: 'bills', icon: Lightbulb, adminGated: true },
     // Education
-    { id: 'exams', name: 'Exam Card', desc: 'WAEC, NECO, NABTEB', category: 'education', icon: BookOpen },
+    { id: 'exams', name: 'Exam Card', desc: 'WAEC, NECO, NABTEB', category: 'education', icon: BookOpen, adminGated: true },
     // Other
     { id: 'referral', name: 'Referral', desc: 'Invite & earn', category: 'telecom', icon: Gift },
     { id: 'support', name: 'Support', desc: '24/7 help desk', category: 'telecom', icon: Headphones },
-  ];
+  ].filter(tile =>
+    !tile.adminGated
+    || serviceCategories.length === 0 // no sync yet — show everything so nothing looks broken
+    || serviceCategories.includes(tile.id)
+  );
 
   const filteredServices = allServices.filter(srv => {
     const matchesCategory = activeCategory === 'all' || srv.category === activeCategory;

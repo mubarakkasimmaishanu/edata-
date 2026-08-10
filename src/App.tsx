@@ -74,6 +74,18 @@ function MainApp() {
     } catch {}
     return [];
   });
+  // Set of mobile service_type keys (`airtime`, `data`, `cable`, `electricity`,
+  // `exams`, `a2c`) that have at least one ACTIVE ServiceType row on the
+  // backend. Populated live from /api/services on every poll. Used to
+  // hide tiles for categories the admin has fully disabled — Manage
+  // Services is the sole source of truth for what appears.
+  const [serviceCategories, setServiceCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('edata_cached_service_categories');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [preselectedNetwork, setPreselectedNetwork] = useState<string>('');
   const [preselectedPlanId, setPreselectedPlanId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
@@ -290,6 +302,27 @@ function MainApp() {
       }
 
       setProducts(mappedProducts);
+
+      // Derive the set of active service categories directly from what
+      // the backend returned. If /api/services drops (say) every
+      // Electricity ServiceType, `electricity` will not appear here and
+      // the UserDashboard + ServicesCatalog will hide the Electricity
+      // tile on the very next render.
+      const catToVerb: Record<number, string> = {
+        1: 'airtime', 2: 'data', 3: 'exams',
+        4: 'cable', 5: 'electricity', 6: 'a2c',
+      };
+      const catSet = new Set<string>();
+      dbServices.forEach((srv) => {
+        const cid = Number(srv.category_id);
+        const isActive = srv.status === 1 || srv.status === true || srv.status === undefined;
+        if (isActive && catToVerb[cid]) catSet.add(catToVerb[cid]);
+      });
+      const catArray = Array.from(catSet);
+      setServiceCategories(catArray);
+      try {
+        localStorage.setItem('edata_cached_service_categories', JSON.stringify(catArray));
+      } catch {}
 
       const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
         id: t.reference,
@@ -583,6 +616,18 @@ function MainApp() {
       }
     }
 
+    // Refuse to navigate into a service view the admin has fully
+    // disabled. `fund` / `history` / `profile` / `support` / `notifications`
+    // / `upgrade` / `referral` / `services` / `dashboard` are app-level
+    // views (not admin-managed service categories) and always work.
+    const gatedViews = ['airtime', 'data', 'cable', 'electricity', 'exams', 'a2c'];
+    if (gatedViews.includes(targetView)
+        && serviceCategories.length > 0
+        && !serviceCategories.includes(targetView)) {
+      toast.info('This service is currently unavailable.');
+      return;
+    }
+
     if (targetView !== activeView) {
       setViewHistory(prev => {
         if (prev.length > 0 && prev[prev.length - 1] === targetView) return prev;
@@ -742,6 +787,7 @@ function MainApp() {
                   currentUser={currentUser}
                   transactions={transactions}
                   quickActions={quickActions}
+                  serviceCategories={serviceCategories}
                   onNavigate={navigateTo}
                   onRefresh={handleGlobalRefresh}
                   isSyncing={isSyncing}
@@ -753,6 +799,7 @@ function MainApp() {
               {activeView === 'services' && (
                 <ServicesCatalog
                   currentUser={currentUser}
+                  serviceCategories={serviceCategories}
                   onNavigate={navigateTo}
                 />
               )}

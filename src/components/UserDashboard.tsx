@@ -92,6 +92,13 @@ interface UserDashboardProps {
   currentUser: UserProfile;
   transactions: Transaction[];
   quickActions?: QuickAction[];
+  /**
+   * List of service_type verbs (`airtime`, `data`, `cable`, `electricity`,
+   * `exams`, `a2c`) that currently have ≥1 ACTIVE ServiceType on the
+   * backend. Computed live from /api/services in App.tsx. Categories the
+   * admin has fully disabled are omitted so their tiles disappear.
+   */
+  serviceCategories?: string[];
   onNavigate: (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => void;
   onRefresh?: () => void;
   isSyncing?: boolean;
@@ -104,6 +111,7 @@ export default function UserDashboard({
   currentUser,
   transactions,
   quickActions = [],
+  serviceCategories = [],
   onNavigate,
   onRefresh,
   isSyncing = false,
@@ -223,16 +231,25 @@ export default function UserDashboard({
   // shortcuts that would ignore admin edits.
   const actionsToDisplay = (quickActions && quickActions.length > 0) ? quickActions : [];
 
-  // Services grid — 7 core services + "More" navigation card
-  const services = [
-    { id: 'airtime', name: 'Airtime', icon: Smartphone },
-    { id: 'data', name: 'Data', icon: Layers },
-    { id: 'cable', name: 'Cable TV', icon: Tv },
-    { id: 'electricity', name: 'Electricity', icon: Lightbulb },
-    { id: 'a2c', name: 'A2C', icon: Repeat },
-    { id: 'exams', name: 'Exam Card', icon: BookOpen },
-    { id: 'support', name: 'Support', icon: Headphones },
+  // Services grid — every entry with `adminGated: true` corresponds to a
+  // ServiceType category the admin manages under Manage Services. If the
+  // backend returns no active ServiceType in that category, the tile is
+  // hidden here. `support` is an app-level nav item, not an admin-managed
+  // service category, so it always shows.
+  const allServiceTiles: { id: string; name: string; icon: any; adminGated?: boolean }[] = [
+    { id: 'airtime',     name: 'Airtime',     icon: Smartphone, adminGated: true },
+    { id: 'data',        name: 'Data',        icon: Layers,     adminGated: true },
+    { id: 'cable',       name: 'Cable TV',    icon: Tv,         adminGated: true },
+    { id: 'electricity', name: 'Electricity', icon: Lightbulb,  adminGated: true },
+    { id: 'a2c',         name: 'A2C',         icon: Repeat,     adminGated: true },
+    { id: 'exams',       name: 'Exam Card',   icon: BookOpen,   adminGated: true },
+    { id: 'support',     name: 'Support',     icon: Headphones },
   ];
+  const services = allServiceTiles.filter(tile =>
+    !tile.adminGated
+    || serviceCategories.length === 0 // no sync yet — show everything so nothing looks broken
+    || serviceCategories.includes(tile.id)
+  );
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-28">
