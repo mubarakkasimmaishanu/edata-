@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
-import { UserProfile, ProductItem, Transaction, QuickAction } from './types';
+import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 
 import AuthPage from './components/AuthPage';
@@ -63,6 +63,13 @@ function MainApp() {
   const [quickActions, setQuickActions] = useState<QuickAction[]>(() => {
     try {
       const saved = localStorage.getItem('edata_cached_quick_actions');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  const [planTypes, setPlanTypes] = useState<PlanTypeItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('edata_cached_plan_types');
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
@@ -264,6 +271,12 @@ function MainApp() {
         } catch {}
       }
 
+      // Sync Plan Types from backend REST API
+      const ptFromServices = resData.plan_types || servicesRes?.data?.plan_types || servicesRes?.plan_types;
+      if (Array.isArray(ptFromServices)) {
+        setPlanTypes(ptFromServices);
+      }
+
       setProducts(mappedProducts);
 
       const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
@@ -284,6 +297,9 @@ function MainApp() {
         localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx));
         if (Array.isArray(qaFromServices)) {
           localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices));
+        }
+        if (Array.isArray(ptFromServices)) {
+          localStorage.setItem('edata_cached_plan_types', JSON.stringify(ptFromServices));
         }
       } catch {}
 
@@ -702,6 +718,7 @@ function MainApp() {
                 <BuyData
                   currentUser={currentUser}
                   products={products}
+                  planTypes={planTypes}
                   initialNetwork={preselectedNetwork}
                   initialPlanId={preselectedPlanId}
                   onBack={handleGoBack}

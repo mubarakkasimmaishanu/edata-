@@ -102,3 +102,10 @@ export interface QuickAction {
   status: number;
 }
 
+export interface PlanTypeItem {
+  id: number | string;
+  name: string;
+  code: string;
+  description?: string;
+}
+

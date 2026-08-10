@@ -1,5 +1,5 @@
 import React from 'react';
-import { ProductItem } from '../types';
+import { ProductItem, PlanTypeItem } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 import { isValidRecipient, isValidPhoneNumber, normalizePhoneNumber } from '../utils/phoneValidation';
@@ -86,6 +86,7 @@ interface ServiceFormProps {
   serviceType: 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'a2c';
   serviceLabel: string;
   products: ProductItem[];
+  planTypes?: PlanTypeItem[];
   targetNumber: string;
   setTargetNumber: (v: string) => void;
   detectedOperator: string;
@@ -125,7 +126,7 @@ interface ServiceFormProps {
 
 export default function ServiceForm(props: ServiceFormProps) {
   const {
-    serviceType, serviceLabel, products, targetNumber, setTargetNumber,
+    serviceType, serviceLabel, products, planTypes = [], targetNumber, setTargetNumber,
     detectedOperator, setDetectedOperator, checkoutAmount, setCheckoutAmount,
     selectedProduct, setSelectedProduct, setSelectedCategory, getDynamicPrice,
     promoCodeInput, setPromoCodeInput, appliedPromo, setAppliedPromo,
@@ -761,37 +762,53 @@ export default function ServiceForm(props: ServiceFormProps) {
                           )}
                         </div>
 
-                        {/* Category Filter Chips */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-                          {['ALL', 'SME', 'GIFTING', 'CORPORATE'].map((catKey) => (
-                            <button
-                              key={catKey}
-                              type="button"
-                              onClick={() => setDataTypeFilter(catKey)}
-                              className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
-                                dataTypeFilter === catKey
-                                  ? 'bg-sky-500 text-white shadow-sm'
-                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-                              }`}
-                            >
-                              {catKey}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Dynamic Category Filter Chips */}
+                        {(() => {
+                          const availableTypeCodes = new Set<string>(['ALL']);
+                          if (planTypes && planTypes.length > 0) {
+                            planTypes.forEach(pt => {
+                              if (pt.code) availableTypeCodes.add(pt.code.toUpperCase());
+                            });
+                          }
+                          dataProds.forEach(p => {
+                            if (p.planType) availableTypeCodes.add(p.planType.toUpperCase());
+                          });
+                          const chipKeys = Array.from(availableTypeCodes);
+
+                          return (
+                            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
+                              {chipKeys.map((catKey) => (
+                                <button
+                                  key={catKey}
+                                  type="button"
+                                  onClick={() => setDataTypeFilter(catKey)}
+                                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                                    dataTypeFilter.toUpperCase() === catKey
+                                      ? 'bg-sky-500 text-white shadow-sm'
+                                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  {catKey}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
 
-                      {/* Modal Body List grouped by Plan Type */}
+                      {/* Modal Body List grouped dynamically by Plan Type */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
                         {(() => {
                           let filteredList = dataProds;
 
                           if (dataTypeFilter !== 'ALL') {
+                            const activeFilter = dataTypeFilter.toUpperCase();
                             filteredList = filteredList.filter(p => {
                               const t = (p.planType || 'SME').toUpperCase();
-                              if (dataTypeFilter === 'SME') return t.includes('SME');
-                              if (dataTypeFilter === 'GIFTING') return t.includes('GIFT');
-                              if (dataTypeFilter === 'CORPORATE') return t.includes('CG') || t.includes('CORP');
-                              return true;
+                              if (activeFilter === 'SME') return t.includes('SME');
+                              if (activeFilter === 'GIFTING') return t.includes('GIFT');
+                              if (activeFilter === 'CORPORATE') return t.includes('CG') || t.includes('CORP');
+                              return t === activeFilter || t.includes(activeFilter) || activeFilter.includes(t);
                             });
                           }
 
@@ -812,9 +829,8 @@ export default function ServiceForm(props: ServiceFormProps) {
                             );
                           }
 
-                          const groups: Record<string, ProductItem[]> = {};
-                          const order = ['SME', 'GIFTING', 'CORPORATE', 'AWOOF', 'SME2', 'DATA-SHARE', 'OTHER'];
-                          const labels: Record<string, { title: string; color: string }> = {
+                          // Dynamic group labels & color palette
+                          const dynamicLabels: Record<string, { title: string; color: string }> = {
                             'SME': { title: 'SME Data Plans', color: 'text-amber-400' },
                             'GIFTING': { title: 'Gifting Data Plans', color: 'text-emerald-400' },
                             'CORPORATE': { title: 'Corporate Gifting (CG) Plans', color: 'text-sky-400' },
@@ -824,26 +840,58 @@ export default function ServiceForm(props: ServiceFormProps) {
                             'OTHER': { title: 'Standard Data Plans', color: 'text-slate-300' }
                           };
 
+                          const colorPalette = [
+                            'text-amber-400', 'text-emerald-400', 'text-sky-400', 
+                            'text-rose-400', 'text-purple-400', 'text-amber-300', 
+                            'text-teal-400', 'text-indigo-400', 'text-cyan-400'
+                          ];
+
+                          if (planTypes && planTypes.length > 0) {
+                            planTypes.forEach((pt, idx) => {
+                              const codeKey = pt.code.toUpperCase();
+                              const color = colorPalette[idx % colorPalette.length];
+                              const title = pt.name ? (pt.name.toLowerCase().includes('plan') ? pt.name : `${pt.name} Data Plans`) : `${codeKey} Data Plans`;
+                              dynamicLabels[codeKey] = { title, color };
+                            });
+                          }
+
+                          const groups: Record<string, ProductItem[]> = {};
+
                           filteredList.forEach(p => {
                             const rawType = (p.planType || 'SME').toUpperCase();
                             let key = 'OTHER';
 
-                            if (rawType === 'SME') key = 'SME';
+                            if (dynamicLabels[rawType]) {
+                              key = rawType;
+                            } else if (rawType === 'SME' || rawType.includes('SME')) key = 'SME';
                             else if (rawType === 'SME2') key = 'SME2';
                             else if (rawType === 'GIFTING' || rawType === 'DIRECT-GIFTING') key = 'GIFTING';
                             else if (rawType === 'CG' || rawType === 'CORPORATE' || rawType.includes('CORP')) key = 'CORPORATE';
                             else if (rawType === 'AWOOF') key = 'AWOOF';
                             else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
-                            else key = 'OTHER';
+                            else key = rawType;
+
+                            if (!dynamicLabels[key]) {
+                              dynamicLabels[key] = { title: `${key} Data Plans`, color: 'text-sky-400' };
+                            }
 
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(p);
                           });
 
-                          return order.map(key => {
+                          const orderSet = new Set<string>();
+                          if (planTypes && planTypes.length > 0) {
+                            planTypes.forEach(pt => orderSet.add(pt.code.toUpperCase()));
+                          }
+                          ['SME', 'GIFTING', 'CORPORATE', 'AWOOF', 'SME2', 'DATA-SHARE', 'OTHER'].forEach(k => orderSet.add(k));
+                          Object.keys(groups).forEach(k => orderSet.add(k));
+
+                          const dynamicOrder = Array.from(orderSet);
+
+                          return dynamicOrder.map(key => {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
-                            const meta = labels[key] || labels['OTHER'];
+                            const meta = dynamicLabels[key] || dynamicLabels['OTHER'];
 
                             return (
                               <div key={key} className="space-y-1.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
