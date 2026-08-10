@@ -476,7 +476,10 @@ export default function ServiceForm(props: ServiceFormProps) {
                 onClick={() => {
                   const newQty = Math.max(1, examQuantity - 1);
                   setExamQuantity(newQty);
-                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 3200;
+                  // Use the admin-defined unit price only; never fall back
+                  // to a hardcoded amount. Total collapses to 0 until the
+                  // user picks a live plan above.
+                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
                   setCheckoutAmount((unitPrice * newQty).toString());
                 }}
                 disabled={examQuantity <= 1}
@@ -499,7 +502,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                 onClick={() => {
                   const newQty = Math.min(10, examQuantity + 1);
                   setExamQuantity(newQty);
-                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 3200;
+                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
                   setCheckoutAmount((unitPrice * newQty).toString());
                 }}
                 disabled={examQuantity >= 10}
@@ -812,25 +815,31 @@ export default function ServiceForm(props: ServiceFormProps) {
                           )}
                         </div>
 
-                        {/* Dynamic Category Filter Chips */}
+                        {/* Dynamic Category Filter Chips — driven entirely by
+                            admin-defined `plan_types` plus any codes that
+                            appear on live plans. No hardcoded chip list. */}
                         {(() => {
-                          const availableTypeCodes = new Set<string>(['ALL']);
+                          const codeOrder: string[] = ['ALL'];
+                          const seen = new Set<string>(['ALL']);
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach(pt => {
-                              if (pt.code) availableTypeCodes.add(pt.code.toUpperCase());
+                              const c = (pt.code || '').toUpperCase().trim();
+                              if (c && !seen.has(c)) { seen.add(c); codeOrder.push(c); }
                             });
                           }
                           dataProds.forEach(p => {
-                            if (p.planType) availableTypeCodes.add(p.planType.toUpperCase());
+                            const c = (p.planType || '').toUpperCase().trim();
+                            if (c && !seen.has(c)) { seen.add(c); codeOrder.push(c); }
                           });
-                          const chipKeys = Array.from(availableTypeCodes);
 
                           return (
                             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-                              {chipKeys.map((catKey) => {
+                              {codeOrder.map((catKey) => {
                                 const ptMatch = planTypes.find(p => p.code && p.code.toUpperCase() === catKey);
                                 let chipLabel = catKey;
-                                if (ptMatch && ptMatch.name) {
+                                if (catKey === 'ALL') {
+                                  chipLabel = 'ALL';
+                                } else if (ptMatch && ptMatch.name) {
                                   chipLabel = ptMatch.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || catKey;
                                 } else {
                                   chipLabel = catKey.replace(/-DATA-/gi, ' ').replace(/-/g, ' ').trim().toUpperCase();
@@ -858,17 +867,16 @@ export default function ServiceForm(props: ServiceFormProps) {
                       {/* Modal Body List grouped dynamically by Plan Type */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
                         {(() => {
+                          // Filter by the currently-selected chip. Chip
+                          // codes are literal admin-defined `plan_type`
+                          // strings; a plan matches when its own code
+                          // equals the chip. No hardcoded aliases.
                           let filteredList = dataProds;
-
                           if (dataTypeFilter !== 'ALL') {
                             const activeFilter = dataTypeFilter.toUpperCase();
-                            filteredList = filteredList.filter(p => {
-                              const t = (p.planType || 'SME').toUpperCase();
-                              if (activeFilter === 'SME') return t.includes('SME');
-                              if (activeFilter === 'GIFTING') return t.includes('GIFT');
-                              if (activeFilter === 'CORPORATE') return t.includes('CG') || t.includes('CORP');
-                              return t === activeFilter || t.includes(activeFilter) || activeFilter.includes(t);
-                            });
+                            filteredList = filteredList.filter(p =>
+                              (p.planType || '').toUpperCase() === activeFilter
+                            );
                           }
 
                           if (dataSearchQuery.trim()) {
@@ -888,61 +896,59 @@ export default function ServiceForm(props: ServiceFormProps) {
                             );
                           }
 
-                          // Dynamic group labels & color palette
-                          const dynamicLabels: Record<string, { title: string; color: string }> = {
-                            'SME': { title: 'SME Data Plans', color: 'text-amber-400' },
-                            'GIFTING': { title: 'Gifting Data Plans', color: 'text-emerald-400' },
-                            'CORPORATE': { title: 'Corporate Gifting (CG) Plans', color: 'text-sky-400' },
-                            'AWOOF': { title: 'Awoof Data Plans', color: 'text-rose-400' },
-                            'SME2': { title: 'SME2 Data Plans', color: 'text-amber-300' },
-                            'DATA-SHARE': { title: 'Data Share Plans', color: 'text-purple-400' },
-                            'OTHER': { title: 'Standard Data Plans', color: 'text-slate-300' }
-                          };
-
+                          // Build the label + color map strictly from the
+                          // admin's plan_types plus any custom codes that
+                          // arrived on live plans. No baked-in SME /
+                          // GIFTING / CORPORATE / AWOOF / DATA-SHARE keys.
                           const colorPalette = [
-                            'text-amber-400', 'text-emerald-400', 'text-sky-400', 
-                            'text-rose-400', 'text-purple-400', 'text-amber-300', 
+                            'text-amber-400', 'text-emerald-400', 'text-sky-400',
+                            'text-rose-400', 'text-purple-400', 'text-amber-300',
                             'text-teal-400', 'text-indigo-400', 'text-cyan-400'
                           ];
+                          const dynamicLabels: Record<string, { title: string; color: string }> = {};
 
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach((pt, idx) => {
-                              const codeKey = pt.code.toUpperCase();
-                              const color = colorPalette[idx % colorPalette.length];
-                              const title = formatPlanSectionTitle(pt.name, pt.code);
-                              dynamicLabels[codeKey] = { title, color };
+                              const codeKey = (pt.code || '').toUpperCase().trim();
+                              if (!codeKey) return;
+                              dynamicLabels[codeKey] = {
+                                title: formatPlanSectionTitle(pt.name, pt.code),
+                                color: colorPalette[idx % colorPalette.length],
+                              };
                             });
                           }
 
+                          // Ensure any plan with an unregistered code still
+                          // gets a bucket labelled from the code itself.
                           const groups: Record<string, ProductItem[]> = {};
-
+                          const codeOrderExtra: string[] = [];
                           filteredList.forEach(p => {
-                            const rawType = (p.planType || 'SME').toUpperCase();
-                            let key = 'OTHER';
-
-                            if (dynamicLabels[rawType]) {
-                              key = rawType;
-                            } else if (rawType === 'SME' || rawType.includes('SME')) key = 'SME';
-                            else if (rawType === 'SME2') key = 'SME2';
-                            else if (rawType === 'GIFTING' || rawType === 'DIRECT-GIFTING') key = 'GIFTING';
-                            else if (rawType === 'CG' || rawType === 'CORPORATE' || rawType.includes('CORP')) key = 'CORPORATE';
-                            else if (rawType === 'AWOOF') key = 'AWOOF';
-                            else if (rawType === 'DATA-SHARE' || rawType === 'DATASHARE') key = 'DATA-SHARE';
-                            else key = rawType;
-
+                            const rawType = (p.planType || '').toUpperCase().trim();
+                            const key = rawType || 'OTHER';
                             if (!dynamicLabels[key]) {
-                              dynamicLabels[key] = { title: formatPlanSectionTitle('', key), color: 'text-sky-400' };
+                              const idx = Object.keys(dynamicLabels).length + codeOrderExtra.length;
+                              dynamicLabels[key] = {
+                                title: key === 'OTHER'
+                                  ? 'Other Data Plans'
+                                  : formatPlanSectionTitle('', key),
+                                color: colorPalette[idx % colorPalette.length],
+                              };
+                              codeOrderExtra.push(key);
                             }
-
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(p);
                           });
 
+                          // Preserve admin ordering first, then any extras
+                          // in the order they were discovered.
                           const orderSet = new Set<string>();
                           if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach(pt => orderSet.add(pt.code.toUpperCase()));
+                            planTypes.forEach(pt => {
+                              const c = (pt.code || '').toUpperCase().trim();
+                              if (c) orderSet.add(c);
+                            });
                           }
-                          ['SME', 'GIFTING', 'CORPORATE', 'AWOOF', 'SME2', 'DATA-SHARE', 'OTHER'].forEach(k => orderSet.add(k));
+                          codeOrderExtra.forEach(k => orderSet.add(k));
                           Object.keys(groups).forEach(k => orderSet.add(k));
 
                           const dynamicOrder = Array.from(orderSet);
@@ -950,7 +956,10 @@ export default function ServiceForm(props: ServiceFormProps) {
                           return dynamicOrder.map(key => {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
-                            const meta = dynamicLabels[key] || dynamicLabels['OTHER'];
+                            const meta = dynamicLabels[key] || {
+                              title: formatPlanSectionTitle('', key),
+                              color: 'text-sky-400',
+                            };
 
                             return (
                               <div key={key} className="space-y-1.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">

@@ -217,16 +217,11 @@ export default function UserDashboard({
         : 'eData User');
   const avatarInitial = displayName ? displayName[0].toUpperCase() : 'U';
 
-  // Fallback quick actions if backend has not loaded any yet
-  const defaultActions: QuickAction[] = [
-    { id: 1, title: 'MTN Data', service_type: 'data', network: 'MTN', icon: 'mtn', display_order: 1, status: 1 },
-    { id: 2, title: 'Airtime', service_type: 'airtime', network: 'Airtel', icon: 'airtel', display_order: 2, status: 1 },
-    { id: 3, title: 'DStv', service_type: 'cable', network: 'DSTV', icon: 'dstv', display_order: 3, status: 1 },
-    { id: 4, title: 'GOtv', service_type: 'cable', network: 'GOTV', icon: 'gotv', display_order: 4, status: 1 },
-    { id: 5, title: 'WAEC', service_type: 'exams', network: 'WAEC', icon: 'waec', display_order: 5, status: 1 },
-  ];
-
-  const actionsToDisplay = (quickActions && quickActions.length > 0) ? quickActions : defaultActions;
+  // Quick Actions are 100 % admin-managed via /api/quick-actions. If the
+  // backend hasn't returned any yet (first load / offline), we render
+  // NOTHING here rather than inject hardcoded "MTN Data / DStv / WAEC"
+  // shortcuts that would ignore admin edits.
+  const actionsToDisplay = (quickActions && quickActions.length > 0) ? quickActions : [];
 
   // Services grid — 7 core services + "More" navigation card
   const services = [
@@ -537,7 +532,9 @@ export default function UserDashboard({
               onClick={() => onNavigate('upgrade')}
               className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
             >
-              Upgrade ₦5,000
+              {currentUser.upgradeFee && currentUser.upgradeFee > 0
+                ? `Upgrade ₦${currentUser.upgradeFee.toLocaleString('en-NG')}`
+                : 'Upgrade Now'}
             </button>
           </section>
         )}

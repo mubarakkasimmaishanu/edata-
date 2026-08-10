@@ -21,50 +21,63 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [dailyVolume, setDailyVolume] = useState<number>(15); // Default 15 txns/day
 
-  const upgradeFee = 5000;
+  // Upgrade fee is admin-controlled via the Setting model and delivered on
+  // /api/profile as `premium_upgrade_fee`. We read it off the currentUser
+  // shape; if the sync hasn't happened yet we display a neutral placeholder
+  // rather than baking a specific naira value into the client.
+  const upgradeFee = currentUser.upgradeFee && currentUser.upgradeFee > 0
+    ? currentUser.upgradeFee
+    : 0;
+  const upgradeFeeLabel = upgradeFee > 0
+    ? `₦${upgradeFee.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+    : 'the current license fee';
   const userBalance = currentUser.walletBalance || 0;
-  const hasEnoughBalance = userBalance >= upgradeFee;
+  const hasEnoughBalance = upgradeFee > 0 && userBalance >= upgradeFee;
 
-  // Monthly profit/savings calculation: ~₦40 savings per data/airtime txn * dailyVolume * 30 days
-  const estimatedMonthlyProfit = dailyVolume * 40 * 30;
-  const daysToBreakEven = Math.ceil(upgradeFee / (dailyVolume * 40));
+  // Illustrative savings estimator uses a modest per-transaction spread.
+  // It never quotes a specific plan or fixed retail price — the real
+  // wholesale prices are resolved live per plan by the backend.
+  const perTxSpread = 40;
+  const estimatedMonthlyProfit = dailyVolume * perTxSpread * 30;
+  const daysToBreakEven = upgradeFee > 0 && dailyVolume > 0
+    ? Math.ceil(upgradeFee / (dailyVolume * perTxSpread))
+    : 0;
 
+  // Tier comparison talks about categories & mechanisms, not specific
+  // plan names or naira amounts. Actual per-plan prices are always
+  // resolved live by /api/services against each user's tier.
   const comparisonData = [
-    { feature: 'MTN SME 1GB Data', basic: '₦300', reseller: '₦260 (Save ₦40)', highlight: true },
-    { feature: 'Airtime Discount', basic: '0% Cashback', reseller: 'Up to 3.5% Cashback', highlight: true },
-    { feature: 'Electricity Bill Fee', basic: '₦100 Service Fee', reseller: '₦0 Fee + 1.5% Rebate', highlight: true },
-    { feature: 'Cable TV Subscription', basic: '₦100 Service Fee', reseller: '₦0 Fee + Cashback', highlight: true },
-    { feature: 'Exam Result Pins', basic: 'Retail Price', reseller: 'Wholesale Agent Price', highlight: false },
-    { feature: 'Referral Earnings', basic: '₦200 per user', reseller: '₦1,000 per upgrade (5x)', highlight: true },
+    { feature: 'Data Bundles', basic: 'Standard Retail Rate', reseller: 'Wholesale Agent Rate', highlight: true },
+    { feature: 'Airtime Top-Up', basic: 'No Cashback', reseller: 'Percentage Cashback', highlight: true },
+    { feature: 'Electricity Bills', basic: 'Standard Fee Applied', reseller: 'Reduced Fee + Rebate', highlight: true },
+    { feature: 'Cable TV Subscription', basic: 'Standard Fee Applied', reseller: 'Reduced Fee + Cashback', highlight: true },
+    { feature: 'Exam Scratch Cards', basic: 'Retail Price', reseller: 'Wholesale Agent Price', highlight: false },
+    { feature: 'Referral Earnings', basic: 'Standard Reward', reseller: 'Elevated Reward Tier', highlight: true },
     { feature: 'Developer API Access', basic: 'Disabled', reseller: 'Full API Integration', highlight: false },
     { feature: 'Customer Support', basic: 'Standard Queue', reseller: '24/7 VIP Priority Line', highlight: true },
   ];
 
+  // Category-level rate sheet — no plan names, no fixed prices. Real
+  // amounts come from /api/services per plan and per tier.
   const rateSheet = [
     { category: 'Data Bundles', items: [
-      { name: 'MTN SME 1GB', basic: '₦300', reseller: '₦260', discount: '13.3% OFF' },
-      { name: 'Airtel 1GB', basic: '₦310', reseller: '₦270', discount: '12.9% OFF' },
-      { name: 'Glo 1GB', basic: '₦300', reseller: '₦265', discount: '11.6% OFF' },
-      { name: '9mobile 1GB', basic: '₦290', reseller: '₦250', discount: '13.7% OFF' },
+      { name: 'All Networks Data', basic: 'Standard Rate', reseller: 'Wholesale Rate', discount: 'Lower Per Plan' },
+      { name: 'Bulk Reseller Purchases', basic: 'Same as Retail', reseller: 'Best Tier Applied', discount: 'Auto-Applied' },
     ]},
     { category: 'Airtime Top-Up', items: [
-      { name: 'Glo Airtime', basic: '0% Cashback', reseller: '3.5% Cashback', discount: '3.5% Bonus' },
-      { name: 'Airtel Airtime', basic: '0% Cashback', reseller: '3.0% Cashback', discount: '3.0% Bonus' },
-      { name: '9mobile Airtime', basic: '0% Cashback', reseller: '3.0% Cashback', discount: '3.0% Bonus' },
-      { name: 'MTN Airtime', basic: '0% Cashback', reseller: '2.5% Cashback', discount: '2.5% Bonus' },
+      { name: 'All Networks Airtime', basic: 'No Cashback', reseller: 'Percentage Cashback', discount: 'Per Txn Bonus' },
     ]},
     { category: 'Bills & Scratch Cards', items: [
-      { name: 'Electricity Bills', basic: '₦100 Fee', reseller: '₦0 Fee + 1.5% Rebate', discount: 'Save ₦100+' },
-      { name: 'Cable TV (DSTV/GOTV)', basic: '₦100 Fee', reseller: '₦0 Fee + Instant Cashback', discount: 'Save ₦100+' },
-      { name: 'WAEC Scratch Card', basic: '₦4,200', reseller: '₦3,800', discount: 'Save ₦400' },
-      { name: 'NECO Scratch Card', basic: '₦1,350', reseller: '₦1,150', discount: 'Save ₦200' },
+      { name: 'Electricity Bills', basic: 'Standard Fee', reseller: 'Reduced Fee + Rebate', discount: 'Lower Per Txn' },
+      { name: 'Cable TV', basic: 'Standard Fee', reseller: 'Reduced Fee + Cashback', discount: 'Lower Per Txn' },
+      { name: 'Exam Scratch Cards', basic: 'Retail Price', reseller: 'Wholesale Price', discount: 'Lower Per Card' },
     ]}
   ];
 
   const faqs = [
     {
-      q: 'Is the ₦5,000 upgrade fee a one-time payment?',
-      a: 'Yes! The ₦5,000 fee is a one-time permanent payment. Your Reseller License never expires, and there are zero monthly or annual renewal fees.'
+      q: `Is the ${upgradeFeeLabel} upgrade fee a one-time payment?`,
+      a: `Yes. The current license fee (${upgradeFeeLabel}) is a one-time permanent payment. Your Reseller License never expires, and there are zero monthly or annual renewal fees.`
     },
     {
       q: 'How are reseller discounts applied?',
@@ -72,15 +85,15 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
     },
     {
       q: 'Can I resell VTU services to customers at my own prices?',
-      a: 'Absolutely! As a licensed reseller, you purchase at wholesale rates and sell to your customers at whatever retail price you set, keeping 100% of your profit.'
+      a: 'Absolutely. As a licensed reseller, you purchase at wholesale rates and sell to your customers at whatever retail price you set, keeping 100% of your profit.'
     },
     {
       q: 'What happens after I tap Upgrade Now?',
-      a: 'The ₦5,000 upgrade fee will be deducted from your eData wallet balance, and your account tier will immediately change to Premium Reseller with instant access to wholesale rates.'
+      a: `The upgrade fee (${upgradeFeeLabel}) will be deducted from your eData wallet balance, and your account tier will immediately change to Premium Reseller with instant access to wholesale rates.`
     },
     {
-      q: 'What if my wallet balance is below ₦5,000?',
-      a: 'You can tap the "Fund Wallet to Upgrade" button at the bottom of the page to add funds to your wallet via Bank Transfer or Card, then return here to complete your upgrade.'
+      q: 'What if my wallet balance is below the upgrade fee?',
+      a: 'Tap the "Fund Wallet to Upgrade" button at the bottom of the page to add funds via Bank Transfer or Card, then return here to complete your upgrade.'
     }
   ];
 
@@ -151,7 +164,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
             <div>
               <span className="text-[10px] text-sky-200 uppercase font-bold tracking-wider block">License Upgrade Fee</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-white font-display">₦5,000.00</span>
+                <span className="text-2xl font-black text-white font-display">{upgradeFeeLabel}</span>
                 <span className="text-[11px] text-sky-200 font-semibold">(One-time payment)</span>
               </div>
             </div>
@@ -222,7 +235,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-white">Estimated Profit & Savings Calculator</h3>
-              <p className="text-[11px] text-slate-400">Calculate how fast your ₦5,000 license pays for itself</p>
+              <p className="text-[11px] text-slate-400">Calculate how fast your {upgradeFeeLabel} license pays for itself</p>
             </div>
           </div>
 
@@ -368,13 +381,15 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
             onClick={() => setShowPinScreen(true)}
             className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-display"
           >
-            <span>Proceed to Upgrade for ₦5,000.00</span>
+            <span>Proceed to Upgrade for {upgradeFeeLabel}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         ) : (
           <div className="space-y-2">
             <div className="p-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-300 font-semibold text-center">
-              Insufficient wallet balance. Please add ₦{(upgradeFee - userBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to upgrade.
+              {upgradeFee > 0
+                ? `Insufficient wallet balance. Please add ₦${(upgradeFee - userBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to upgrade.`
+                : 'Waiting for current upgrade fee from server...'}
             </div>
             <button
               onClick={() => {

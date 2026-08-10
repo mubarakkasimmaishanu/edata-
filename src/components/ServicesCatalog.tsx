@@ -40,7 +40,7 @@ export default function ServicesCatalog({ currentUser, onNavigate }: ServicesCat
   const allServices = [
     // Telecom
     { id: 'airtime', name: 'Airtime', desc: 'Instant VTU top-up', category: 'telecom', icon: Smartphone },
-    { id: 'data', name: 'Data', desc: 'SME & CG bundles', category: 'telecom', icon: Layers },
+    { id: 'data', name: 'Data', desc: 'All network data bundles', category: 'telecom', icon: Layers },
     { id: 'a2c', name: 'A2C', desc: 'Airtime to Cash', category: 'telecom', icon: Repeat },
     { id: 'fund', name: 'Fund Wallet', desc: 'Bank transfer', category: 'telecom', icon: Plus },
     // Bills

@@ -85,15 +85,30 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
 
   const handleConfirmPurchase = async (pinInput: string) => {
     if (!selectedProduct) return;
-    const extractedNum = parseInt(String(selectedProduct.id).replace(/^[^\d]*/, ''), 10);
-    const planId = !isNaN(extractedNum) ? extractedNum : 36;
-    
-    // Map carrier network to exact ServiceType ID (27: MTN Data, 28: Airtel Data, 29: Glo Data, 30: 9mobile Data)
-    const opUpper = (selectedProduct.operator || detectedOperator || 'MTN').toUpperCase();
-    const serviceId = opUpper.includes('AIRTEL') ? 28
-      : opUpper.includes('GLO') ? 29
-      : opUpper.includes('9MOBILE') || opUpper.includes('ETISALAT') ? 30
-      : 27;
+
+    // The plan's admin-managed DB id and its parent service_type_id are
+    // encoded in the product id as `plan-<planId>-<serviceTypeId>` (see
+    // App.tsx fetchAllData mapping). Extract them so the purchase call
+    // hits the exact ServiceType/DataPlan row the admin created — never
+    // a hardcoded default.
+    const idStr = String(selectedProduct.id);
+    const idMatch = idStr.match(/^plan-(\d+)-(\d+)$/);
+
+    let planId: number | undefined;
+    let serviceId: number | undefined;
+    if (idMatch) {
+      planId = parseInt(idMatch[1], 10);
+      serviceId = parseInt(idMatch[2], 10);
+    } else {
+      // Fallback for legacy id shapes (`plan-<id>` or bare numeric)
+      const numOnly = parseInt(idStr.replace(/^[^\d]*/, ''), 10);
+      planId = !isNaN(numOnly) ? numOnly : undefined;
+    }
+
+    if (!planId || !serviceId) {
+      toast.error('Selected plan is missing backend identifiers. Please refresh and try again.');
+      return;
+    }
 
     const res = await api.purchase({
       service_id: serviceId,
