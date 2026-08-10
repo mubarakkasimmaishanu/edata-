@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ServiceForm from './ServiceForm';
-import { ProductItem, UserProfile } from '../types';
+import { ProductItem, UserProfile, PlanTypeItem } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
@@ -11,13 +11,14 @@ import { isValidPhoneNumber } from '../utils/phoneValidation';
 interface BuyDataProps {
   currentUser: UserProfile;
   products: ProductItem[];
+  planTypes?: PlanTypeItem[];
   initialNetwork?: string;
   initialPlanId?: number | null;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function BuyData({ currentUser, products, initialNetwork, initialPlanId, onBack, onSuccess }: BuyDataProps) {
+export default function BuyData({ currentUser, products, planTypes, initialNetwork, initialPlanId, onBack, onSuccess }: BuyDataProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState(currentUser.phone || '');
   const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
@@ -156,6 +157,7 @@ export default function BuyData({ currentUser, products, initialNetwork, initial
           serviceType="data"
           serviceLabel="Buy Data Bundle"
           products={products}
+          planTypes={planTypes}
           targetNumber={targetNumber}
           setTargetNumber={setTargetNumber}
           detectedOperator={detectedOperator}
