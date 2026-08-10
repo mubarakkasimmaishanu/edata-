@@ -245,17 +245,29 @@ function MainApp() {
         else if (catId === 4) planCat = 'Cable TV';
         else if (catId === 5) planCat = 'Electricity';
 
+        // Prefer per-tier prices coming from the backend so the UI can
+        // resolve `Basic / Referred / Premium` accurately. Fall back to
+        // the resolved `price` (already per-user) if a specific tier
+        // column is absent. NEVER inject a hardcoded amount.
+        const rawSelling = plan.selling_price ?? plan.price ?? plan.amount;
+        const rawReferred = plan.referred_price ?? plan.price ?? plan.amount;
+        const rawPremium = plan.premium_price ?? plan.price ?? plan.amount;
+
         mappedProducts.push({
           id: `plan-${plan.id}-${plan.service_type_id || '0'}`,
           category: planCat,
-          name: plan.name || 'Data Plan',
+          name: plan.name || plan.plan_name || '',
           operator: operatorName,
-          priceNormal: parseFloat(plan.price || plan.amount || '0'),
-          priceReferred: parseFloat(plan.price || plan.amount || '0'),
-          pricePremium: parseFloat(plan.price || plan.amount || '0'),
+          priceNormal: parseFloat(String(rawSelling ?? '0')),
+          priceReferred: parseFloat(String(rawReferred ?? '0')),
+          pricePremium: parseFloat(String(rawPremium ?? '0')),
           active: plan.status === undefined || plan.status === 1 || plan.status === true,
-          description: plan.description || plan.name || '',
-          planType: plan.plan_type || plan.type || 'SME',
+          description: plan.description || plan.name || plan.plan_name || '',
+          // Keep the admin-assigned plan type as-is. Do NOT coerce to 'SME'
+          // — filters and grouping in ServiceForm build entirely from the
+          // /api/services `plan_types` list plus whatever plans actually
+          // carry.
+          planType: (plan.plan_type || plan.type || '').toString(),
         });
       });
 
@@ -388,7 +400,9 @@ function MainApp() {
         pinCode: '',
         hasPin: user.has_pin !== undefined ? Boolean(user.has_pin) : (user.hasPin !== undefined ? Boolean(user.hasPin) : currentUser.hasPin),
         hasPendingUpgrade: Boolean(user.has_pending_upgrade),
-        upgradeFee: parseFloat(user.premium_upgrade_fee || '5000'),
+        // Upgrade fee is admin-managed via Setting; if the profile hasn't
+        // returned it yet, hold 0 (the UI treats 0 as "waiting for server").
+        upgradeFee: parseFloat(user.premium_upgrade_fee || user.upgrade_fee || '0'),
         photo: resolveImageUrl(user.photo || user.avatar || user.picture) || currentUser.photo || null,
         avatar: resolveImageUrl(user.avatar || user.photo || user.picture) || currentUser.avatar || null,
         picture: resolveImageUrl(user.picture || user.photo || user.avatar) || currentUser.picture || null,
@@ -583,14 +597,18 @@ function MainApp() {
   };
 
   const handleQuickActionDirectCheckout = (action: QuickAction) => {
-    // 1. Resolve product & dynamic item price
+    // 1. Resolve product & dynamic item price strictly from admin-managed
+    //    /api/services data. There is NO hardcoded price fallback — if the
+    //    referenced plan is not in the synced products list we refuse to
+    //    check out and send the user through the full service form instead,
+    //    where they can pick the current admin-defined plan.
     let itemPrice = 0;
     let matchingProduct: ProductItem | undefined;
 
     if (action.plan_id && products.length > 0) {
-      matchingProduct = products.find(p => 
-        p.id === `plan-${action.plan_id}` || 
-        p.id === String(action.plan_id) || 
+      matchingProduct = products.find(p =>
+        p.id === `plan-${action.plan_id}` ||
+        p.id === String(action.plan_id) ||
         p.id.includes(`-${action.plan_id}-`) ||
         p.id.startsWith(`plan-${action.plan_id}-`)
       );
@@ -601,12 +619,13 @@ function MainApp() {
       else if (currentUser.category === 'Referred User') itemPrice = matchingProduct.priceReferred ?? matchingProduct.priceNormal;
       else itemPrice = matchingProduct.priceNormal;
     } else {
-      const titleLower = action.title.toLowerCase();
-      if (titleLower.includes('1gb')) itemPrice = 300;
-      else if (titleLower.includes('2gb')) itemPrice = 600;
-      else if (titleLower.includes('5gb')) itemPrice = 1500;
-      else if (titleLower.includes('waec')) itemPrice = 3500;
-      else itemPrice = 500;
+      // No matching admin plan found (deleted/deactivated on the backend,
+      // or the local cache is stale). Redirect to the service form so the
+      // user selects a currently-available plan instead of paying an
+      // outdated hardcoded amount.
+      toast.info('This shortcut is no longer available. Please pick a current plan.');
+      navigateTo(action.service_type || 'data', { network: action.network });
+      return;
     }
 
     // 2. Check if user has Transaction PIN set
@@ -632,27 +651,61 @@ function MainApp() {
       return;
     }
 
-    const netUpper = (activeQuickAction.network || 'MTN').toUpperCase();
+    const netUpper = (activeQuickAction.network || '').toUpperCase();
     const serviceType = activeQuickAction.service_type || 'data';
 
-    let serviceId = 27; // MTN Data by default
-    if (serviceType === 'airtime') {
-      const netMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
-      serviceId = netMap[netUpper] || 23;
-    } else if (serviceType === 'data') {
-      const dataMap: Record<string, number> = { MTN: 27, GLO: 29, AIRTEL: 28, '9MOBILE': 30 };
-      serviceId = dataMap[netUpper] || 27;
-    } else if (serviceType === 'exams') {
-      serviceId = 13;
-    } else if (serviceType === 'cable') {
-      serviceId = 4;
-    } else if (serviceType === 'electricity') {
-      serviceId = 5;
-    } else if (serviceType === 'a2c') {
-      serviceId = 6;
+    // Prefer the service_type_id that came in with the admin-defined plan
+    // (encoded as `plan-<planId>-<serviceTypeId>` in ProductItem.id) —
+    // that way this call goes straight to the same row the admin edited.
+    let serviceId: number | undefined;
+    if (activeQuickAction.plan_id) {
+      const prod = products.find(p =>
+        p.id === `plan-${activeQuickAction.plan_id}` ||
+        p.id.startsWith(`plan-${activeQuickAction.plan_id}-`) ||
+        p.id.includes(`-${activeQuickAction.plan_id}-`)
+      );
+      const idMatch = prod?.id.match(/^plan-\d+-(\d+)$/);
+      if (idMatch) serviceId = parseInt(idMatch[1], 10);
     }
 
-    const recipientNum = customRecipient || currentUser.phone || '08000000000';
+    // For services that carry no per-network plan row (electricity, cable,
+    // A2C, exams) look up the ServiceType by category from the same
+    // /api/services payload the admin controls, then match on operator
+    // where relevant. This avoids hardcoded numeric IDs in the client.
+    if (!serviceId) {
+      const categoryForType: Record<string, number> = {
+        airtime: 1, data: 2, exams: 3, exam: 3, cable: 4, electricity: 5, a2c: 6,
+      };
+      const wantCat = categoryForType[serviceType];
+      const matches = products.filter(p => {
+        const catStr = String(p.category || '').toLowerCase();
+        if (wantCat === 1) return catStr === 'airtime';
+        if (wantCat === 2) return catStr.includes('data');
+        if (wantCat === 3) return catStr.includes('exam');
+        if (wantCat === 4) return catStr.includes('cable');
+        if (wantCat === 5) return catStr === 'electricity';
+        if (wantCat === 6) return catStr === 'a2c';
+        return false;
+      });
+      const byOperator = netUpper
+        ? matches.find(p => (p.operator || '').toUpperCase() === netUpper)
+        : undefined;
+      const chosen = byOperator || matches[0];
+      if (chosen && /^\d+$/.test(String(chosen.id))) {
+        serviceId = parseInt(String(chosen.id), 10);
+      }
+    }
+
+    if (!serviceId) {
+      toast.error('Unable to resolve service. Please open the full service page and retry.');
+      return;
+    }
+
+    const recipientNum = customRecipient || currentUser.phone || '';
+    if (!recipientNum) {
+      toast.warning('Please add your phone number in Profile before using shortcuts.');
+      return;
+    }
 
     const res = await api.purchase({
       service_id: serviceId,
