@@ -288,10 +288,51 @@ function MainApp() {
       } catch {}
 
       const user = profileRes?.data?.user || profileRes?.data || profileRes?.user || profileRes || {};
-      const walletData = walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || walletRes || {};
+      const walletSucceeded = walletRes?.success !== false;
+      const profileSucceeded = profileRes?.success !== false;
+      const walletData = walletSucceeded ? (walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || {}) : {};
 
-      const rawBalance = walletData?.balance ?? walletData?.walletBalance ?? walletData?.wallet ?? user?.walletBalance ?? user?.balance ?? '0';
-      const parsedBalance = !isNaN(parseFloat(rawBalance)) ? parseFloat(rawBalance) : 0;
+      // Extract balance from all possible API response locations
+      let extractedBalance: number | null = null;
+
+      // 1. Try wallet endpoint response (data.balance)
+      if (walletSucceeded && walletRes?.data?.balance !== undefined && walletRes?.data?.balance !== null) {
+        extractedBalance = parseFloat(walletRes.data.balance);
+      }
+      // 2. Try wallet endpoint alternate key (data.wallet_balance)
+      if (extractedBalance === null && walletSucceeded && walletRes?.data?.wallet_balance !== undefined) {
+        extractedBalance = parseFloat(walletRes.data.wallet_balance);
+      }
+      // 3. Try profile endpoint (data.wallet_balance or data.balance)
+      if (extractedBalance === null && profileSucceeded) {
+        const profData = profileRes?.data || {};
+        if (profData.wallet_balance !== undefined && profData.wallet_balance !== null) {
+          extractedBalance = parseFloat(profData.wallet_balance);
+        } else if (profData.balance !== undefined && profData.balance !== null) {
+          extractedBalance = parseFloat(profData.balance);
+        }
+        // Also check nested user object from profile
+        const profUser = profData.user || profData;
+        if (extractedBalance === null && profUser.wallet_balance !== undefined) {
+          extractedBalance = parseFloat(profUser.wallet_balance);
+        }
+        if (extractedBalance === null && profUser.balance !== undefined) {
+          extractedBalance = parseFloat(profUser.balance);
+        }
+      }
+      // 4. Fallback: try walletData generic extraction
+      if (extractedBalance === null && walletSucceeded) {
+        const wb = walletData?.balance ?? walletData?.wallet_balance ?? walletData?.walletBalance;
+        if (wb !== undefined && wb !== null) {
+          extractedBalance = parseFloat(wb);
+        }
+      }
+
+      // If we couldn't extract a valid balance from the API, preserve the current balance
+      // This prevents silent sync failures from resetting the balance to ₦0.00
+      const parsedBalance = (extractedBalance !== null && !isNaN(extractedBalance))
+        ? extractedBalance
+        : currentUser.walletBalance;
 
       // Real-time live credit notification alert
       if (silent && currentUser.walletBalance > 0 && parsedBalance > currentUser.walletBalance) {
