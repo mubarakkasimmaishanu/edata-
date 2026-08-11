@@ -8,7 +8,7 @@ interface SplashScreenProps {
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-b from-[#0b1b2f] via-[#0e243d] to-[#07111e] text-white selection:bg-sky-500 overflow-hidden font-sans">
-      
+
       {/* Background Ambient Glow Effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-sky-500/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
       <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
@@ -22,7 +22,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         <div className="relative group">
           {/* Animated Glow Backing */}
           <div className="absolute -inset-1 bg-gradient-to-r from-sky-400 to-blue-600 rounded-3xl blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
-          
+
           <div className="relative bg-[#0d2138]/90 border border-sky-400/30 p-5 rounded-3xl shadow-2xl shadow-sky-500/30 backdrop-blur-md">
             <img 
               src={edataLogo} 

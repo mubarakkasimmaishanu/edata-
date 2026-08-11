@@ -59,57 +59,75 @@ const NETWORK_PROVIDERS = [
 // auto-detected. Uses full class-literal strings (not built at runtime) so
 // Tailwind JIT picks them up at build time.
 type NetworkTheme = {
-  btn: string;        // Pay button background + hover
-  btnText: string;    // Pay button label colour (dark on yellow, white elsewhere)
-  btnShadow: string;  // Pay button glow shadow
-  chipBg: string;     // Detected-operator chip background
-  chipBorder: string; // Detected-operator chip border
-  chipText: string;   // Detected-operator chip text
+  btn: string;              // Pay button background + hover
+  btnText: string;          // Pay button label colour (dark on yellow, white elsewhere)
+  btnShadow: string;        // Pay button glow shadow
+  chipBg: string;           // Detected-operator chip background
+  chipBorder: string;       // Detected-operator chip border
+  chipText: string;         // Detected-operator chip text
+  inputBorder: string;      // Phone-number input resting border colour
+  inputFocusBorder: string; // Phone-number input border colour when focused
+  inputRing: string;        // Phone-number input focus ring (soft glow)
 };
 
 const NETWORK_THEMES: Record<string, NetworkTheme> = {
   MTN: {
-    btn:        'bg-amber-400 hover:bg-amber-500',
-    btnText:    'text-slate-900',
-    btnShadow:  'shadow-amber-500/30',
-    chipBg:     'bg-amber-500/15',
-    chipBorder: 'border-amber-500/40',
-    chipText:   'text-amber-300',
+    btn:              'bg-amber-400 hover:bg-amber-500',
+    btnText:          'text-slate-900',
+    btnShadow:        'shadow-amber-500/30',
+    chipBg:           'bg-amber-500/15',
+    chipBorder:       'border-amber-500/40',
+    chipText:         'text-amber-300',
+    inputBorder:      'border-amber-500/60',
+    inputFocusBorder: 'focus:border-amber-400',
+    inputRing:        'focus:ring-amber-500/20',
   },
   AIRTEL: {
-    btn:        'bg-rose-500 hover:bg-rose-600',
-    btnText:    'text-white',
-    btnShadow:  'shadow-rose-500/30',
-    chipBg:     'bg-rose-500/15',
-    chipBorder: 'border-rose-500/40',
-    chipText:   'text-rose-300',
+    btn:              'bg-rose-500 hover:bg-rose-600',
+    btnText:          'text-white',
+    btnShadow:        'shadow-rose-500/30',
+    chipBg:           'bg-rose-500/15',
+    chipBorder:       'border-rose-500/40',
+    chipText:         'text-rose-300',
+    inputBorder:      'border-rose-500/60',
+    inputFocusBorder: 'focus:border-rose-400',
+    inputRing:        'focus:ring-rose-500/20',
   },
   GLO: {
-    btn:        'bg-emerald-500 hover:bg-emerald-600',
-    btnText:    'text-white',
-    btnShadow:  'shadow-emerald-500/30',
-    chipBg:     'bg-emerald-500/15',
-    chipBorder: 'border-emerald-500/40',
-    chipText:   'text-emerald-300',
+    btn:              'bg-emerald-500 hover:bg-emerald-600',
+    btnText:          'text-white',
+    btnShadow:        'shadow-emerald-500/30',
+    chipBg:           'bg-emerald-500/15',
+    chipBorder:       'border-emerald-500/40',
+    chipText:         'text-emerald-300',
+    inputBorder:      'border-emerald-500/60',
+    inputFocusBorder: 'focus:border-emerald-400',
+    inputRing:        'focus:ring-emerald-500/20',
   },
   '9MOBILE': {
-    btn:        'bg-teal-500 hover:bg-teal-600',
-    btnText:    'text-white',
-    btnShadow:  'shadow-teal-500/30',
-    chipBg:     'bg-teal-500/15',
-    chipBorder: 'border-teal-500/40',
-    chipText:   'text-teal-300',
+    btn:              'bg-teal-500 hover:bg-teal-600',
+    btnText:          'text-white',
+    btnShadow:        'shadow-teal-500/30',
+    chipBg:           'bg-teal-500/15',
+    chipBorder:       'border-teal-500/40',
+    chipText:         'text-teal-300',
+    inputBorder:      'border-teal-500/60',
+    inputFocusBorder: 'focus:border-teal-400',
+    inputRing:        'focus:ring-teal-500/20',
   },
 };
 
 // Default (no network detected yet, or non-mobile service) — original sky look.
 const DEFAULT_THEME: NetworkTheme = {
-  btn:        'bg-sky-500 hover:bg-sky-600',
-  btnText:    'text-white',
-  btnShadow:  'shadow-sky-500/25',
-  chipBg:     'bg-slate-900',
-  chipBorder: 'border-slate-700',
-  chipText:   'text-sky-300',
+  btn:              'bg-sky-500 hover:bg-sky-600',
+  btnText:          'text-white',
+  btnShadow:        'shadow-sky-500/25',
+  chipBg:           'bg-slate-900',
+  chipBorder:       'border-slate-700',
+  chipText:         'text-sky-300',
+  inputBorder:      'border-slate-700/80',
+  inputFocusBorder: 'focus:border-sky-400',
+  inputRing:        'focus:ring-sky-500/20',
 };
 
 // ─── Cable TV Provider Config ───
@@ -263,6 +281,17 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState<boolean>(false);
   const [manualContactInput, setManualContactInput] = React.useState<string>('');
+
+  // Debounce guard for the network-detection API call. Without this, a
+  // user correcting a wrong digit (backspace → type) fires the /detect-
+  // network endpoint twice in ~200ms, and paste-then-edit patterns can
+  // trigger it 3-4 times. 300ms is comfortably below human perception of
+  // "delay" but easily covers rapid corrections. The ref survives across
+  // renders without triggering them.
+  const detectNetworkTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => {
+    if (detectNetworkTimerRef.current) clearTimeout(detectNetworkTimerRef.current);
+  }, []);
 
   // Android back closes an open modal before letting the app-level
   // history handler pop the parent screen. Both modals register; the
@@ -658,7 +687,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
-                            <img src={disco.icon} alt={disco.name} className="w-full h-full object-contain rounded-md" />
+                            <img src={disco.icon} alt={disco.name} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-md" />
                           </div>
                           <span className="text-xs font-semibold">{disco.fullName}</span>
                         </div>
@@ -749,7 +778,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                 }
 
                 if (showNetworkSelector && cleanVal.length === 11) {
-                  api.detectNetwork(cleanVal).then(res => {
+                  // Debounced: reset the timer on every keystroke so we
+                  // only hit the backend once, 300ms after the user stops
+                  // editing.
+                  if (detectNetworkTimerRef.current) clearTimeout(detectNetworkTimerRef.current);
+                  const numToDetect = cleanVal;
+                  detectNetworkTimerRef.current = setTimeout(() => {
+                  api.detectNetwork(numToDetect).then(res => {
                     if (res && (res.network || res.operator)) {
                       const net = res.network || res.operator;
                       setDetectedOperator(net);
@@ -766,12 +801,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                       }
                     }
                   }).catch(() => {});
+                  }, 300);
                 }
               }}
-              className={`w-full bg-slate-800/90 border rounded-2xl pl-10 pr-20 py-3.5 text-sm text-white placeholder-slate-400 font-mono font-semibold focus:outline-none focus:ring-4 focus:ring-sky-500/20 shadow-md ${
-                showNetworkSelector && targetNumber && targetNumber.length > 0 && targetNumber.length < 11
-                  ? 'border-amber-500/60 focus:border-amber-400'
-                  : 'border-slate-700/80 focus:border-sky-400'
+              className={`w-full bg-slate-800/90 border rounded-2xl pl-10 pr-20 py-3.5 text-sm text-white placeholder-slate-400 font-mono font-semibold focus:outline-none focus:ring-4 shadow-md transition-colors ${
+                showNetworkSelector && targetNumber && targetNumber.length > 0 && targetNumber.length < 11 && !detectedOperator
+                  ? 'border-amber-500/60 focus:border-amber-400 focus:ring-amber-500/20'
+                  : `${activeNetworkTheme.inputBorder} ${activeNetworkTheme.inputFocusBorder} ${activeNetworkTheme.inputRing}`
               }`}
             />
             {showNetworkSelector && detectedOperator && (

@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { useToast } from './Toast';
 import PinScreen from './PinScreen';
 import {
-  ChevronLeft, Check, Sparkles, ShieldCheck, Zap,
-  TrendingUp, HelpCircle, ChevronDown, Award, Users,
-  Headphones, ArrowRight, Lock, Wallet, Percent, DollarSign, RefreshCw
+  ChevronLeft, Wallet, ArrowRight, Lock, Clock, CheckCircle2,
 } from 'lucide-react';
 import { useBackHandler } from '../utils/backHandler';
+import { useTheme } from '../context/ThemeContext';
 
 interface ResellerUpgradeProps {
   currentUser: UserProfile;
@@ -16,104 +14,67 @@ interface ResellerUpgradeProps {
   onNavigate?: (view: string) => void;
 }
 
+/**
+ * Reseller Upgrade — Mobile
+ *
+ * Mirrors the Web upgrade card at [account/index.php] and shares the same
+ * backend endpoint (`POST /api/upgrade`) and same status source
+ * (`UpgradeRequest.STATUS_PENDING`, `has_pending_upgrade` on `/api/profile`).
+ *
+ * The dashboard "Upgrade" button routes here directly. The common (ready to
+ * pay) path skips any information page and drops the user straight into the
+ * PIN payment screen, matching how the web flow is a single form on the
+ * membership card. All edge cases (already premium, pending admin review,
+ * insufficient balance, no PIN set) are surfaced as compact single-card
+ * branches with a clear next step.
+ */
 export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavigate }: ResellerUpgradeProps) {
-  const toast = useToast();
-  const [showPinScreen, setShowPinScreen] = useState(false);
+  const { theme } = useTheme();
 
-  // Android back closes the PIN sheet before it can pop the whole page.
-  useBackHandler(showPinScreen, () => setShowPinScreen(false));
-
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [dailyVolume, setDailyVolume] = useState<number>(15); // Default 15 txns/day
-
-  // Upgrade fee is admin-controlled via the Setting model and delivered on
-  // /api/profile as `premium_upgrade_fee`. We read it off the currentUser
-  // shape; if the sync hasn't happened yet we display a neutral placeholder
-  // rather than baking a specific naira value into the client.
+  // The upgrade fee is admin-controlled through the Setting model and is
+  // delivered on /api/profile as `premium_upgrade_fee`. When the profile
+  // sync hasn't returned yet we render a neutral placeholder rather than
+  // baking a naira value into the client.
   const upgradeFee = currentUser.upgradeFee && currentUser.upgradeFee > 0
     ? currentUser.upgradeFee
     : 0;
   const upgradeFeeLabel = upgradeFee > 0
     ? `₦${upgradeFee.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
-    : 'the current license fee';
-  const userBalance = currentUser.walletBalance || 0;
-  const hasEnoughBalance = upgradeFee > 0 && userBalance >= upgradeFee;
+    : '—';
+  const walletBalance = currentUser.walletBalance || 0;
+  const hasEnoughBalance = upgradeFee > 0 && walletBalance >= upgradeFee;
+  const isAlreadyPremium = currentUser.category === 'Premium User';
+  const isPending = Boolean(currentUser.hasPendingUpgrade);
+  const hasPin = Boolean(currentUser.hasPin);
 
-  // Illustrative savings estimator uses a modest per-transaction spread.
-  // It never quotes a specific plan or fixed retail price — the real
-  // wholesale prices are resolved live per plan by the backend.
-  const perTxSpread = 40;
-  const estimatedMonthlyProfit = dailyVolume * perTxSpread * 30;
-  const daysToBreakEven = upgradeFee > 0 && dailyVolume > 0
-    ? Math.ceil(upgradeFee / (dailyVolume * perTxSpread))
-    : 0;
+  // Only the fully-ready case renders the PIN screen. All other branches
+  // land on a compact status card so the user always sees the correct
+  // next step immediately.
+  const readyToPay = !isAlreadyPremium && !isPending && hasPin && hasEnoughBalance;
 
-  // Tier comparison talks about categories & mechanisms, not specific
-  // plan names or naira amounts. Actual per-plan prices are always
-  // resolved live by /api/services against each user's tier.
-  const comparisonData = [
-    { feature: 'Data Bundles', basic: 'Standard Retail Rate', reseller: 'Wholesale Agent Rate', highlight: true },
-    { feature: 'Airtime Top-Up', basic: 'No Cashback', reseller: 'Percentage Cashback', highlight: true },
-    { feature: 'Electricity Bills', basic: 'Standard Fee Applied', reseller: 'Reduced Fee + Rebate', highlight: true },
-    { feature: 'Cable TV Subscription', basic: 'Standard Fee Applied', reseller: 'Reduced Fee + Cashback', highlight: true },
-    { feature: 'Exam Scratch Cards', basic: 'Retail Price', reseller: 'Wholesale Agent Price', highlight: false },
-    { feature: 'Referral Earnings', basic: 'Standard Reward', reseller: 'Elevated Reward Tier', highlight: true },
-    { feature: 'Developer API Access', basic: 'Disabled', reseller: 'Full API Integration', highlight: false },
-    { feature: 'Customer Support', basic: 'Standard Queue', reseller: '24/7 VIP Priority Line', highlight: true },
-  ];
+  const [showPinScreen, setShowPinScreen] = useState<boolean>(readyToPay);
 
-  // Category-level rate sheet — no plan names, no fixed prices. Real
-  // amounts come from /api/services per plan and per tier.
-  const rateSheet = [
-    { category: 'Data Bundles', items: [
-      { name: 'All Networks Data', basic: 'Standard Rate', reseller: 'Wholesale Rate', discount: 'Lower Per Plan' },
-      { name: 'Bulk Reseller Purchases', basic: 'Same as Retail', reseller: 'Best Tier Applied', discount: 'Auto-Applied' },
-    ]},
-    { category: 'Airtime Top-Up', items: [
-      { name: 'All Networks Airtime', basic: 'No Cashback', reseller: 'Percentage Cashback', discount: 'Per Txn Bonus' },
-    ]},
-    { category: 'Bills & Scratch Cards', items: [
-      { name: 'Electricity Bills', basic: 'Standard Fee', reseller: 'Reduced Fee + Rebate', discount: 'Lower Per Txn' },
-      { name: 'Cable TV', basic: 'Standard Fee', reseller: 'Reduced Fee + Cashback', discount: 'Lower Per Txn' },
-      { name: 'Exam Scratch Cards', basic: 'Retail Price', reseller: 'Wholesale Price', discount: 'Lower Per Card' },
-    ]}
-  ];
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => {
+    setShowPinScreen(false);
+    onBack();
+  });
 
-  const faqs = [
-    {
-      q: `Is the ${upgradeFeeLabel} upgrade fee a one-time payment?`,
-      a: `Yes. The current license fee (${upgradeFeeLabel}) is a one-time permanent payment. Your Reseller License never expires, and there are zero monthly or annual renewal fees.`
-    },
-    {
-      q: 'How are reseller discounts applied?',
-      a: 'Discounts are automatically deducted from your total checkout amount whenever you purchase airtime, data bundles, or pay utility bills.'
-    },
-    {
-      q: 'Can I resell VTU services to customers at my own prices?',
-      a: 'Absolutely. As a licensed reseller, you purchase at wholesale rates and sell to your customers at whatever retail price you set, keeping 100% of your profit.'
-    },
-    {
-      q: 'What happens after I tap Upgrade Now?',
-      a: `The upgrade fee (${upgradeFeeLabel}) will be deducted from your eData wallet balance, and your account tier will immediately change to Premium Reseller with instant access to wholesale rates.`
-    },
-    {
-      q: 'What if my wallet balance is below the upgrade fee?',
-      a: 'Tap the "Fund Wallet to Upgrade" button at the bottom of the page to add funds via Bank Transfer or Card, then return here to complete your upgrade.'
-    }
-  ];
-
-  if (showPinScreen) {
+  if (showPinScreen && readyToPay) {
     return (
       <PinScreen
         mode="upgrade_pin"
         summary={{
           title: 'Reseller License Upgrade',
-          subtitle: 'Permanent Wholesale Agent Rates',
+          subtitle: 'One-time payment • Instant activation',
           amount: upgradeFee,
           provider: 'eData VTU Platform',
           iconType: 'upgrade',
         }}
-        onBack={() => setShowPinScreen(false)}
+        onBack={() => {
+          setShowPinScreen(false);
+          onBack();
+        }}
         onSuccess={() => {
           setShowPinScreen(false);
           if (onSuccess) onSuccess();
@@ -123,292 +84,138 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
     );
   }
 
+  const cardBg = theme === 'light'
+    ? 'bg-white border-slate-200'
+    : 'bg-slate-900 border-slate-800';
+  const pageBg = theme === 'light' ? 'bg-slate-50' : 'bg-slate-950';
+  const headingText = theme === 'light' ? 'text-slate-900' : 'text-white';
+  const bodyText = theme === 'light' ? 'text-slate-600' : 'text-slate-400';
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-32">
-      {/* ── Top Header ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between safe-top">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-all cursor-pointer"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-base font-bold text-white">Reseller Upgrade Details</h1>
-            <p className="text-xs text-slate-400">Unlock Wholesale Agent Rates & Benefits</p>
-          </div>
+    <div className={`min-h-screen ${pageBg} flex flex-col max-w-lg mx-auto w-full`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-30 backdrop-blur-md border-b px-4 py-3.5 flex items-center gap-3 safe-top ${
+        theme === 'light' ? 'bg-white/90 border-slate-200' : 'bg-slate-950/90 border-slate-800'
+      }`}>
+        <button
+          onClick={onBack}
+          className={`p-2 rounded-xl transition-all cursor-pointer ${
+            theme === 'light' ? 'text-slate-600 hover:text-slate-900 bg-slate-100' : 'text-slate-400 hover:text-white bg-slate-800'
+          }`}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className={`text-base font-bold ${headingText}`}>Reseller Upgrade</h1>
+          <p className={`text-xs ${bodyText}`}>Complete payment to unlock reseller pricing</p>
         </div>
-        <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black rounded-full uppercase tracking-wider">
-          {currentUser.category || 'Basic User'}
-        </span>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-6">
-        {/* ── Hero Banner Card ── */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-sky-600 via-indigo-700 to-slate-950 rounded-3xl p-6 border border-sky-400/30 shadow-2xl space-y-4">
-          <div className="absolute -right-8 -top-8 w-32 h-32 bg-sky-400/20 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-sky-200 text-[10px] font-black rounded-full uppercase tracking-widest">
-              <Sparkles className="w-3 h-3 text-amber-300" /> PERMANENT LIFETIME LICENSE
-            </span>
-            <span className="text-xs font-bold text-slate-300">eData VTU</span>
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-xl font-black text-white leading-tight font-display">
-              Become a Licensed Reseller Agent
-            </h2>
-            <p className="text-xs text-sky-100 font-medium">
-              Start your VTU business or maximize savings on every single data, airtime, and bill transaction.
-            </p>
-          </div>
-
-          <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] text-sky-200 uppercase font-bold tracking-wider block">License Upgrade Fee</span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-white font-display">{upgradeFeeLabel}</span>
-                <span className="text-[11px] text-sky-200 font-semibold">(One-time payment)</span>
+      <main className="flex-1 px-4 py-5 space-y-4">
+        {/* Premium already active — defensive branch */}
+        {isAlreadyPremium && (
+          <div className={`rounded-3xl p-6 border ${cardBg} space-y-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
               </div>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider block">Validity</span>
-              <span className="text-xs font-black text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg inline-block mt-0.5">
-                Lifetime Active
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Key Highlights Strip ── */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="p-3 bg-slate-800/80 border border-slate-700/60 rounded-2xl text-center space-y-1">
-            <Percent className="w-5 h-5 text-sky-400 mx-auto" />
-            <span className="text-xs font-black text-white block">Up to 15% OFF</span>
-            <span className="text-[10px] text-slate-400 block">Wholesale Rates</span>
-          </div>
-          <div className="p-3 bg-slate-800/80 border border-slate-700/60 rounded-2xl text-center space-y-1">
-            <TrendingUp className="w-5 h-5 text-emerald-400 mx-auto" />
-            <span className="text-xs font-black text-white block">High Profit</span>
-            <span className="text-[10px] text-slate-400 block">Keep 100% Margin</span>
-          </div>
-          <div className="p-3 bg-slate-800/80 border border-slate-700/60 rounded-2xl text-center space-y-1">
-            <ShieldCheck className="w-5 h-5 text-amber-400 mx-auto" />
-            <span className="text-xs font-black text-white block">₦0 Renewal Fee</span>
-            <span className="text-[10px] text-slate-400 block">One-time Payment</span>
-          </div>
-        </div>
-
-        {/* ── Side-by-Side Comparison Table ── */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <div>
-              <h3 className="text-sm font-extrabold text-white">Basic vs. Reseller Comparison</h3>
-              <p className="text-[11px] text-slate-400">See exactly how much more you gain as a Reseller</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-3xl overflow-hidden shadow-xl">
-            <div className="grid grid-cols-12 bg-slate-950/80 border-b border-slate-700/80 p-3 text-[11px] font-black uppercase text-slate-400 tracking-wider">
-              <div className="col-span-5">Feature / Service</div>
-              <div className="col-span-3 text-center text-slate-400">Basic</div>
-              <div className="col-span-4 text-right text-sky-400">Reseller</div>
-            </div>
-
-            <div className="divide-y divide-slate-800/80">
-              {comparisonData.map((row, idx) => (
-                <div key={idx} className={`grid grid-cols-12 p-3 text-xs items-center ${row.highlight ? 'bg-sky-500/5' : ''}`}>
-                  <div className="col-span-5 font-semibold text-slate-200 flex items-center gap-1.5">
-                    {row.highlight && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
-                    <span>{row.feature}</span>
-                  </div>
-                  <div className="col-span-3 text-center text-slate-400 font-medium text-[11px]">{row.basic}</div>
-                  <div className="col-span-4 text-right font-bold text-emerald-400 text-[11px]">{row.reseller}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Interactive Savings & Profit Calculator ── */}
-        <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 space-y-4 shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-white">Estimated Profit & Savings Calculator</h3>
-              <p className="text-[11px] text-slate-400">Calculate how fast your {upgradeFeeLabel} license pays for itself</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 bg-slate-900/80 border border-slate-700/60 rounded-2xl p-4">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-bold text-slate-300">Daily Transactions Volume:</span>
-              <span className="font-black text-sky-400 font-mono text-sm">{dailyVolume} txns / day</span>
-            </div>
-
-            <input
-              type="range"
-              min="5"
-              max="50"
-              step="5"
-              value={dailyVolume}
-              onChange={(e) => setDailyVolume(parseInt(e.target.value, 10))}
-              className="w-full accent-sky-500 bg-slate-800 cursor-pointer h-2 rounded-lg"
-            />
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-              <span>5 (Light)</span>
-              <span>25 (Medium)</span>
-              <span>50+ (Heavy Agent)</span>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800 grid grid-cols-2 gap-3 text-center">
-              <div className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-semibold block uppercase">Est. Monthly Profit/Savings</span>
-                <span className="text-lg font-black text-emerald-400 font-display block mt-0.5">
-                  ₦{estimatedMonthlyProfit.toLocaleString('en-NG')}
-                </span>
+              <div>
+                <h2 className={`text-base font-black ${headingText}`}>Reseller Tier Active</h2>
+                <p className={`text-xs ${bodyText}`}>You're already on the reseller pricing tier.</p>
               </div>
-              <div className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800">
-                <span className="text-[10px] text-slate-400 font-semibold block uppercase">Fee Recovered In</span>
-                <span className="text-lg font-black text-sky-400 font-display block mt-0.5">
-                  ~{daysToBreakEven} Days
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Wholesale Rate Sheet Breakdown ── */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-extrabold text-white">Wholesale Rate Sheet Details</h3>
-            <span className="text-[11px] font-bold text-sky-400">Live Agent Pricing</span>
-          </div>
-
-          <div className="space-y-3">
-            {rateSheet.map((cat, idx) => (
-              <div key={idx} className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-2.5">
-                <h4 className="text-xs font-black text-sky-400 uppercase tracking-wider">{cat.category}</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {cat.items.map((item, i) => (
-                    <div key={i} className="p-2.5 bg-slate-900/80 border border-slate-700/50 rounded-xl space-y-1">
-                      <span className="text-xs font-bold text-white block line-clamp-1">{item.name}</span>
-                      <div className="flex justify-between items-baseline text-[11px]">
-                        <span className="text-slate-400 line-through text-[10px]">{item.basic}</span>
-                        <span className="text-emerald-400 font-black">{item.reseller}</span>
-                      </div>
-                      <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded inline-block">
-                        {item.discount}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Reseller Privileges Grid ── */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-extrabold text-white px-1">Additional Agent Privileges</h3>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 bg-slate-800/80 border border-slate-700/70 rounded-2xl space-y-2">
-              <Award className="w-6 h-6 text-amber-400" />
-              <h4 className="text-xs font-bold text-white">5x Referral Earnings</h4>
-              <p className="text-[11px] text-slate-400">Earn ₦1,000 for every user who upgrades using your referral link.</p>
-            </div>
-            <div className="p-4 bg-slate-800/80 border border-slate-700/70 rounded-2xl space-y-2">
-              <Headphones className="w-6 h-6 text-sky-400" />
-              <h4 className="text-xs font-bold text-white">VIP Priority Support</h4>
-              <p className="text-[11px] text-slate-400">Direct fast-track WhatsApp line for immediate dispute resolution.</p>
-            </div>
-            <div className="p-4 bg-slate-800/80 border border-slate-700/70 rounded-2xl space-y-2">
-              <Zap className="w-6 h-6 text-emerald-400" />
-              <h4 className="text-xs font-bold text-white">Instant API Key</h4>
-              <p className="text-[11px] text-slate-400">Automate VTU purchases directly on your own website or mobile app.</p>
-            </div>
-            <div className="p-4 bg-slate-800/80 border border-slate-700/70 rounded-2xl space-y-2">
-              <ShieldCheck className="w-6 h-6 text-indigo-400" />
-              <h4 className="text-xs font-bold text-white">Zero Maintenance Fee</h4>
-              <p className="text-[11px] text-slate-400">Your reseller status never expires. No hidden charges or monthly quota.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Frequently Asked Questions ── */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-extrabold text-white px-1">Frequently Asked Questions</h3>
-
-          <div className="space-y-2">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="bg-slate-800/80 border border-slate-700/70 rounded-2xl overflow-hidden transition-all"
-              >
-                <button
-                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full p-4 text-left flex items-center justify-between gap-2 cursor-pointer"
-                >
-                  <span className="text-xs font-bold text-white">{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${openFaq === index ? 'rotate-180 text-sky-400' : ''}`} />
-                </button>
-                {openFaq === index && (
-                  <div className="px-4 pb-4 text-xs text-slate-300 leading-relaxed border-t border-slate-700/50 pt-2.5">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
-
-      {/* ── Sticky Bottom Action Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-4 max-w-lg mx-auto shadow-2xl safe-bottom">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-1.5">
-            <Wallet className="w-4 h-4 text-slate-400" />
-            <span className="text-xs text-slate-400 font-medium">Your Wallet Balance:</span>
-          </div>
-          <span className={`text-xs font-black font-mono ${hasEnoughBalance ? 'text-emerald-400' : 'text-rose-400'}`}>
-            ₦{userBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-
-        {hasEnoughBalance ? (
-          <button
-            onClick={() => setShowPinScreen(true)}
-            className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-display"
-          >
-            <span>Proceed to Upgrade for {upgradeFeeLabel}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <div className="p-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-300 font-semibold text-center">
-              {upgradeFee > 0
-                ? `Insufficient wallet balance. Please add ₦${(upgradeFee - userBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to upgrade.`
-                : 'Waiting for current upgrade fee from server...'}
             </div>
             <button
-              onClick={() => {
-                if (onNavigate) onNavigate('fund');
-                else onBack();
-              }}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-display"
+              onClick={onBack}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        )}
+
+        {/* Pending admin review — matches the Web pending card */}
+        {!isAlreadyPremium && isPending && (
+          <div className={`rounded-3xl p-6 border ${cardBg} space-y-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-amber-500" />
+              </div>
+              <div>
+                <h2 className={`text-base font-black ${headingText}`}>Upgrade Pending Approval</h2>
+                <p className={`text-xs ${bodyText} mt-0.5`}>
+                  Your payment of {upgradeFeeLabel} has been received. Our admin team is verifying your request.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onBack}
+              className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        )}
+
+        {/* No transaction PIN yet — must set one before we can charge the wallet */}
+        {!isAlreadyPremium && !isPending && !hasPin && (
+          <div className={`rounded-3xl p-6 border ${cardBg} space-y-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-sky-500" />
+              </div>
+              <div>
+                <h2 className={`text-base font-black ${headingText}`}>Set your Transaction PIN</h2>
+                <p className={`text-xs ${bodyText} mt-0.5`}>
+                  A 4-digit PIN is required to authorise the {upgradeFeeLabel} upgrade payment.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigate && onNavigate('profile')}
+              className="w-full py-3.5 bg-sky-600 hover:bg-sky-700 text-white font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Set Transaction PIN</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Insufficient wallet balance — invite user to fund wallet */}
+        {!isAlreadyPremium && !isPending && hasPin && !hasEnoughBalance && (
+          <div className={`rounded-3xl p-6 border ${cardBg} space-y-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-rose-500" />
+              </div>
+              <div>
+                <h2 className={`text-base font-black ${headingText}`}>Insufficient Wallet Balance</h2>
+                <p className={`text-xs ${bodyText} mt-0.5`}>
+                  {upgradeFee > 0
+                    ? <>Add <strong>₦{(upgradeFee - walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong> to your wallet to complete the {upgradeFeeLabel} upgrade.</>
+                    : 'Waiting for the current upgrade fee from server. Please try again in a moment.'}
+                </p>
+              </div>
+            </div>
+
+            <div className={`p-3 rounded-2xl border flex items-center justify-between ${
+              theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'
+            }`}>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${bodyText}`}>Wallet Balance</span>
+              <span className={`text-sm font-black font-mono ${headingText}`}>
+                ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <button
+              onClick={() => onNavigate && onNavigate('fund')}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Wallet className="w-4 h-4" />
               <span>Fund Wallet Now</span>
             </button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

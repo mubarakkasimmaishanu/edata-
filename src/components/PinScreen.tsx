@@ -336,7 +336,15 @@ export default function PinScreen({
       return 'Confirm & Pay';
     }
     if (mode === 'upgrade_pin') {
-      return 'Confirm Upgrade (₦5,000.00)';
+      // Upgrade fee is admin-managed on the server (Setting::premium_upgrade_fee)
+      // and passed in via summary.amount. Never hardcode a naira value here.
+      const feeAmount = typeof summary?.amount === 'number'
+        ? summary.amount
+        : parseFloat(String(summary?.amount || 0));
+      if (feeAmount > 0) {
+        return `Confirm Upgrade (₦${feeAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`;
+      }
+      return 'Confirm Upgrade';
     }
     if (mode === 'set_pin') {
       return step === 1 ? 'Continue' : 'Confirm & Save PIN';
@@ -594,7 +602,19 @@ export default function PinScreen({
                 </p>
                 <p className={`text-3xl font-black tracking-tight mt-0.5 font-mono ${
                   theme === 'light' ? 'text-amber-600' : 'text-amber-400'
-                }`}>₦5,000.00</p>
+                }`}>
+                  {(() => {
+                    // Upgrade fee is admin-managed (Setting::premium_upgrade_fee)
+                    // and forwarded via summary.amount. Never hardcode a naira
+                    // value — the wallet debit is authorised by the server.
+                    const feeAmount = typeof summary?.amount === 'number'
+                      ? summary.amount
+                      : parseFloat(String(summary?.amount || 0));
+                    return feeAmount > 0
+                      ? `₦${feeAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                      : '—';
+                  })()}
+                </p>
               </div>
             </div>
           )}

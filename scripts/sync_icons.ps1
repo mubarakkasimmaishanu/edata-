@@ -21,9 +21,11 @@ foreach ($target in $webTargets) {
 }
 
 # Android drawable splash screens
+$splashSource = "C:\Users\MY PC\Desktop\edata-mobile\assets\logo_loader.png"
+if (-not (Test-Path $splashSource)) { $splashSource = "C:\Users\MY PC\Desktop\edata-mobile\assets\icons\splash-icon.png" }
 $splashFiles = Get-ChildItem -Path "android/app/src/main/res" -Recurse -Filter "splash.png"
 foreach ($file in $splashFiles) {
-    Copy-Item -Path $source -Destination $file.FullName -Force
+    Copy-Item -Path $splashSource -Destination $file.FullName -Force
     Write-Host "Updated Android Splash:" $file.FullName
 }
 
