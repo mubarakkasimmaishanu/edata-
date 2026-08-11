@@ -467,13 +467,13 @@ export default function UserDashboard({
                 <button
                   key={item.id || idx}
                   onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
-                  className="flex flex-col items-center justify-center gap-1.5 transition-all group cursor-pointer active:scale-95"
+                  className="flex flex-col items-center justify-start gap-1.5 transition-all group cursor-pointer active:scale-95 min-w-0"
                   title={item.title}
                 >
-                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
                     <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
                   </div>
-                  <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display truncate w-full text-center">
+                  <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display w-full text-center leading-tight whitespace-normal break-words hyphens-auto">
                     {item.title}
                   </span>
                 </button>
