@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* Google Fonts moved to index.html <link rel="stylesheet"> so they load in
+   parallel with this stylesheet instead of waterfalling after it. */
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -30,21 +31,28 @@
   color: #0f172a;
 }
 
-/* ─── Translucent dark surfaces → frosted white (Liquid Glass) ─── */
+/* ─── Translucent dark surfaces (sticky headers, floating overlays) →
+       true frosted white. These are the ONLY light-theme surfaces that
+       need `backdrop-filter`: they sit above scrolling content and the
+       blur shows real background behind them. Keep blur radius modest
+       (10px) so low-end Android WebViews stay smooth. ─── */
 .light .bg-slate-900\/90,
 .light .bg-slate-900\/95,
 .light .bg-slate-900\/80,
 .light .bg-slate-950\/90,
 .light .bg-slate-950\/80,
 .light .bg-slate-950\/60 {
-  background-color: rgba(255, 255, 255, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
   color: #0f172a;
-  backdrop-filter: saturate(180%) blur(14px);
-  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border-color: #e2e8f0 !important;
 }
 
-/* ─── Solid dark card surfaces → clean white cards with subtle depth ─── */
+/* ─── Solid card surfaces → opaque white cards. NO backdrop-filter here:
+       cards sit flush on the solid page background, so blurring what's
+       behind them costs GPU cycles for zero visual gain. Depth comes
+       from a light shadow + subtle border — cheap and looks the same. ─── */
 .light .bg-slate-800,
 .light .bg-slate-800\/90,
 .light .bg-slate-800\/80,
@@ -54,12 +62,10 @@
 .light .bg-\[\#161a20\],
 .light .bg-\[\#181d24\],
 .light .bg-\[\#202732\] {
-  background-color: rgba(255, 255, 255, 0.96) !important;
+  background-color: #ffffff !important;
   color: #0f172a;
   border-color: #e2e8f0 !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
-  backdrop-filter: saturate(180%) blur(10px);
-  -webkit-backdrop-filter: saturate(180%) blur(10px);
 }
 
 /* ─── Nested "filter chip" section backgrounds → slightly tinted so
@@ -215,46 +221,50 @@
 
 /* ══════════════════════════════════════════════════════════════════════════
    Liquid Glass — reusable UI utilities
+   ──────────────────────────────────────────────────────────────────────────
+   Performance guardrail: `backdrop-filter` is the single most expensive
+   CSS operation on mobile GPUs. It is applied ONLY to elements where the
+   glass effect genuinely shows through moving content behind — sticky
+   headers and the wallet chip — and NEVER to card surfaces (cards sit on
+   a solid page background, so blurring costs cycles for no visual gain).
+   Blur radius is capped at 10px. Users on OSes that request reduced
+   transparency (accessibility or battery-saver) get opaque fallbacks
+   automatically via `prefers-reduced-transparency` at the bottom.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Sticky top headers (BuyAirtime, BuyData, etc.). Add class alongside
-   the existing `bg-slate-900/90 backdrop-blur-2xl` and it will render
-   as frosted white in light theme automatically. */
-.liquid-header { position: relative; }
+/* Sticky top headers — the general `.light .bg-slate-900/90` rule above
+   already frosts these; `.liquid-header` is a semantic hook for future
+   components. Cheap: one instance per screen. */
 .light .liquid-header {
-  background-color: rgba(255, 255, 255, 0.72) !important;
+  background-color: rgba(255, 255, 255, 0.78) !important;
   border-color: rgba(15, 23, 42, 0.06) !important;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
-  backdrop-filter: saturate(180%) blur(18px);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
 }
 
-/* Wallet balance chip — appears in the top-right of every service page.
-   Under light theme the previous `text-sky-200 on bg-sky-500/20` combo
-   rendered as very-pale-blue text on very-pale-blue background (nearly
-   invisible). This utility ensures the amount is always high-contrast
-   and adds a subtle liquid-glass polish. Dark theme is untouched. */
-.wallet-chip {
-  backdrop-filter: saturate(160%) blur(10px);
-  -webkit-backdrop-filter: saturate(160%) blur(10px);
-}
+/* Wallet balance chip — high-contrast label + amount so the value is
+   never invisible under light theme, plus a very small (~90×26px) glass
+   backdrop-blur that costs almost nothing at this size. Scoped inside
+   `.light` so dark theme pays zero GPU cost for it. */
 .light .wallet-chip {
   background-color: rgba(14, 165, 233, 0.14) !important;
   border-color: rgba(3, 105, 161, 0.45) !important;
   box-shadow:
     0 1px 2px rgba(3, 105, 161, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .light .wallet-chip .wallet-chip-label  { color: #075985 !important; } /* sky-800 */
 .light .wallet-chip .wallet-chip-amount { color: #0c4a6e !important; } /* sky-900 */
 
-/* Liquid card — subtle frosted-white content surface. Use on any card
-   that should read as glass in light theme. No effect in dark theme. */
+/* Liquid card — subtle white content surface for future components.
+   No backdrop-filter: cards don't need to see through anything.
+   Depth comes entirely from a soft shadow. Cheap. */
 .light .liquid-card {
-  background-color: rgba(255, 255, 255, 0.78) !important;
+  background-color: #ffffff !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
-  backdrop-filter: saturate(180%) blur(14px);
-  -webkit-backdrop-filter: saturate(180%) blur(14px);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 8px 24px rgba(15, 23, 42, 0.05),
@@ -270,6 +280,30 @@
 }
 .light .filter-chip-active {
   border-color: transparent !important;
+}
+
+/* ─── Reduced-transparency / accessibility fallback ─────────────────────
+   iOS "Reduce Transparency" and Android "battery saver / power-saving"
+   modes surface via `prefers-reduced-transparency: reduce`. When the
+   user asks for it, drop every backdrop-filter to opaque backgrounds
+   so the compositor doesn't blur every frame. Solid backgrounds render
+   at 60/120Hz with essentially zero GPU cost. */
+@media (prefers-reduced-transparency: reduce) {
+  .light .bg-slate-900\/90,
+  .light .bg-slate-900\/95,
+  .light .bg-slate-900\/80,
+  .light .bg-slate-950\/90,
+  .light .bg-slate-950\/80,
+  .light .bg-slate-950\/60,
+  .light .liquid-header,
+  .light .wallet-chip {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: rgba(255, 255, 255, 0.98) !important;
+  }
+  .light .wallet-chip {
+    background-color: #e0f2fe !important; /* keep chip visible */
+  }
 }
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

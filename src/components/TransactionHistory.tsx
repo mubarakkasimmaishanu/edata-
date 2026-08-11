@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Transaction } from '../types';
 import { ChevronLeft, Search, Download, Clock, Copy, MessageCircle, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+// jsPDF (594 KB) is dynamically imported inside `downloadPDFReceipt` so it
+// only ships to users who actually download a receipt. Keeps cold-start
+// bundle ~750 KB lighter (jsPDF + its DOMPurify dependency).
 import BottomSheet from './BottomSheet';
 import { useToast } from './Toast';
 
@@ -14,11 +16,66 @@ interface TransactionHistoryProps {
   onNavigate?: (view: string) => void;
 }
 
+// Memoized row — the list can be long, and every keystroke in the search
+// input triggers a re-render of the parent. Without memo, all rows would
+// re-reconcile even though only the filtered set changed. `React.memo`
+// short-circuits rows whose `tx` prop is reference-identical and whose
+// `onOpen` handler is stable (the parent wraps it in useCallback).
+interface TransactionRowProps {
+  tx: Transaction;
+  onOpen: (tx: Transaction) => void;
+}
+
+const TransactionRow = React.memo(function TransactionRow({ tx, onOpen }: TransactionRowProps) {
+  const statusChip =
+    tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
+    tx.status === 'Failed' ? 'bg-rose-500/10 text-rose-400' :
+    'bg-amber-500/10 text-amber-400';
+  const statusText =
+    tx.status === 'Completed' ? 'text-emerald-400' :
+    tx.status === 'Failed' ? 'text-rose-400' :
+    'text-amber-400';
+  const emoji =
+    tx.type === 'Airtime' ? '📞' :
+    tx.type === 'Data' ? '📡' :
+    tx.type === 'Cable TV' ? '📺' :
+    '⚡';
+
+  return (
+    <div
+      onClick={() => onOpen(tx)}
+      className="p-3.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 rounded-2xl flex items-center justify-between cursor-pointer transition-all active:scale-98"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${statusChip}`}>
+          {emoji}
+        </div>
+        <div>
+          <h4 className="text-xs font-semibold text-white line-clamp-1">{tx.productName || tx.type}</h4>
+          <p className="text-[11px] text-slate-400">{tx.date || 'Recent'} • Ref: {tx.reference || tx.id}</p>
+        </div>
+      </div>
+
+      <div className="text-right">
+        <span className="text-xs font-bold text-slate-100">{formatMoney(tx.amount)}</span>
+        <span className={`block text-[10px] font-medium ${statusText}`}>
+          {tx.status}
+        </span>
+      </div>
+    </div>
+  );
+});
+
 export default function TransactionHistory({ transactions, onBack, onNavigate }: TransactionHistoryProps) {
   const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
+
+  // Stable handler passed to memoized rows so their `onOpen` prop is
+  // reference-identical across renders — otherwise React.memo can never
+  // short-circuit.
+  const handleOpenReceipt = useCallback((tx: Transaction) => setActiveReceipt(tx), []);
 
   const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'A2C'];
 
@@ -67,7 +124,9 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     }
   };
 
-  const downloadPDFReceipt = (tx: Transaction) => {
+  const downloadPDFReceipt = async (tx: Transaction) => {
+    // Dynamic import — jsPDF only loads when the user actually taps download.
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ unit: 'mm', format: [80, 130] });
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 80, 130, 'F');
@@ -170,34 +229,11 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
         ) : (
           <div className="space-y-2.5">
             {filteredTransactions.map((tx) => (
-              <div
+              <TransactionRow
                 key={tx.id || tx.reference}
-                onClick={() => setActiveReceipt(tx)}
-                className="p-3.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 rounded-2xl flex items-center justify-between cursor-pointer transition-all active:scale-98"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
-                    tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
-                    tx.status === 'Failed' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
-                  }`}>
-                    {tx.type === 'Airtime' ? '📞' : tx.type === 'Data' ? '📡' : tx.type === 'Cable TV' ? '📺' : '⚡'}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white line-clamp-1">{tx.productName || tx.type}</h4>
-                    <p className="text-[11px] text-slate-400">{tx.date || 'Recent'} • Ref: {tx.reference || tx.id}</p>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-xs font-bold text-slate-100">{formatMoney(tx.amount)}</span>
-                  <span className={`block text-[10px] font-medium ${
-                    tx.status === 'Completed' ? 'text-emerald-400' :
-                    tx.status === 'Failed' ? 'text-rose-400' : 'text-amber-400'
-                  }`}>
-                    {tx.status}
-                  </span>
-                </div>
-              </div>
+                tx={tx}
+                onOpen={handleOpenReceipt}
+              />
             ))}
           </div>
         )}

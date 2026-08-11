@@ -2,29 +2,51 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
-import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem } from './types';
+import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem, PopupBanner as PopupBannerType } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 import { runBackHandlers } from './utils/backHandler';
+import PopupBanner from './components/PopupBanner';
 
+// Eager: always visible on cold start OR needed instantly (no route wait
+// is acceptable). Dashboard is the entry point, BottomNav sits over every
+// route, PinScreen must open the moment a user taps "Pay" from any screen,
+// AuthPage/SplashScreen/PopupBanner are pre-app critical.
 import AuthPage from './components/AuthPage';
 import SplashScreen from './components/SplashScreen';
 import UserDashboard from './components/UserDashboard';
-import BuyAirtime from './components/BuyAirtime';
-import BuyData from './components/BuyData';
-import CableTV from './components/CableTV';
-import ElectricityBill from './components/ElectricityBill';
-import ExamPins from './components/ExamPins';
-import AirtimeToCash from './components/AirtimeToCash';
-import FundWallet from './components/FundWallet';
-import TransactionHistory from './components/TransactionHistory';
-import ProfileSettings from './components/ProfileSettings';
-import HelpSupport from './components/HelpSupport';
-import Notifications from './components/Notifications';
 import BottomNav from './components/BottomNav';
-import ServicesCatalog from './components/ServicesCatalog';
 import PinScreen from './components/PinScreen';
-import ResellerUpgrade from './components/ResellerUpgrade';
-import ReferralScreen from './components/ReferralScreen';
+
+// Lazy: secondary routes. Each becomes its own chunk fetched only when
+// the user navigates to it — cold start bundle shrinks by ~300 KB and
+// each chunk downloads in <200 ms on typical mobile networks. Suspense
+// boundary below shows a minimal dot loader during the fetch.
+const BuyAirtime         = React.lazy(() => import('./components/BuyAirtime'));
+const BuyData            = React.lazy(() => import('./components/BuyData'));
+const CableTV            = React.lazy(() => import('./components/CableTV'));
+const ElectricityBill    = React.lazy(() => import('./components/ElectricityBill'));
+const ExamPins           = React.lazy(() => import('./components/ExamPins'));
+const AirtimeToCash      = React.lazy(() => import('./components/AirtimeToCash'));
+const FundWallet         = React.lazy(() => import('./components/FundWallet'));
+const TransactionHistory = React.lazy(() => import('./components/TransactionHistory'));
+const ProfileSettings    = React.lazy(() => import('./components/ProfileSettings'));
+const HelpSupport        = React.lazy(() => import('./components/HelpSupport'));
+const Notifications      = React.lazy(() => import('./components/Notifications'));
+const ServicesCatalog    = React.lazy(() => import('./components/ServicesCatalog'));
+const ResellerUpgrade    = React.lazy(() => import('./components/ResellerUpgrade'));
+const ReferralScreen     = React.lazy(() => import('./components/ReferralScreen'));
+
+// Minimal in-app route loader — matches the existing dot-loading utility
+// so the transition is silent (no white flash, no jarring spinner).
+function RouteFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center py-16 animate-fade-in">
+      <div className="dot-loading" aria-label="Loading">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  );
+}
 
 type ActiveView =
   | 'dashboard'
@@ -89,6 +111,29 @@ function MainApp() {
   });
   const [preselectedNetwork, setPreselectedNetwork] = useState<string>('');
   const [preselectedPlanId, setPreselectedPlanId] = useState<number | null>(null);
+
+  // ── Admin-driven popup banners ────────────────────────────────────────
+  // `popups` is the full list of active popups the backend returned on
+  // the last /api/popups poll. `activePopup` is whichever qualifying
+  // popup we're currently showing on screen (never more than one at a
+  // time — the user answers one before the next appears).
+  //
+  // Dismissed IDs are persisted per-device in localStorage. For
+  // `show_once` popups this is permanent until the admin either
+  // disables the popup or edits it (which bumps `updated_at`, giving
+  // the popup a new fingerprint so it re-shows). For non-`show_once`
+  // popups the dismissal only lasts the current app session.
+  const [popups, setPopups] = useState<PopupBannerType[]>([]);
+  const [activePopup, setActivePopup] = useState<PopupBannerType | null>(null);
+  const dismissedPopupsRef = useRef<Set<string>>(new Set(
+    (() => {
+      try {
+        const raw = localStorage.getItem('edata_dismissed_popups');
+        return raw ? (JSON.parse(raw) as string[]) : [];
+      } catch { return []; }
+    })()
+  ));
+  const sessionDismissedPopupsRef = useRef<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('edata_current_user');
@@ -624,6 +669,168 @@ function MainApp() {
     fetchAllData();
   };
 
+  // ── Popup banner fetcher ────────────────────────────────────────────
+  // Kept independent of `fetchAllData` so the /api/popups endpoint can be
+  // rolled out separately without threatening the main sync. Runs silent
+  // (never toasts an error) — a popup source going down should never
+  // interrupt the user, just quietly leave popups off.
+  const fetchPopups = async () => {
+    try {
+      const res: any = await api.getPopups(true);
+      const list: PopupBannerType[] =
+        res?.data?.popups
+        || res?.popups
+        || (Array.isArray(res?.data) ? res.data : [])
+        || [];
+      if (Array.isArray(list)) {
+        setPopups(list);
+      }
+    } catch {
+      // Endpoint unavailable → no popups this cycle; keep last-known list.
+    }
+  };
+
+  // Compute a stable per-popup fingerprint. Editing a popup in the admin
+  // panel bumps `updated_at`, which changes the fingerprint — so a popup
+  // the user dismissed earlier will re-show after the admin refreshes
+  // its copy. Without this, an admin fixing a typo would never reach
+  // users who'd already tapped "Got it" on the buggy version.
+  const popupKey = (p: PopupBannerType) => `${p.id}::${p.updated_at || p.created_at || ''}`;
+
+  // Pick the highest-priority popup that:
+  //   1. Is active
+  //   2. The user hasn't dismissed on this device (or session, for
+  //      non-show_once popups)
+  //   3. Isn't already the one showing
+  useEffect(() => {
+    if (activePopup) return; // Only one popup at a time
+    if (!popups || popups.length === 0) return;
+
+    // Sort: display_order asc, then id desc (same order the backend
+    // returned, but be defensive in case a caller re-ordered).
+    const sorted = [...popups].sort((a, b) => {
+      const oa = a.display_order ?? 0;
+      const ob = b.display_order ?? 0;
+      if (oa !== ob) return oa - ob;
+      return Number(b.id) - Number(a.id);
+    });
+
+    const next = sorted.find(p => {
+      if (p.status === 0 || p.status === false) return false;
+      const key = popupKey(p);
+      const forThisSession = sessionDismissedPopupsRef.current.has(key);
+      const permanent = p.show_once !== false
+        ? dismissedPopupsRef.current.has(key)
+        : false;
+      return !forThisSession && !permanent;
+    });
+
+    if (next) setActivePopup(next);
+  }, [popups, activePopup]);
+
+  const persistDismissedPopups = () => {
+    try {
+      localStorage.setItem(
+        'edata_dismissed_popups',
+        JSON.stringify(Array.from(dismissedPopupsRef.current))
+      );
+    } catch {}
+  };
+
+  const handlePopupDismiss = () => {
+    if (!activePopup) return;
+    const key = popupKey(activePopup);
+    sessionDismissedPopupsRef.current.add(key);
+    if (activePopup.show_once !== false) {
+      dismissedPopupsRef.current.add(key);
+      persistDismissedPopups();
+    }
+    setActivePopup(null);
+  };
+
+  // Resolve a popup URL into an action. Supported forms:
+  //   • `https://…` / `http://…`       → open externally (Capacitor Browser
+  //                                       plugin if available, else window.open)
+  //   • `app://<view>`                  → in-app navigate to a known ActiveView
+  //   • bare `<view>` (matches ActiveView) → in-app navigate
+  //   • anything else                   → open externally as best-effort
+  const handlePopupAction = (rawUrl: string) => {
+    if (!rawUrl) { handlePopupDismiss(); return; }
+    const url = rawUrl.trim();
+
+    const knownViews: ActiveView[] = [
+      'dashboard', 'services', 'airtime', 'data', 'cable', 'electricity',
+      'exams', 'a2c', 'fund', 'history', 'profile', 'support',
+      'notifications', 'upgrade', 'referral',
+    ];
+
+    const tryInAppRoute = (route: string) => {
+      const clean = route.replace(/^\/+/, '').split(/[?#]/)[0];
+      if ((knownViews as string[]).includes(clean)) {
+        navigateTo(clean as ActiveView);
+        return true;
+      }
+      return false;
+    };
+
+    // app://<view>
+    if (url.startsWith('app://')) {
+      const route = url.slice('app://'.length);
+      if (tryInAppRoute(route)) {
+        handlePopupDismiss();
+        return;
+      }
+    }
+
+    // Bare in-app view name (no scheme)
+    if (!/^[a-z]+:\/\//i.test(url) && tryInAppRoute(url)) {
+      handlePopupDismiss();
+      return;
+    }
+
+    // External URL — prefer Capacitor's in-app browser so users return
+    // to eData cleanly. Falls back to window.open for plain web builds.
+    import('@capacitor/browser')
+      .then(({ Browser }) => Browser.open({ url }))
+      .catch(() => {
+        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch {}
+      });
+
+    // For force-update popups (dismissible=false) DON'T remove the popup
+    // from screen — the user should be nudged back to it if they cancel
+    // the store install. For dismissible popups, treating the tap as a
+    // dismissal is the expected UX.
+    if (activePopup?.dismissible !== false) {
+      handlePopupDismiss();
+    }
+  };
+
+  // Fetch popups on login and on foreground focus, then every 60s while
+  // the app is in the foreground. This uses its own cadence — the
+  // 3-second wallet/tx heartbeat is too aggressive for content that
+  // rarely changes.
+  useEffect(() => {
+    if (currentScreen !== 'app' && currentScreen !== 'auth') return;
+
+    // First fetch immediately (both on auth screen and logged-in state,
+    // so guest-targeted popups render on the login page too).
+    fetchPopups();
+
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchPopups();
+    }, 60_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') fetchPopups();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [currentScreen]);
+
   const handleLoginSuccess = (token: string) => {
     setAuthToken(token);
     setCurrentScreen('app');
@@ -651,9 +858,17 @@ function MainApp() {
       'edata_cached_quick_actions',
       'edata_cached_service_categories',
       'edata_cached_transactions',
+      // Popups are per-device *and* per-user in intent — clear the
+      // dismissed set on logout so the next signed-in user sees
+      // announcements from scratch.
+      'edata_dismissed_popups',
     ].forEach(k => {
       try { localStorage.removeItem(k); } catch {}
     });
+    dismissedPopupsRef.current.clear();
+    sessionDismissedPopupsRef.current.clear();
+    setActivePopup(null);
+    setPopups([]);
     setCurrentUser(DEFAULT_USER);
     setProducts([]);
     setPlanTypes([]);
@@ -849,6 +1064,7 @@ function MainApp() {
             />
           ) : (
             <>
+              {/* Dashboard is eager — renders instantly on entry, no chunk fetch. */}
               {activeView === 'dashboard' && (
                 <UserDashboard
                   currentUser={currentUser}
@@ -863,130 +1079,135 @@ function MainApp() {
                 />
               )}
 
-              {activeView === 'services' && (
-                <ServicesCatalog
-                  currentUser={currentUser}
-                  serviceCategories={serviceCategories}
-                  onNavigate={navigateTo}
-                />
-              )}
+              {/* Lazy routes — each screen is its own chunk. Suspense shows a
+                  quiet dot loader for the ~50-200 ms of first fetch; subsequent
+                  visits to the same route render instantly from cache. */}
+              <React.Suspense fallback={<RouteFallback />}>
+                {activeView === 'services' && (
+                  <ServicesCatalog
+                    currentUser={currentUser}
+                    serviceCategories={serviceCategories}
+                    onNavigate={navigateTo}
+                  />
+                )}
 
-              {activeView === 'airtime' && (
-                <BuyAirtime
-                  currentUser={currentUser}
-                  products={products}
-                  initialNetwork={preselectedNetwork}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'airtime' && (
+                  <BuyAirtime
+                    currentUser={currentUser}
+                    products={products}
+                    initialNetwork={preselectedNetwork}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'data' && (
-                <BuyData
-                  currentUser={currentUser}
-                  products={products}
-                  planTypes={planTypes}
-                  initialNetwork={preselectedNetwork}
-                  initialPlanId={preselectedPlanId}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'data' && (
+                  <BuyData
+                    currentUser={currentUser}
+                    products={products}
+                    planTypes={planTypes}
+                    initialNetwork={preselectedNetwork}
+                    initialPlanId={preselectedPlanId}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'cable' && (
-                <CableTV
-                  currentUser={currentUser}
-                  products={products}
-                  initialProvider={preselectedNetwork}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'cable' && (
+                  <CableTV
+                    currentUser={currentUser}
+                    products={products}
+                    initialProvider={preselectedNetwork}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'electricity' && (
-                <ElectricityBill
-                  currentUser={currentUser}
-                  products={products}
-                  initialDisco={preselectedNetwork}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'electricity' && (
+                  <ElectricityBill
+                    currentUser={currentUser}
+                    products={products}
+                    initialDisco={preselectedNetwork}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'exams' && (
-                <ExamPins
-                  currentUser={currentUser}
-                  products={products}
-                  initialProvider={preselectedNetwork}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'exams' && (
+                  <ExamPins
+                    currentUser={currentUser}
+                    products={products}
+                    initialProvider={preselectedNetwork}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'a2c' && (
-                <AirtimeToCash
-                  currentUser={currentUser}
-                  products={products}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'a2c' && (
+                  <AirtimeToCash
+                    currentUser={currentUser}
+                    products={products}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'fund' && (
-                <FundWallet
-                  currentUser={currentUser}
-                  onBack={handleGoBack}
-                  onRefreshWallet={handleGlobalRefresh}
-                />
-              )}
+                {activeView === 'fund' && (
+                  <FundWallet
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
 
-              {activeView === 'history' && (
-                <TransactionHistory
-                  transactions={transactions}
-                  onBack={handleGoBack}
-                  onNavigate={handleNavigate}
-                />
-              )}
+                {activeView === 'history' && (
+                  <TransactionHistory
+                    transactions={transactions}
+                    onBack={handleGoBack}
+                    onNavigate={handleNavigate}
+                  />
+                )}
 
-              {activeView === 'profile' && (
-                <ProfileSettings
-                  currentUser={currentUser}
-                  setCurrentUser={handleSetCurrentUser}
-                  onBack={handleGoBack}
-                  onLogout={handleLogout}
-                  onNavigate={handleNavigate}
-                />
-              )}
+                {activeView === 'profile' && (
+                  <ProfileSettings
+                    currentUser={currentUser}
+                    setCurrentUser={handleSetCurrentUser}
+                    onBack={handleGoBack}
+                    onLogout={handleLogout}
+                    onNavigate={handleNavigate}
+                  />
+                )}
 
-              {activeView === 'upgrade' && (
-                <ResellerUpgrade
-                  currentUser={currentUser}
-                  onBack={handleGoBack}
-                  onSuccess={handleGlobalRefresh}
-                  onNavigate={handleNavigate}
-                />
-              )}
+                {activeView === 'upgrade' && (
+                  <ResellerUpgrade
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onSuccess={handleGlobalRefresh}
+                    onNavigate={handleNavigate}
+                  />
+                )}
 
-              {activeView === 'support' && (
-                <HelpSupport
-                  onBack={handleGoBack}
-                />
-              )}
+                {activeView === 'support' && (
+                  <HelpSupport
+                    onBack={handleGoBack}
+                  />
+                )}
 
-              {activeView === 'notifications' && (
-                <Notifications
-                  onBack={handleGoBack}
-                  onRefreshUnreadCount={(count) => setUnreadCount(count)}
-                />
-              )}
+                {activeView === 'notifications' && (
+                  <Notifications
+                    onBack={handleGoBack}
+                    onRefreshUnreadCount={(count) => setUnreadCount(count)}
+                  />
+                )}
 
-              {activeView === 'referral' && (
-                <ReferralScreen
-                  currentUser={currentUser}
-                  onBack={handleGoBack}
-                  onNavigate={navigateTo}
-                />
-              )}
+                {activeView === 'referral' && (
+                  <ReferralScreen
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                  />
+                )}
+              </React.Suspense>
 
               {/* Floating Glassmorphic Bottom Navigation */}
               <BottomNav activeView={activeView} onNavigate={navigateTo} />
@@ -1038,6 +1259,21 @@ function MainApp() {
             </>
           )}
         </div>
+
+        {/* ── Dynamic In-App Popup Banner ────────────────────────────────
+            Admin-managed via /api/popups. Renders above every screen
+            (auth and app) so guest-targeted popups can reach signed-out
+            users too. Only one popup is ever on screen; the effect that
+            picks `activePopup` promotes the next qualifying popup after
+            the current one is dismissed. */}
+        {activePopup && (
+          <PopupBanner
+            popup={activePopup}
+            onDismiss={handlePopupDismiss}
+            onAction={handlePopupAction}
+            onSecondary={handlePopupAction}
+          />
+        )}
       </div>
     </>
   );

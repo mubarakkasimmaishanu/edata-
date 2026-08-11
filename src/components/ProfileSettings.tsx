@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import {
-  ChevronLeft, Key, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
+  ChevronLeft, Key, KeyRound, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
   Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon
 } from 'lucide-react';
 import { useToast } from './Toast';
@@ -315,6 +315,36 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 {currentUser.hasPin ? 'Change' : 'Set Up'} <ChevronRight className="w-3.5 h-3.5" />
               </span>
             </button>
+
+            {/*
+              Forgot Transaction PIN row — only shown when a PIN actually
+              exists (users without a PIN see "Set Up" on the row above
+              instead). Opens the same full-screen PinScreen overlay in
+              `forgot_pin` mode; that component already implements the
+              full 4-step flow: send OTP to registered email -> verify
+              6-digit OTP -> enter new PIN -> confirm new PIN -> success.
+              Backend endpoint: POST /forgot-pin (Bearer-auth, uses the
+              user's own email — nothing to enter on the mobile side).
+            */}
+            {currentUser.hasPin && (
+              <button
+                onClick={() => setPinScreenMode('forgot_pin')}
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 hover:border-sky-500/50 transition-all group text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
+                    <KeyRound className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-white block font-display">Forgot Transaction PIN?</span>
+                    <span className="text-[10.5px] text-slate-400 font-medium">Reset via 6-digit OTP sent to your email</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-rose-300 bg-rose-500/15 px-3 py-1.5 rounded-xl border border-rose-500/30 flex items-center gap-1 group-hover:bg-rose-500/25 transition-all">
+                  Reset <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+              </button>
+            )}
 
             {/* Password Settings Row */}
             <button
