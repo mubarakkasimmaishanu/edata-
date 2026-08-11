@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, Lightbulb } from 'lucide-react';
+import { useBackHandler } from '../utils/backHandler';
 
 interface ElectricityBillProps {
   currentUser: UserProfile;
@@ -27,6 +28,10 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
+
   const [isValidatingNumber, setIsValidatingNumber] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [validationError, setValidationError] = useState('');

@@ -7,6 +7,7 @@ import PinScreen from './PinScreen';
 import { ChevronLeft, Wifi } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
 import { isValidPhoneNumber } from '../utils/phoneValidation';
+import { useBackHandler } from '../utils/backHandler';
 
 interface BuyDataProps {
   currentUser: UserProfile;
@@ -25,6 +26,9 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
 
   React.useEffect(() => {
     if (initialNetwork) {
