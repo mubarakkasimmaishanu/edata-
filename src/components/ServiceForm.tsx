@@ -83,7 +83,15 @@ const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
 
 // ─── Clean Plan Display & Section Title Formatters ───
-export function formatPlanDisplayName(p: ProductItem, defaultOperator: string = 'MTN'): string {
+// `includeType` controls the trailing "(AWOOF)" style tag. Callers that
+// render plan rows *under* a plan-type section header pass `false` so the
+// tag doesn't repeat what the header already says; callers rendering a
+// standalone summary (e.g. the closed-modal trigger button) leave it on.
+export function formatPlanDisplayName(
+  p: ProductItem,
+  defaultOperator: string = 'MTN',
+  includeType: boolean = true,
+): string {
   let name = (p.name || '').trim();
   const op = (p.operator || defaultOperator || 'MTN').trim();
   const pType = (p.planType || '').trim();
@@ -96,8 +104,8 @@ export function formatPlanDisplayName(p: ProductItem, defaultOperator: string = 
   // 2. Remove double closing parentheses if any
   name = name.replace(/\)\)+/g, ')');
 
-  // 3. Append type tag only if not already present in name
-  if (pType && pType !== 'OTHER') {
+  // 3. Append type tag only if requested AND not already present in name
+  if (includeType && pType && pType !== 'OTHER') {
     const pTypeLower = pType.toLowerCase();
     const nameLower = name.toLowerCase();
     if (!nameLower.includes(`(${pTypeLower})`) && !nameLower.includes(` ${pTypeLower}`)) {
@@ -976,7 +984,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                                     const isSelected = selectedProduct?.id === p.id;
                                     const dynamicPrice = getDynamicPrice(p);
                                     const opName = p.operator || detectedOperator || 'MTN';
-                                    const displayStr = `${formatPlanDisplayName(p, opName)} — ₦${dynamicPrice.toLocaleString('en-NG')}`;
+                                    // Rows live under a plan-type section
+                                    // header — suppress the trailing
+                                    // `(TYPE)` tag so it doesn't duplicate
+                                    // the header text.
+                                    const displayStr = `${formatPlanDisplayName(p, opName, false)} — ₦${dynamicPrice.toLocaleString('en-NG')}`;
 
                                     return (
                                       <div
