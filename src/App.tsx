@@ -215,6 +215,15 @@ function MainApp() {
         else if (srv.category_id === 5) category = 'Electricity';
         else if (srv.category_id === 6) category = 'A2C';
 
+        // Data / Cable / Electricity services are containers — the buyables
+        // live in the `plans` array below (one DataPlan per bundle, one
+        // CableBouquet per package, one MeterTariff per band). Pushing the
+        // parent service here leaks a ₦0 row like "MTN Data — ₦0" into the
+        // plan picker under an "OTHER" bucket. Mirror the admin faithfully:
+        // if it isn't a real plan the admin created, it doesn't render.
+        const isContainerCat = srv.category_id === 2 || srv.category_id === 4 || srv.category_id === 5;
+        if (isContainerCat) return;
+
         const slugLower = String(srv.slug || srv.name || '').toLowerCase();
         const opName = slugLower.includes('mtn') ? 'MTN'
           : slugLower.includes('glo') ? 'Glo'
