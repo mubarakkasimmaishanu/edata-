@@ -376,9 +376,9 @@ export default function PinScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col overflow-y-auto animate-fadeIn font-display">
+    <div className={`fixed inset-0 z-50 bg-slate-950 text-white flex flex-col animate-fadeIn font-display ${mode === 'purchase' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
       {/* ── Top Header Navigation ── */}
-      <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 py-3.5 flex items-center justify-between safe-top">
+      <header className={`sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 flex items-center justify-between safe-top ${mode === 'purchase' ? 'py-2' : 'py-3.5'}`}>
         <button
           onClick={onBack}
           disabled={loading}
@@ -406,53 +406,48 @@ export default function PinScreen({
       </header>
 
       {/* ── Main Content Area ── */}
-      <main className="flex-1 max-w-md mx-auto w-full px-5 py-6 flex flex-col justify-between">
-        <div className="space-y-6">
-          {/* ── Purchase Mode Summary Card ── */}
+      <main className={`flex-1 min-h-0 max-w-md mx-auto w-full flex flex-col ${mode === 'purchase' ? 'px-4 py-2.5 gap-2.5 justify-start pb-[calc(env(safe-area-inset-bottom)+0.5rem)]' : 'px-5 py-6 justify-between'}`}>
+        <div className={mode === 'purchase' ? 'space-y-2.5' : 'space-y-6'}>
+          {/* ── Purchase Mode Summary Card (Compact — fits full phone height, no scroll) ── */}
           {mode === 'purchase' && summary && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
 
-              <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-800/80">
-                <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner shrink-0">
+              {/* Header row: icon + title/provider chips + inline amount */}
+              <div className="flex items-center gap-2.5">
+                <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner shrink-0">
                   {renderIcon()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {summary.badge && (
-                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                      <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
                         {summary.badge}
                       </span>
                     )}
                     {summary.provider && (
-                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-slate-800 text-slate-300">
+                      <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-slate-800 text-slate-300">
                         {summary.provider}
                       </span>
                     )}
                   </div>
-                  <h3 className="text-base font-black text-white truncate mt-1">
+                  <h3 className="text-sm font-black text-white leading-tight mt-0.5 break-words">
                     {summary.title}
                   </h3>
                   {summary.subtitle && (
-                    <p className="text-xs text-slate-400 font-medium truncate">
+                    <p className="text-[11px] text-slate-400 font-medium truncate leading-tight">
                       {summary.subtitle}
                     </p>
                   )}
                 </div>
-              </div>
-
-              {/* Amount Display with Dynamic Promo Discount */}
-              <div className="text-center py-2 bg-slate-950/60 rounded-2xl border border-slate-800/60">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Total Payable Amount
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-0.5">
+                <div className="text-right shrink-0">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 leading-none">Total</p>
                   {promoDiscount > 0 && typeof summary.amount === 'number' && (
-                    <span className="text-sm font-bold text-slate-400 line-through">
+                    <span className="block text-[10px] font-bold text-slate-500 line-through leading-tight">
                       ₦{summary.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </span>
                   )}
-                  <p className="text-3xl font-black text-sky-400 tracking-tight">
+                  <p className="text-lg font-black text-sky-400 tracking-tight leading-tight">
                     {typeof summary.amount === 'number'
                       ? `₦${Math.max(0, summary.amount - promoDiscount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
                       : summary.amount}
@@ -460,14 +455,14 @@ export default function PinScreen({
                 </div>
               </div>
 
-              {/* Promo Code Input / Applied Badge */}
-              <div className="mt-3 pt-3 border-t border-slate-800/60">
+              {/* Promo Code Row (compact) */}
+              <div className="mt-2 pt-2 border-t border-slate-800/60">
                 {appliedPromoCode ? (
-                  <div className="flex items-center justify-between p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs">
-                    <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-emerald-400" />
-                      <span className="font-bold text-emerald-300">
-                        PROMO: <span className="font-mono">{appliedPromoCode}</span> (-₦{promoDiscount.toFixed(2)})
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-[11px]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="font-bold text-emerald-300 truncate">
+                        {appliedPromoCode} <span className="text-emerald-400/80">(-₦{promoDiscount.toFixed(2)})</span>
                       </span>
                     </div>
                     <button
@@ -478,45 +473,45 @@ export default function PinScreen({
                         setPromoCodeInput('');
                         toast.info('Promo code removed.');
                       }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-rose-400 cursor-pointer"
+                      className="text-[10px] font-bold text-slate-400 hover:text-rose-400 cursor-pointer shrink-0 ml-2"
                     >
                       Remove
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Tag className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1 min-w-0">
+                      <Tag className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={promoCodeInput}
                         onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                        placeholder="Promo Code (Optional)"
+                        placeholder="Promo code (optional)"
                         disabled={loading || validatingPromo}
-                        className="w-full bg-slate-950/90 border border-slate-800 focus:border-sky-500 text-sky-300 font-mono font-bold text-xs pl-8 pr-3 py-2 rounded-xl transition-all outline-none uppercase"
+                        className="w-full bg-slate-950/90 border border-slate-800 focus:border-sky-500 text-sky-300 font-mono font-bold text-[11px] pl-7 pr-2 py-1.5 rounded-lg transition-all outline-none uppercase"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={handleApplyPromoCode}
                       disabled={loading || validatingPromo || !promoCodeInput.trim()}
-                      className="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-[11px] rounded-lg transition-all cursor-pointer shrink-0 flex items-center gap-1"
                     >
-                      {validatingPromo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Apply'}
+                      {validatingPromo ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Apply'}
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Recipient Input Field - Rendered ONLY for services requiring a target (Airtime, Data, Cable, Electricity, A2C) */}
+              {/* Recipient Row (compact) — Rendered ONLY for services requiring a target */}
               {requiresRecipient && (
-                <div className="mt-4 pt-3 border-t border-slate-800/60 space-y-1.5 text-left">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Smartphone className="w-3.5 h-3.5 text-sky-400" />
+                <div className="mt-2 pt-2 border-t border-slate-800/60 text-left">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center justify-between mb-1">
+                    <span className="flex items-center gap-1">
+                      <Smartphone className="w-3 h-3 text-sky-400" />
                       {getRecipientLabel()}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">Tap to edit</span>
+                    <span className="text-[9px] text-slate-500 font-normal">Tap to edit</span>
                   </label>
                   <input
                     type="text"
@@ -536,7 +531,7 @@ export default function PinScreen({
                     placeholder={getRecipientPlaceholder()}
                     maxLength={serviceTypeLower === 'airtime' || serviceTypeLower === 'data' || serviceTypeLower === 'a2c' ? 11 : 20}
                     disabled={loading}
-                    className={`w-full bg-slate-950/90 border font-mono font-bold text-sm px-3.5 py-2.5 rounded-xl transition-all outline-none focus:ring-1 focus:ring-sky-500/50 shadow-inner ${
+                    className={`w-full bg-slate-950/90 border font-mono font-bold text-[13px] px-3 py-1.5 rounded-lg transition-all outline-none focus:ring-1 focus:ring-sky-500/50 shadow-inner ${
                       requiresRecipient && !isRecipientValid
                         ? 'border-rose-500/80 text-rose-300 focus:border-rose-500'
                         : 'border-slate-800 focus:border-sky-500 text-sky-300'
@@ -544,12 +539,16 @@ export default function PinScreen({
                   />
                 </div>
               )}
-              {summary.details?.map((item, idx) => (
-                <div key={idx} className="mt-2 flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">{item.label}:</span>
-                  <span className="font-semibold text-slate-200">{item.value}</span>
+              {summary.details && summary.details.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-slate-800/60 space-y-0.5">
+                  {summary.details.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-medium">{item.label}:</span>
+                      <span className="font-semibold text-slate-200 truncate ml-2">{item.value}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -682,44 +681,74 @@ export default function PinScreen({
 
           {/* ── Primary PIN Input Section (When not on forgot_pin Step 1) ── */}
           {(mode !== 'forgot_pin' || step > 1) && (
-            <div className="space-y-4 pt-2">
-              <div className="text-center">
-                <p className={`text-xs font-black uppercase tracking-wider mb-2 ${
-                  theme === 'light' ? 'text-slate-700 font-display' : 'text-slate-400 font-display'
-                }`}>
-                  {mode === 'purchase' || mode === 'upgrade_pin'
-                    ? 'Enter 4-Digit Transaction PIN'
-                    : mode === 'forgot_pin' && step === 2
-                    ? 'Enter 6-Digit OTP Code'
-                    : 'Enter 4 Digits'}
-                </p>
+            <div className={mode === 'purchase' ? 'space-y-2' : 'space-y-4 pt-2'}>
+              {mode === 'purchase' ? (
+                /* Compact single-row: label + Show/Hide toggle side-by-side */
+                <div className="flex items-center justify-between px-1">
+                  <p className={`text-[11px] font-black uppercase tracking-wider font-display ${
+                    theme === 'light' ? 'text-slate-700' : 'text-slate-400'
+                  }`}>
+                    Enter 4-Digit PIN
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border ${
+                      theme === 'light'
+                        ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-sm'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {showPin ? (
+                      <>
+                        <EyeOff className="w-3 h-3 text-sky-500" /> Hide
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3 h-3 text-sky-500" /> Show
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className={`text-xs font-black uppercase tracking-wider mb-2 ${
+                    theme === 'light' ? 'text-slate-700 font-display' : 'text-slate-400 font-display'
+                  }`}>
+                    {mode === 'upgrade_pin'
+                      ? 'Enter 4-Digit Transaction PIN'
+                      : mode === 'forgot_pin' && step === 2
+                      ? 'Enter 6-Digit OTP Code'
+                      : 'Enter 4 Digits'}
+                  </p>
 
-                {/* Mask Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setShowPin(!showPin)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer mb-3 border ${
-                    theme === 'light'
-                      ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-sm'
-                      : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
-                  }`}
-                >
-                  {showPin ? (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5 text-sky-500" /> Hide Digits
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5 text-sky-500" /> Show Digits
-                    </>
-                  )}
-                </button>
-              </div>
+                  {/* Mask Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer mb-3 border ${
+                      theme === 'light'
+                        ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-sm'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {showPin ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-sky-500" /> Hide Digits
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-sky-500" /> Show Digits
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Recipient Validation Warning Banner */}
               {mode === 'purchase' && requiresRecipient && !isRecipientValid && (
-                <div className="flex items-center justify-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-400 font-semibold mb-3 animate-pulse">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-400 font-semibold animate-pulse">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>Incomplete {getRecipientLabel().toLowerCase()} (11 digits required).</span>
                 </div>
               )}
@@ -738,19 +767,23 @@ export default function PinScreen({
 
               {/* Error Message Display */}
               {hasError && errorMessage && (
-                <div className="flex items-center justify-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-400 font-semibold animate-shake">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className={`flex items-center justify-center gap-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold animate-shake ${
+                  mode === 'purchase' ? 'px-2.5 py-1.5 rounded-xl text-[11px]' : 'p-3 rounded-2xl text-xs'
+                }`}>
+                  <AlertCircle className={`shrink-0 ${mode === 'purchase' ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               {/* Primary Action / Confirm Button */}
-              <div className="pt-3">
+              <div className={mode === 'purchase' ? 'pt-1' : 'pt-3'}>
                 <button
                   type="button"
                   onClick={() => handleComplete(pin)}
                   disabled={!isPinComplete || (mode === 'purchase' && requiresRecipient && !isRecipientValid) || loading}
-                  className="w-full py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.98] cursor-pointer btn-sheen uppercase tracking-wider"
+                  className={`w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.98] cursor-pointer btn-sheen uppercase tracking-wider ${
+                    mode === 'purchase' ? 'py-2.5 rounded-xl text-[13px]' : 'py-4 rounded-2xl text-sm'
+                  }`}
                 >
                   {loading ? (
                     <>
