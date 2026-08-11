@@ -3,7 +3,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ─── Global Light / Dark Theme Overrides ─── */
+/* ══════════════════════════════════════════════════════════════════════════
+   Global Light / Dark Theme Overrides
+   ──────────────────────────────────────────────────────────────────────────
+   Order matters: pale-color text overrides come BEFORE the coloured-button
+   text-preservation block so the button rule wins on saturated backgrounds
+   (a `text-sky-200` label inside a `bg-sky-500` button stays white).
+   ══════════════════════════════════════════════════════════════════════════ */
+
 .light {
   color-scheme: light;
   background-color: #f4f7fb;
@@ -16,70 +23,141 @@
   color: #f8fafc;
 }
 
-/* System-wide Light Theme adaptations */
+/* ─── Page & full-bleed dark surfaces → light page background ─── */
 .light .bg-slate-900,
 .light .bg-slate-950 {
   background-color: #f4f7fb !important;
   color: #0f172a;
 }
 
+/* ─── Translucent dark surfaces → frosted white (Liquid Glass) ─── */
 .light .bg-slate-900\/90,
 .light .bg-slate-900\/95,
 .light .bg-slate-900\/80,
 .light .bg-slate-950\/90,
-.light .bg-slate-950\/80 {
-  background-color: rgba(255, 255, 255, 0.92) !important;
+.light .bg-slate-950\/80,
+.light .bg-slate-950\/60 {
+  background-color: rgba(255, 255, 255, 0.82) !important;
   color: #0f172a;
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
   border-color: #e2e8f0 !important;
 }
 
+/* ─── Solid dark card surfaces → clean white cards with subtle depth ─── */
 .light .bg-slate-800,
 .light .bg-slate-800\/90,
 .light .bg-slate-800\/80,
+.light .bg-slate-800\/60,
+.light .bg-slate-900\/70,
 .light .bg-slate-900\/60,
 .light .bg-\[\#161a20\],
 .light .bg-\[\#181d24\],
 .light .bg-\[\#202732\] {
-  background-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
   color: #0f172a;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
 }
 
+/* ─── Nested "filter chip" section backgrounds → slightly tinted so
+       white chips inside pop against them ─── */
+.light .bg-\[\#1a202a\],
+.light .bg-slate-800\/50,
+.light .bg-slate-900\/40 {
+  background-color: #eef2f7 !important;
+  color: #0f172a;
+  border-color: #e2e8f0 !important;
+}
+
+/* ─── Borders ─── */
 .light .border-slate-800,
+.light .border-slate-800\/60,
+.light .border-slate-800\/80,
 .light .border-slate-700,
+.light .border-slate-700\/60,
 .light .border-slate-700\/80,
-.light .border-slate-700\/60 {
+.light .border-slate-700\/90 {
   border-color: #e2e8f0 !important;
 }
 
+/* ─── Neutral text scale ─── */
+.light .text-white,
+.light .text-slate-50,
 .light .text-slate-100,
-.light .text-slate-200,
-.light .text-white {
-  color: #0f172a;
-}
+.light .text-slate-200 { color: #0f172a; }
+.light .text-slate-300 { color: #334155; }
+.light .text-slate-400 { color: #475569; }
+.light .text-slate-500 { color: #64748b; }
+.light .text-slate-600 { color: #475569; }
 
-.light .text-slate-400,
-.light .text-slate-300 {
-  color: #475569;
-}
+/* ─── Pale coloured text that was invisible on white — darker, readable
+       equivalents. Applies globally EXCEPT inside coloured buttons and
+       the hero wallet card (both handled below with later rules). ─── */
+.light .text-sky-200,
+.light .text-sky-300 { color: #0369a1; }              /* sky-700 */
+.light .text-sky-400 { color: #0284c7; }              /* sky-600 */
+.light .text-emerald-200,
+.light .text-emerald-300 { color: #047857; }          /* emerald-700 */
+.light .text-emerald-400 { color: #059669; }          /* emerald-600 */
+.light .text-rose-200,
+.light .text-rose-300 { color: #be123c; }             /* rose-700 */
+.light .text-rose-400 { color: #e11d48; }             /* rose-600 */
+.light .text-amber-200,
+.light .text-amber-300 { color: #b45309; }            /* amber-700 */
+.light .text-amber-400 { color: #d97706; }            /* amber-600 */
+.light .text-teal-200,
+.light .text-teal-300 { color: #0f766e; }             /* teal-700 */
+.light .text-teal-400 { color: #0d9488; }             /* teal-600 */
+.light .text-purple-200,
+.light .text-purple-300 { color: #6d28d9; }           /* purple-700 */
+.light .text-purple-400 { color: #7c3aed; }           /* purple-600 */
+.light .text-indigo-200,
+.light .text-indigo-300 { color: #4338ca; }           /* indigo-700 */
+.light .text-indigo-400 { color: #4f46e5; }           /* indigo-600 */
+.light .text-cyan-200,
+.light .text-cyan-300 { color: #0e7490; }             /* cyan-700 */
+.light .text-cyan-400 { color: #0891b2; }             /* cyan-600 */
+.light .text-fuchsia-200,
+.light .text-fuchsia-300,
+.light .text-fuchsia-400 { color: #a21caf; }          /* fuchsia-700 */
 
-/* Preserve bright white text on primary buttons */
+/* ─── Preserve white text on saturated primary buttons.
+       MUST come AFTER pale-colour overrides so the button rule wins. ─── */
 .light .bg-sky-500,
 .light .bg-sky-600,
-.light .bg-\[\#0284c7\],
-.light .bg-emerald-500,
-.light .bg-rose-500,
 .light .bg-sky-500 *,
 .light .bg-sky-600 *,
+.light .bg-\[\#0284c7\],
 .light .bg-\[\#0284c7\] *,
+.light .bg-emerald-500,
+.light .bg-emerald-500 *,
+.light .bg-emerald-600,
+.light .bg-emerald-600 *,
+.light .bg-rose-500,
+.light .bg-rose-500 *,
+.light .bg-rose-600,
+.light .bg-rose-600 *,
+.light .bg-amber-500,
+.light .bg-amber-500 *,
+.light .bg-teal-500,
+.light .bg-teal-500 *,
 .light button.bg-sky-500,
 .light button.bg-sky-600,
 .light button.bg-\[\#0284c7\] {
   color: #ffffff !important;
 }
 
-/* ─── Hero Wallet Card High-Contrast Visibility Rules ─── */
+/* MTN yellow button: yellow is too light for white text; keep it dark. */
+.light .bg-amber-400,
+.light .bg-amber-400 * {
+  color: #0f172a !important;
+}
+
+/* ─── Hero Wallet Card — stays dark blue gradient in both themes so
+       balance is always readable on the primary dashboard surface. ─── */
 .hero-wallet-card,
 .hero-wallet-card *,
 .light .hero-wallet-card,
@@ -96,11 +174,8 @@
 .light .hero-wallet-card .text-sky-200,
 .light .hero-wallet-card .text-sky-300,
 .hero-wallet-card .text-sky-200,
-.hero-wallet-card .text-sky-300 {
-  color: #bae6fd !important;
-}
+.hero-wallet-card .text-sky-300 { color: #bae6fd !important; }
 
-/* Glass background buttons inside hero card */
 .light .hero-wallet-card .bg-white\/20,
 .hero-wallet-card .bg-white\/20 {
   background-color: rgba(255, 255, 255, 0.22) !important;
@@ -114,7 +189,6 @@
   border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* Primary white Add Money & Get Virtual Account buttons */
 .light .hero-wallet-card button.bg-white,
 .hero-wallet-card button.bg-white {
   background-color: #ffffff !important;
@@ -127,16 +201,75 @@
   stroke: #0c4a6e !important;
 }
 
-/* Inputs & Form Elements in Light Mode */
+/* ─── Inputs & Selects — always white with dark text in light mode ─── */
 .light input:not([type="checkbox"]),
-.light select {
+.light select,
+.light textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 
-.light input::placeholder {
-  color: #94a3b8 !important;
+.light input::placeholder,
+.light textarea::placeholder { color: #94a3b8 !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Liquid Glass — reusable UI utilities
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Sticky top headers (BuyAirtime, BuyData, etc.). Add class alongside
+   the existing `bg-slate-900/90 backdrop-blur-2xl` and it will render
+   as frosted white in light theme automatically. */
+.liquid-header { position: relative; }
+.light .liquid-header {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+}
+
+/* Wallet balance chip — appears in the top-right of every service page.
+   Under light theme the previous `text-sky-200 on bg-sky-500/20` combo
+   rendered as very-pale-blue text on very-pale-blue background (nearly
+   invisible). This utility ensures the amount is always high-contrast
+   and adds a subtle liquid-glass polish. Dark theme is untouched. */
+.wallet-chip {
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+}
+.light .wallet-chip {
+  background-color: rgba(14, 165, 233, 0.14) !important;
+  border-color: rgba(3, 105, 161, 0.45) !important;
+  box-shadow:
+    0 1px 2px rgba(3, 105, 161, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.light .wallet-chip .wallet-chip-label  { color: #075985 !important; } /* sky-800 */
+.light .wallet-chip .wallet-chip-amount { color: #0c4a6e !important; } /* sky-900 */
+
+/* Liquid card — subtle frosted-white content surface. Use on any card
+   that should read as glass in light theme. No effect in dark theme. */
+.light .liquid-card {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Filter chip pill (data plan modal). Unselected chips need a visible
+   edge in light theme so they don't blend into the nearly-white surface
+   they sit on. Selected chip (`.filter-chip-active`) is the coloured
+   sky-500 pill and needs no border. Dark theme is unaffected. */
+.light .filter-chip {
+  border: 1px solid #cbd5e1;
+}
+.light .filter-chip-active {
+  border-color: transparent !important;
 }
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

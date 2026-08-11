@@ -935,9 +935,9 @@ export default function ServiceForm(props: ServiceFormProps) {
                                     key={catKey}
                                     type="button"
                                     onClick={() => setDataTypeFilter(catKey)}
-                                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                                    className={`filter-chip px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
                                       dataTypeFilter.toUpperCase() === catKey
-                                        ? 'bg-sky-500 text-white shadow-sm'
+                                        ? 'filter-chip-active bg-sky-500 text-white shadow-sm'
                                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
                                     }`}
                                   >

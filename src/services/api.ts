@@ -32,7 +32,12 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
   const publicEndpoints = [
     '/login', '/signup', '/signup-request', '/signup-verify',
     '/signup-complete', '/google-auth', '/detect-network',
-    '/forgot-password', '/reset-password', '/quick-actions', '/services', '/support'
+    '/forgot-password', '/reset-password', '/quick-actions', '/services', '/support',
+    // Popups need to render on the auth screen too (force-update, promo
+    // teasers for prospective users), so keep the endpoint public — the
+    // backend can still gate per-user popups by looking at the token
+    // when one is sent.
+    '/popups',
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
