@@ -109,3 +109,53 @@ export interface PlanTypeItem {
   description?: string;
 }
 
+// ── Dynamic Popup / Banner ──────────────────────────────────────────────
+// Everything below is driven entirely by the admin panel via the /popups
+// endpoint. The mobile app never hardcodes copy, images, action targets,
+// or dismissibility — whatever the admin sets is what the user sees.
+//
+// `type` is a hint that lets the client choose an icon/accent — the admin
+// can add new types on the backend without shipping a new build; unknown
+// types fall back to the neutral "info" style.
+export type PopupType =
+  | 'update'        // Force / recommend an app update
+  | 'rate'          // Ask the user to rate the app
+  | 'info'          // Ask the user for information (opens `action_url`)
+  | 'promo'         // Announce a promotion / discount
+  | 'announcement'  // General notice
+  | string;         // Future-proof: admin-defined types are allowed
+
+export interface PopupBanner {
+  id: number | string;
+  title: string;
+  message: string;
+  image?: string | null;
+  type?: PopupType;
+  // Primary CTA — if `action_url` is present the button is shown. URLs can
+  // be an external https link, a Play/App-Store link, or an in-app route
+  // like `app://profile` (see PopupBanner.tsx for the resolver).
+  action_label?: string | null;
+  action_url?: string | null;
+  // Secondary CTA (optional — most popups don't need it).
+  secondary_label?: string | null;
+  secondary_url?: string | null;
+  // Force-update popups set this to false so the user can't dismiss the
+  // popup without acting on the CTA.
+  dismissible?: boolean;
+  // When true the popup is shown once per device (default). When false the
+  // popup shows every time until the admin marks it inactive.
+  show_once?: boolean;
+  // 'all' | 'basic' | 'referred' | 'premium' | 'guest' — filtered on
+  // the client too, so the admin can broadcast to a specific tier.
+  target_group?: string | null;
+  display_order?: number;
+  // 1 = active, 0 = inactive. Only active popups are ever rendered.
+  status?: number | boolean;
+  // Optional version gating — the admin can pin a popup to a range of
+  // app versions (semver strings, inclusive). Leave blank for "all".
+  min_app_version?: string | null;
+  max_app_version?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
