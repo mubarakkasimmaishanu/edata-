@@ -815,9 +815,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                           )}
                         </div>
 
-                        {/* Dynamic Category Filter Chips — driven entirely by
-                            admin-defined `plan_types` plus any codes that
-                            appear on live plans. No hardcoded chip list. */}
+                        {/* Dynamic Category Filter Chips — pure mirror of
+                            admin-defined `plan_types`. We do NOT auto-invent
+                            chips from codes that only appear on plans; if
+                            the admin didn't register a plan type, it does
+                            not render here. */}
                         {(() => {
                           const codeOrder: string[] = ['ALL'];
                           const seen = new Set<string>(['ALL']);
@@ -827,10 +829,6 @@ export default function ServiceForm(props: ServiceFormProps) {
                               if (c && !seen.has(c)) { seen.add(c); codeOrder.push(c); }
                             });
                           }
-                          dataProds.forEach(p => {
-                            const c = (p.planType || '').toUpperCase().trim();
-                            if (c && !seen.has(c)) { seen.add(c); codeOrder.push(c); }
-                          });
 
                           return (
                             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
@@ -918,29 +916,29 @@ export default function ServiceForm(props: ServiceFormProps) {
                             });
                           }
 
-                          // Ensure any plan with an unregistered code still
-                          // gets a bucket labelled from the code itself.
+                          // Pure-mirror grouping: one section per admin
+                          // plan_type (matched by exact code equality). Any
+                          // plan whose code does not match an admin code is
+                          // pooled into a single OTHER bucket — we do NOT
+                          // manufacture a new section per orphan code.
                           const groups: Record<string, ProductItem[]> = {};
-                          const codeOrderExtra: string[] = [];
+                          let hasOther = false;
                           filteredList.forEach(p => {
                             const rawType = (p.planType || '').toUpperCase().trim();
-                            const key = rawType || 'OTHER';
-                            if (!dynamicLabels[key]) {
-                              const idx = Object.keys(dynamicLabels).length + codeOrderExtra.length;
-                              dynamicLabels[key] = {
-                                title: key === 'OTHER'
-                                  ? 'Other Data Plans'
-                                  : formatPlanSectionTitle('', key),
-                                color: colorPalette[idx % colorPalette.length],
-                              };
-                              codeOrderExtra.push(key);
-                            }
+                            const key = rawType && dynamicLabels[rawType] ? rawType : 'OTHER';
+                            if (key === 'OTHER') hasOther = true;
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(p);
                           });
 
-                          // Preserve admin ordering first, then any extras
-                          // in the order they were discovered.
+                          if (hasOther && !dynamicLabels['OTHER']) {
+                            dynamicLabels['OTHER'] = {
+                              title: 'Other Data Plans',
+                              color: colorPalette[Object.keys(dynamicLabels).length % colorPalette.length],
+                            };
+                          }
+
+                          // Preserve admin ordering, then OTHER last.
                           const orderSet = new Set<string>();
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach(pt => {
@@ -948,8 +946,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                               if (c) orderSet.add(c);
                             });
                           }
-                          codeOrderExtra.forEach(k => orderSet.add(k));
-                          Object.keys(groups).forEach(k => orderSet.add(k));
+                          if (hasOther) orderSet.add('OTHER');
 
                           const dynamicOrder = Array.from(orderSet);
 
