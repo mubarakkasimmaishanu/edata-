@@ -873,11 +873,26 @@ export default function ServiceForm(props: ServiceFormProps) {
                       {/* Modal Body List grouped dynamically by Plan Type */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
                         {(() => {
-                          // Filter by the currently-selected chip. Chip
-                          // codes are literal admin-defined `plan_type`
-                          // strings; a plan matches when its own code
-                          // equals the chip. No hardcoded aliases.
-                          let filteredList = dataProds;
+                          // Build the set of codes the admin registered
+                          // once — used both to drop orphan plans and to
+                          // build section labels/order. If the admin
+                          // didn't write it, it does not render.
+                          const adminCodeSet = new Set<string>();
+                          if (planTypes && planTypes.length > 0) {
+                            planTypes.forEach(pt => {
+                              const c = (pt.code || '').toUpperCase().trim();
+                              if (c) adminCodeSet.add(c);
+                            });
+                          }
+
+                          // Strict pure-mirror: drop any plan whose code
+                          // isn't in the admin's plan_types list. Under
+                          // ALL, only admin-recognised plans show.
+                          let filteredList = dataProds.filter(p => {
+                            const c = (p.planType || '').toUpperCase().trim();
+                            return c && adminCodeSet.has(c);
+                          });
+
                           if (dataTypeFilter !== 'ALL') {
                             const activeFilter = dataTypeFilter.toUpperCase();
                             filteredList = filteredList.filter(p =>
@@ -903,9 +918,8 @@ export default function ServiceForm(props: ServiceFormProps) {
                           }
 
                           // Build the label + color map strictly from the
-                          // admin's plan_types plus any custom codes that
-                          // arrived on live plans. No baked-in SME /
-                          // GIFTING / CORPORATE / AWOOF / DATA-SHARE keys.
+                          // admin's plan_types. No fallback bucket, no
+                          // baked-in keys.
                           const colorPalette = [
                             'text-amber-400', 'text-emerald-400', 'text-sky-400',
                             'text-rose-400', 'text-purple-400', 'text-amber-300',
@@ -924,39 +938,25 @@ export default function ServiceForm(props: ServiceFormProps) {
                             });
                           }
 
-                          // Pure-mirror grouping: one section per admin
-                          // plan_type (matched by exact code equality). Any
-                          // plan whose code does not match an admin code is
-                          // pooled into a single OTHER bucket — we do NOT
-                          // manufacture a new section per orphan code.
+                          // Group plans strictly under their matching
+                          // admin plan_type. Orphans were already dropped
+                          // above, so every plan here belongs to a known
+                          // code — no OTHER bucket exists.
                           const groups: Record<string, ProductItem[]> = {};
-                          let hasOther = false;
                           filteredList.forEach(p => {
-                            const rawType = (p.planType || '').toUpperCase().trim();
-                            const key = rawType && dynamicLabels[rawType] ? rawType : 'OTHER';
-                            if (key === 'OTHER') hasOther = true;
+                            const key = (p.planType || '').toUpperCase().trim();
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(p);
                           });
 
-                          if (hasOther && !dynamicLabels['OTHER']) {
-                            dynamicLabels['OTHER'] = {
-                              title: 'Other Data Plans',
-                              color: colorPalette[Object.keys(dynamicLabels).length % colorPalette.length],
-                            };
-                          }
-
-                          // Preserve admin ordering, then OTHER last.
-                          const orderSet = new Set<string>();
+                          // Section order follows admin ordering exactly.
+                          const dynamicOrder: string[] = [];
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach(pt => {
                               const c = (pt.code || '').toUpperCase().trim();
-                              if (c) orderSet.add(c);
+                              if (c) dynamicOrder.push(c);
                             });
                           }
-                          if (hasOther) orderSet.add('OTHER');
-
-                          const dynamicOrder = Array.from(orderSet);
 
                           return dynamicOrder.map(key => {
                             const items = groups[key];
