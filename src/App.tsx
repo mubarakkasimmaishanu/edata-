@@ -206,6 +206,19 @@ function MainApp() {
 
       const mappedProducts: ProductItem[] = [];
 
+      // Derive "container services" purely from the shape of the admin's
+      // response: any service that has at least one plan hanging off it
+      // (via `service_type_id`) is a container — its own row shouldn't be
+      // pushed as a buyable, because the plans are the buyables. This
+      // stays flexible: whatever the admin sets up, we mirror.
+      const serviceIdsWithPlans = new Set<string>();
+      dbPlans.forEach((plan: any) => {
+        const sid = plan.service_type_id;
+        if (sid !== undefined && sid !== null) {
+          serviceIdsWithPlans.add(String(sid));
+        }
+      });
+
       dbServices.forEach((srv) => {
         let category: any = 'Airtime';
         if (srv.category_id === 1) category = 'Airtime';
@@ -215,14 +228,11 @@ function MainApp() {
         else if (srv.category_id === 5) category = 'Electricity';
         else if (srv.category_id === 6) category = 'A2C';
 
-        // Data / Cable / Electricity services are containers — the buyables
-        // live in the `plans` array below (one DataPlan per bundle, one
-        // CableBouquet per package, one MeterTariff per band). Pushing the
-        // parent service here leaks a ₦0 row like "MTN Data — ₦0" into the
-        // plan picker under an "OTHER" bucket. Mirror the admin faithfully:
-        // if it isn't a real plan the admin created, it doesn't render.
-        const isContainerCat = srv.category_id === 2 || srv.category_id === 4 || srv.category_id === 5;
-        if (isContainerCat) return;
+        // Skip container services — the buyables are the individual plans
+        // the admin attached (one DataPlan per bundle, one CableBouquet
+        // per package, one MeterTariff per band). Without this, a
+        // container leaks a ₦0 row like "MTN Data — ₦0" into the picker.
+        if (serviceIdsWithPlans.has(String(srv.id))) return;
 
         const slugLower = String(srv.slug || srv.name || '').toLowerCase();
         const opName = slugLower.includes('mtn') ? 'MTN'
