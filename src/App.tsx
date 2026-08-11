@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './components/Toast';
 import { INITIAL_SUBSCRIBERS, INITIAL_PRODUCTS, INITIAL_TRANSACTIONS, DEFAULT_USER } from './data';
 import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem } from './types';
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
+import { runBackHandlers } from './utils/backHandler';
 
 import AuthPage from './components/AuthPage';
 import SplashScreen from './components/SplashScreen';
@@ -111,6 +112,11 @@ function MainApp() {
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
 
   const handleGoBack = () => {
+    // App-level Quick Action PIN sheet takes precedence over the
+    // view-history pop. Screen-internal overlays (BuyData's PIN, the
+    // package/contact modals in ServiceForm, etc.) hook into the
+    // Capacitor listener directly via `useBackHandler` and are drained
+    // before this function is ever called.
     if (pinScreenMode) {
       setPinScreenMode(null);
       setActiveQuickAction(null);
@@ -129,35 +135,56 @@ function MainApp() {
       setActiveView('dashboard');
       setViewHistory(['dashboard']);
     } else {
+      // Genuinely nothing to go back to — follow the Android convention
+      // and exit the app.
       import('@capacitor/app').then(({ App: CapApp }) => {
         CapApp.exitApp();
       }).catch(() => {});
     }
   };
 
+  // Route the legacy `handleNavigate` (still used by ProfileSettings,
+  // TransactionHistory, ResellerUpgrade, referral) through `navigateTo`
+  // so both paths share the same dedupe-consecutive-view rule. Without
+  // this, back needed two presses after any of those screens navigated.
   const handleNavigate = (view: ActiveView, network?: string, planId?: number) => {
-    if (network) setPreselectedNetwork(network);
-    if (planId !== undefined) setPreselectedPlanId(planId);
-    setActiveView(view);
-    setViewHistory(prev => [...prev, view]);
+    navigateTo(view, { network, planId });
   };
 
+  // Keep the Capacitor back-button listener wired to the LATEST
+  // handleGoBack via a ref, and register it exactly ONCE on mount.
+  // The previous implementation re-ran this effect on every relevant
+  // state change and re-registered inside an async `import()`, so
+  // cleanup often fired before the handler existed — leaving stacked
+  // listeners with stale closures firing on every press.
+  const handleGoBackRef = useRef(handleGoBack);
+  handleGoBackRef.current = handleGoBack;
+
   useEffect(() => {
-    let handler: any;
+    let removeListener: (() => void) | null = null;
+    let cancelled = false;
+
     import('@capacitor/app').then(({ App: CapApp }) => {
+      if (cancelled) return;
       CapApp.addListener('backButton', () => {
-        handleGoBack();
+        // Give any open overlay first crack at the press — a modal
+        // or in-screen PIN closes without touching the view history.
+        if (runBackHandlers()) return;
+        handleGoBackRef.current();
       }).then(h => {
-        handler = h;
+        if (cancelled) {
+          h.remove();
+          return;
+        }
+        removeListener = () => h.remove();
       });
     }).catch(() => {});
 
     return () => {
-      if (handler && handler.remove) {
-        handler.remove();
-      }
+      cancelled = true;
+      if (removeListener) removeListener();
     };
-  }, [activeView, viewHistory, pinScreenMode]);
+  }, []);
 
   const handleSetCurrentUser = (user: UserProfile | ((prev: UserProfile) => UserProfile)) => {
     setCurrentUser(prev => {

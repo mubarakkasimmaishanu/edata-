@@ -7,6 +7,7 @@ import PinScreen from './PinScreen';
 import { ChevronLeft, Repeat } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
 import { isValidPhoneNumber } from '../utils/phoneValidation';
+import { useBackHandler } from '../utils/backHandler';
 
 interface AirtimeToCashProps {
   currentUser: UserProfile;
@@ -26,6 +27,9 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
   const [a2cPayout, setA2cPayout] = useState(0);
 
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
 
   const getDynamicPrice = (p: ProductItem) => p.priceNormal;
 

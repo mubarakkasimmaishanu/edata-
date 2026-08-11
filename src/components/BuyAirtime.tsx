@@ -7,6 +7,7 @@ import PinScreen from './PinScreen';
 import { ChevronLeft, Smartphone } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
 import { isValidPhoneNumber } from '../utils/phoneValidation';
+import { useBackHandler } from '../utils/backHandler';
 
 interface BuyAirtimeProps {
   currentUser: UserProfile;
@@ -23,6 +24,9 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   const [checkoutAmount, setCheckoutAmount] = useState('100');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
 
   React.useEffect(() => {
     if (initialNetwork) {

@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, BookOpen } from 'lucide-react';
+import { useBackHandler } from '../utils/backHandler';
 
 interface ExamPinsProps {
   currentUser: UserProfile;
@@ -27,6 +28,9 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
 
   const getDynamicPrice = (p: ProductItem) => p.priceNormal;
 

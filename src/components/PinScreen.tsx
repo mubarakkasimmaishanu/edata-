@@ -132,6 +132,7 @@ export default function PinScreen({
     }
   };
 
+
   const handleApplyPromoCode = async () => {
     if (!promoCodeInput.trim()) return;
     const code = promoCodeInput.trim().toUpperCase();
@@ -413,32 +414,39 @@ export default function PinScreen({
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
 
-              {/* Header row: icon + title/provider chips + inline amount */}
+              {/* Header row: icon + natural-language summary sentence + inline amount */}
               <div className="flex items-center gap-2.5">
                 <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner shrink-0">
                   {renderIcon()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {summary.badge && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                        {summary.badge}
-                      </span>
+                  {/*
+                    Natural-language purchase summary — reads as one sentence to
+                    the user, e.g. "Purchase MTN 1GB (3-7 days) for 09068500544?".
+                    Static prefix/suffix are muted so the meaningful parts
+                    (provider + plan + recipient) pop.
+                  */}
+                  <p className="text-[13px] font-bold text-slate-300 leading-snug break-words">
+                    <span className="text-slate-400 font-medium">Purchase </span>
+                    <span className="text-white font-black">
+                      {(() => {
+                        const provider = (summary.provider || '').trim();
+                        const title = (summary.title || '').trim();
+                        return provider && !title.toLowerCase().startsWith(provider.toLowerCase())
+                          ? `${provider} ${title}`
+                          : title;
+                      })()}
+                    </span>
+                    {requiresRecipient && recipientPhone.trim() && (
+                      <>
+                        <span className="text-slate-400 font-medium"> for </span>
+                        <span className="text-sky-300 font-black font-mono">
+                          {recipientPhone.trim()}
+                        </span>
+                      </>
                     )}
-                    {summary.provider && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-slate-800 text-slate-300">
-                        {summary.provider}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-sm font-black text-white leading-tight mt-0.5 break-words">
-                    {summary.title}
-                  </h3>
-                  {summary.subtitle && (
-                    <p className="text-[11px] text-slate-400 font-medium truncate leading-tight">
-                      {summary.subtitle}
-                    </p>
-                  )}
+                    <span className="text-slate-400 font-medium">?</span>
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 leading-none">Total</p>

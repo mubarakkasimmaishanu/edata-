@@ -4,6 +4,7 @@ import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, R
 import { api } from '../services/api';
 import { isValidRecipient, isValidPhoneNumber, normalizePhoneNumber } from '../utils/phoneValidation';
 import { openContactPicker } from '../utils/contactPicker';
+import { useBackHandler } from '../utils/backHandler';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -51,6 +52,65 @@ const NETWORK_PROVIDERS = [
   { name: 'Glo', icon: gloIcon, activeRing: 'ring-emerald-500/60 border-emerald-500 bg-emerald-500/10' },
   { name: '9mobile', icon: nineMobileIcon, activeRing: 'ring-teal-500/60 border-teal-500 bg-teal-500/10' },
 ];
+
+// ─── Network Brand Theme (Airtime & Data only) ───────────────────────────
+// Applied to the primary Pay button and the detected-operator chip so the
+// action area visibly matches whichever network is currently selected or
+// auto-detected. Uses full class-literal strings (not built at runtime) so
+// Tailwind JIT picks them up at build time.
+type NetworkTheme = {
+  btn: string;        // Pay button background + hover
+  btnText: string;    // Pay button label colour (dark on yellow, white elsewhere)
+  btnShadow: string;  // Pay button glow shadow
+  chipBg: string;     // Detected-operator chip background
+  chipBorder: string; // Detected-operator chip border
+  chipText: string;   // Detected-operator chip text
+};
+
+const NETWORK_THEMES: Record<string, NetworkTheme> = {
+  MTN: {
+    btn:        'bg-amber-400 hover:bg-amber-500',
+    btnText:    'text-slate-900',
+    btnShadow:  'shadow-amber-500/30',
+    chipBg:     'bg-amber-500/15',
+    chipBorder: 'border-amber-500/40',
+    chipText:   'text-amber-300',
+  },
+  AIRTEL: {
+    btn:        'bg-rose-500 hover:bg-rose-600',
+    btnText:    'text-white',
+    btnShadow:  'shadow-rose-500/30',
+    chipBg:     'bg-rose-500/15',
+    chipBorder: 'border-rose-500/40',
+    chipText:   'text-rose-300',
+  },
+  GLO: {
+    btn:        'bg-emerald-500 hover:bg-emerald-600',
+    btnText:    'text-white',
+    btnShadow:  'shadow-emerald-500/30',
+    chipBg:     'bg-emerald-500/15',
+    chipBorder: 'border-emerald-500/40',
+    chipText:   'text-emerald-300',
+  },
+  '9MOBILE': {
+    btn:        'bg-teal-500 hover:bg-teal-600',
+    btnText:    'text-white',
+    btnShadow:  'shadow-teal-500/30',
+    chipBg:     'bg-teal-500/15',
+    chipBorder: 'border-teal-500/40',
+    chipText:   'text-teal-300',
+  },
+};
+
+// Default (no network detected yet, or non-mobile service) — original sky look.
+const DEFAULT_THEME: NetworkTheme = {
+  btn:        'bg-sky-500 hover:bg-sky-600',
+  btnText:    'text-white',
+  btnShadow:  'shadow-sky-500/25',
+  chipBg:     'bg-slate-900',
+  chipBorder: 'border-slate-700',
+  chipText:   'text-sky-300',
+};
 
 // ─── Cable TV Provider Config ───
 const CABLE_PROVIDERS = [
@@ -204,6 +264,13 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [isContactModalOpen, setIsContactModalOpen] = React.useState<boolean>(false);
   const [manualContactInput, setManualContactInput] = React.useState<string>('');
 
+  // Android back closes an open modal before letting the app-level
+  // history handler pop the parent screen. Both modals register; the
+  // LIFO order in the handler stack matches on-screen z-order, so if
+  // both were somehow open the topmost would close first.
+  useBackHandler(isPackageModalOpen, () => setIsPackageModalOpen(false));
+  useBackHandler(isContactModalOpen, () => setIsContactModalOpen(false));
+
   const handleSelectContactNumber = (phone: string) => {
     let cleanVal = normalizePhoneNumber(phone);
     if (cleanVal.length > 11) cleanVal = cleanVal.slice(-11);
@@ -248,6 +315,17 @@ export default function ServiceForm(props: ServiceFormProps) {
   const amountEditable = ['electricity'].includes(serviceType);
   const showContactPicker = ['airtime', 'data'].includes(serviceType);
   const isA2C = serviceType === 'a2c';
+
+  // Live network brand theme — airtime & data only. Reacts to whichever
+  // network is currently selected (via network cards) or auto-detected
+  // (via `detectNetworkFromPhone` in the phone-number input handler),
+  // so the same lookup covers both selection paths. Falls back to the
+  // default sky theme when no network is known yet or the service isn't
+  // a mobile-network purchase (A2C keeps the neutral sky styling).
+  const isNetworkThemable = serviceType === 'airtime' || serviceType === 'data';
+  const activeNetworkTheme: NetworkTheme =
+    (isNetworkThemable && detectedOperator && NETWORK_THEMES[detectedOperator.toUpperCase()]) ||
+    DEFAULT_THEME;
 
   const categoryMap: Record<string, string> = {
     airtime: 'Airtime', data: 'Data', electricity: 'Electricity',
@@ -697,7 +775,9 @@ export default function ServiceForm(props: ServiceFormProps) {
               }`}
             />
             {showNetworkSelector && detectedOperator && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 text-sky-300 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider font-mono">
+              <span
+                className={`absolute right-3 top-1/2 -translate-y-1/2 border text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider font-mono transition-colors ${activeNetworkTheme.chipBg} ${activeNetworkTheme.chipBorder} ${activeNetworkTheme.chipText}`}
+              >
                 {detectedOperator}
               </span>
             )}
@@ -1224,11 +1304,11 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Submit Button ─── */}
+      {/* ─── Submit Button (network-brand themed for airtime & data) ─── */}
       <button
         onClick={handleSubmit}
         disabled={isPurchasing}
-        className="w-full bg-sky-500 hover:bg-sky-600 disabled:bg-slate-700 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-sky-500/25 transition-spring active:scale-[0.98] mt-1 btn-sheen cursor-pointer font-display uppercase tracking-wider"
+        className={`w-full font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl transition-spring active:scale-[0.98] mt-1 btn-sheen cursor-pointer font-display uppercase tracking-wider disabled:bg-slate-700 disabled:text-white disabled:shadow-none ${activeNetworkTheme.btn} ${activeNetworkTheme.btnText} ${activeNetworkTheme.btnShadow}`}
       >
         {isPurchasing ? (
           <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>

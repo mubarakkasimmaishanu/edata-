@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { useToast } from './Toast';
 import PinScreen from './PinScreen';
-import { 
-  ChevronLeft, Check, Sparkles, ShieldCheck, Zap, 
-  TrendingUp, HelpCircle, ChevronDown, Award, Users, 
-  Headphones, ArrowRight, Lock, Wallet, Percent, DollarSign, RefreshCw 
+import {
+  ChevronLeft, Check, Sparkles, ShieldCheck, Zap,
+  TrendingUp, HelpCircle, ChevronDown, Award, Users,
+  Headphones, ArrowRight, Lock, Wallet, Percent, DollarSign, RefreshCw
 } from 'lucide-react';
+import { useBackHandler } from '../utils/backHandler';
 
 interface ResellerUpgradeProps {
   currentUser: UserProfile;
@@ -18,6 +19,10 @@ interface ResellerUpgradeProps {
 export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavigate }: ResellerUpgradeProps) {
   const toast = useToast();
   const [showPinScreen, setShowPinScreen] = useState(false);
+
+  // Android back closes the PIN sheet before it can pop the whole page.
+  useBackHandler(showPinScreen, () => setShowPinScreen(false));
+
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [dailyVolume, setDailyVolume] = useState<number>(15); // Default 15 txns/day
 
