@@ -354,6 +354,15 @@ export const api = {
   async getSupportInfo() {
     return request('/support');
   },
+
+  // Fetch admin-managed popup banners. Public endpoint — works with or
+  // without a token; the backend returns guest-only popups when there is
+  // no bearer. `appVersion` is forwarded so the server can gate popups
+  // to a specific mobile version range without a client rebuild.
+  async getPopups(silent = false, appVersion?: string) {
+    const qs = appVersion ? `?app_version=${encodeURIComponent(appVersion)}` : '';
+    return request(`/popups${qs}`, {}, silent);
+  },
 };
 
 
