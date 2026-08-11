@@ -725,8 +725,17 @@ button, a, input, select, textarea, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Hardware Accelerated Layers for Floating & Fixed Elements */
-.fixed, .sticky, [class*="backdrop-blur"] {
+/* Hardware Accelerated Layers — sparingly.
+   `will-change: transform` reserves a dedicated GPU compositor layer AND
+   holds it in memory even when nothing is animating. On low-RAM Android
+   devices, too many layers cause memory pressure and layer thrashing.
+   Only `.sticky` truly benefits (its transform is animated on every
+   scroll frame). `.fixed` and any element with a `backdrop-blur-*` class
+   was overkill — most `.fixed` elements are one-shot modals that don't
+   animate, and after the Liquid Glass cleanup very few elements still
+   carry `backdrop-blur-*`. Explicit `.gpu-layer` class remains available
+   for components that genuinely need forced promotion. */
+.sticky, .gpu-layer {
   transform: translateZ(0);
   backface-visibility: hidden;
   will-change: transform;

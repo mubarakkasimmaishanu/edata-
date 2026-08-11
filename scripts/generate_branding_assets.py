@@ -7,7 +7,8 @@ RES_DIR = os.path.join(PROJECT_ROOT, "android", "app", "src", "main", "res")
 # Input assets
 EDATA_LOGO_PATH = os.path.join(PROJECT_ROOT, "assets", "icons", "eData.png")
 FOREGROUND_PATH = os.path.join(PROJECT_ROOT, "assets", "icons", "android-icon-foreground.png")
-SPLASH_ICON_PATH = os.path.join(PROJECT_ROOT, "assets", "icons", "splash-icon.png")
+LOGO_LOADER_PATH = os.path.join(PROJECT_ROOT, "assets", "logo_loader.png")
+SPLASH_ICON_PATH = LOGO_LOADER_PATH if os.path.exists(LOGO_LOADER_PATH) else os.path.join(PROJECT_ROOT, "assets", "icons", "splash-icon.png")
 
 BRAND_BG_COLOR = (15, 23, 42, 255) # #0f172a dark theme slate blue
 

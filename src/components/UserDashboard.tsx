@@ -522,7 +522,11 @@ export default function UserDashboard({
           </div>
         </section>
 
-        {/* ── 5. Reseller License Banner Card ── */}
+        {/* ── 5. Reseller License Banner Card ──
+             Basic users see the Upgrade CTA (routes straight to payment).
+             Users with a pending UpgradeRequest see a Pending Approval pill
+             instead so they don't tap Upgrade a second time — matching the
+             Web card at [account/index.php]. */}
         {currentUser.category !== 'Premium User' && (
           <section className={`rounded-3xl p-4 flex items-center justify-between gap-3 transition-all ${
             theme === 'light'
@@ -542,17 +546,31 @@ export default function UserDashboard({
               }`}>Reseller License</h3>
               <p className={`text-[11px] font-medium ${
                 theme === 'light' ? 'text-slate-600' : 'text-slate-400'
-              }`}>Get wholesale agent discounts on all purchases.</p>
+              }`}>
+                {currentUser.hasPendingUpgrade
+                  ? 'Payment received. Awaiting admin approval.'
+                  : 'Get wholesale agent discounts on all purchases.'}
+              </p>
             </div>
 
-            <button
-              onClick={() => onNavigate('upgrade')}
-              className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
-            >
-              {currentUser.upgradeFee && currentUser.upgradeFee > 0
-                ? `Upgrade ₦${currentUser.upgradeFee.toLocaleString('en-NG')}`
-                : 'Upgrade Now'}
-            </button>
+            {currentUser.hasPendingUpgrade ? (
+              <span
+                className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-500 border border-amber-500/30 font-black text-[11px] px-3 py-2 rounded-xl shrink-0 font-display whitespace-nowrap"
+                title="Your upgrade request is awaiting admin review"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Pending Review
+              </span>
+            ) : (
+              <button
+                onClick={() => onNavigate('upgrade')}
+                className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition-spring active:scale-95 cursor-pointer shrink-0 font-display whitespace-nowrap"
+              >
+                {currentUser.upgradeFee && currentUser.upgradeFee > 0
+                  ? `Upgrade ₦${currentUser.upgradeFee.toLocaleString('en-NG')}`
+                  : 'Upgrade Now'}
+              </button>
+            )}
           </section>
         )}
 

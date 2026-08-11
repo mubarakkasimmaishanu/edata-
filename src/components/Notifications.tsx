@@ -221,7 +221,7 @@ export default function Notifications({ notifications: propNotifications = [], o
                     <div className={`w-12 h-12 rounded-2xl overflow-hidden shrink-0 border p-0.5 ${
                       theme === 'light' ? 'border-slate-300 bg-slate-100' : 'border-slate-800 bg-slate-950'
                     }`}>
-                      <img src={n.image} alt={n.title} className="w-full h-full object-cover rounded-xl" />
+                      <img src={n.image} alt={n.title} loading="lazy" decoding="async" className="w-full h-full object-cover rounded-xl" />
                     </div>
                   ) : (
                     <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30">

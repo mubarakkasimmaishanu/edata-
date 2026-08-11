@@ -539,7 +539,10 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
         <ResellerUpgrade
           currentUser={currentUser}
           onBack={() => setFullScreenView(null)}
-          onSuccess={() => setFullScreenView(null)}
+          onSuccess={() => {
+            setCurrentUser(prev => ({ ...prev, category: 'Premium User', hasPendingUpgrade: false }));
+            setFullScreenView(null);
+          }}
           onNavigate={(v) => {
             setFullScreenView(null);
             if (onNavigate) onNavigate(v);
