@@ -487,7 +487,6 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
       {pinScreenMode && (
         <PinScreen
           mode={pinScreenMode}
-          userEmail={currentUser.email}
           onBack={() => setPinScreenMode(null)}
           onSuccess={() => {
             if (pinScreenMode === 'set_pin' || pinScreenMode === 'change_pin' || pinScreenMode === 'forgot_pin') {

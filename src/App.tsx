@@ -1216,7 +1216,6 @@ function MainApp() {
               {pinScreenMode && (
                 <PinScreen
                   mode={pinScreenMode}
-                  userEmail={currentUser.email}
                   summary={
                     pinScreenMode === 'purchase' && activeQuickAction
                       ? {

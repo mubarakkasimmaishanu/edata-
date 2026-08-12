@@ -349,25 +349,35 @@ export default function UserDashboard({
             </button>
           </div>
 
-          {/* Middle Row: Balance Digits + Eye Toggle + Add Money Capsule */}
+          {/* Middle Row: Balance Digits + Eye Toggle + Add Money Capsule
+              Balance uses a fluid `clamp()` font size so a 7-digit
+              balance (₦1,000,000.00) never slides under the Add Money
+              pill on narrow phones. The balance group is `flex-1
+              min-w-0` so it can shrink, and Add Money keeps `shrink-0`
+              so it stays fully tappable. */}
           <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2 min-w-0 shrink">
-              <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white drop-shadow-sm tabular-nums whitespace-nowrap">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span
+                className="font-black font-mono tracking-tight text-white drop-shadow-sm tabular-nums whitespace-nowrap"
+                style={{ fontSize: 'clamp(1.125rem, 5.8vw, 1.875rem)' }}
+              >
                 {isBalanceHidden ? '₦ ••••••••' : formatMoney(currentUser.walletBalance)}
               </span>
 
               <button
                 onClick={() => setIsBalanceHidden(!isBalanceHidden)}
                 className="text-white/80 hover:text-white transition-colors p-1.5 bg-white/20 rounded-xl backdrop-blur-md border border-white/20 active:scale-95 cursor-pointer shrink-0"
+                aria-label={isBalanceHidden ? 'Show balance' : 'Hide balance'}
               >
                 {isBalanceHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
 
-            {/* Add Money Button */}
+            {/* Add Money Button — shrink-0 guarantees it never gets
+                covered by the balance digits, no matter the amount. */}
             <button
               onClick={() => onNavigate('fund')}
-              className="bg-white text-sky-950 font-black text-xs px-4 py-2.5 rounded-full shadow-xl transition-spring active:scale-95 flex items-center justify-center gap-1.5 btn-sheen cursor-pointer shrink-0 font-display"
+              className="bg-white text-sky-950 font-black text-xs px-3.5 py-2.5 rounded-full shadow-xl transition-spring active:scale-95 flex items-center justify-center gap-1.5 btn-sheen cursor-pointer shrink-0 font-display"
             >
               <Plus className="w-4 h-4 text-sky-600 stroke-[3]" />
               Add Money
@@ -382,13 +392,20 @@ export default function UserDashboard({
               const accNum = vAcc.account_number;
               const bankName = vAcc.bank_name || 'Virtual Account';
               return (
+                // Two-line layout so the FULL account number is never
+                // truncated regardless of bank name length or device
+                // width: line 1 = tiny label + bank chip, line 2 = the
+                // 10-digit number in bold mono. Copy button is
+                // icon-only (title/aria-label carry the semantics) so
+                // the number gets the widest possible track.
                 <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">VIRTUAL ACCOUNT</span>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest font-display">VIRTUAL ACCOUNT</span>
+                      <span className="text-[9.5px] font-bold text-white/70 uppercase tracking-wider font-display">• {bankName}</span>
                     </div>
-                    <p className="text-xs font-bold text-white font-mono tracking-wider truncate">
-                      {bankName} • <span className="text-sky-200">{accNum}</span>
+                    <p className="text-sm font-black text-white font-mono tracking-wider whitespace-nowrap tabular-nums">
+                      {accNum}
                     </p>
                   </div>
 
@@ -402,11 +419,11 @@ export default function UserDashboard({
                         toast.success(`Account number ${accNum} copied! Transfer from any bank app to fund wallet.`);
                         setTimeout(() => setCopiedAccount(false), 2500);
                       }}
-                      className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold border border-white/25 flex items-center gap-1 transition-all active:scale-95 cursor-pointer font-display"
-                      title="Copy Account Number"
+                      className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl border border-white/25 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                      title={copiedAccount ? 'Copied' : 'Copy Account Number'}
+                      aria-label={copiedAccount ? 'Copied' : 'Copy Account Number'}
                     >
-                      {copiedAccount ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
+                      {copiedAccount ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
                     </button>
 
                     <button
@@ -414,6 +431,7 @@ export default function UserDashboard({
                       onClick={() => onNavigate('fund')}
                       className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl border border-white/25 transition-all active:scale-95 cursor-pointer"
                       title="Funding Options"
+                      aria-label="Funding Options"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
