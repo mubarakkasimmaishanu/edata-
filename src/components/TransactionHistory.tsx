@@ -8,7 +8,7 @@ import BottomSheet from './BottomSheet';
 import { useToast } from './Toast';
 
 import { formatMoney } from '../utils/formatters';
-import { api } from '../services/api';
+import { fetchSupportInfo, readCachedSupportInfo } from '../utils/supportInfo';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
@@ -96,13 +96,16 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
   const handleReportIssue = async (tx: Transaction) => {
     const refCode = tx.reference || tx.id;
     const msg = `Hello eData Support, I need assistance with transaction Ref: ${refCode}\nService: ${tx.productName || tx.type}\nTarget Number: ${tx.phoneOrMeter || 'N/A'}\nAmount: ${formatMoney(tx.amount)}\nDate: ${tx.date || 'Recent'}\nStatus: ${tx.status}`;
-    let whatsappNum = '2348104530781';
-    try {
-      const res = await api.getSupportInfo();
-      if (res?.success && res?.data?.whatsapp) {
-        whatsappNum = res.data.whatsapp;
-      }
-    } catch {}
+    // Try the live admin-configured number first, but fall back to the
+    // last cached value on slow/no network. No baked-in number — if the
+    // admin has never configured one and we have no cache, we tell the
+    // user to open Help & Support rather than dial a wrong number.
+    const info = await fetchSupportInfo();
+    const whatsappNum = info.whatsapp || readCachedSupportInfo().whatsapp;
+    if (!whatsappNum) {
+      toast.error('Support contact is not configured yet. Please try again shortly.');
+      return;
+    }
     const whatsappUrl = `https://wa.me/${whatsappNum}?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, '_blank');
   };

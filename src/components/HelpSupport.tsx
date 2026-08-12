@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MessageCircle, Phone, Mail, ChevronDown, MapPin } from 'lucide-react';
-import { api } from '../services/api';
+import {
+  fetchSupportInfo,
+  readCachedSupportInfo,
+  SupportInfo,
+} from '../utils/supportInfo';
 
 interface HelpSupportProps {
   onBack: () => void;
@@ -8,28 +12,18 @@ interface HelpSupportProps {
 
 export default function HelpSupport({ onBack }: HelpSupportProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [support, setSupport] = useState({
-    phone: '08104530781',
-    email: 'info@edata.com.ng',
-    address: 'No 24 Basawa Road Kaduna, Kaduna State',
-    whatsapp: '2348104530781'
-  });
+  // Seed from the last successful admin fetch that we cached locally.
+  // Never from baked-in numbers/emails — the Website Configuration in
+  // the admin dashboard is the single source of truth, and if we have
+  // never contacted the server we would rather render blanks (so tiles
+  // are hidden below) than a wrong number.
+  const [support, setSupport] = useState<SupportInfo>(() => readCachedSupportInfo());
 
   useEffect(() => {
     let mounted = true;
-    api.getSupportInfo()
-      .then(res => {
-        if (mounted && res?.success && res?.data) {
-          setSupport({
-            phone: res.data.phone || '08104530781',
-            email: res.data.email || 'info@edata.com.ng',
-            address: res.data.address || 'No 24 Basawa Road Kaduna, Kaduna State',
-            whatsapp: res.data.whatsapp || '2348104530781'
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => {});
+    fetchSupportInfo().then(info => {
+      if (mounted) setSupport(info);
+    });
     return () => { mounted = false; };
   }, []);
 
@@ -71,40 +65,48 @@ export default function HelpSupport({ onBack }: HelpSupportProps) {
       </header>
 
       <main className="flex-1 px-4 py-5 space-y-6">
-        {/* Contact Action Cards */}
+        {/* Contact Action Cards — each tile only renders when the admin
+            has supplied the corresponding value. Hiding a channel is
+            better than showing a dead/incorrect one on low-network. */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => window.open(`https://wa.me/${support.whatsapp}`, '_blank')}
-            className="p-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-bold text-white">WhatsApp Support</span>
-            <span className="text-[11px] text-emerald-400 font-semibold mt-0.5">{support.phone}</span>
-          </button>
+          {support.whatsapp && (
+            <button
+              onClick={() => window.open(`https://wa.me/${support.whatsapp}`, '_blank')}
+              className="p-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-white">WhatsApp Support</span>
+              <span className="text-[11px] text-emerald-400 font-semibold mt-0.5">{support.phone || support.whatsapp}</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => window.open(`tel:${support.phone}`, '_self')}
-            className="p-4 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Phone className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-bold text-white">Call Line</span>
-            <span className="text-[11px] text-indigo-400 font-semibold mt-0.5">{support.phone}</span>
-          </button>
+          {support.phone && (
+            <button
+              onClick={() => window.open(`tel:${support.phone}`, '_self')}
+              className="p-4 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Phone className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-white">Call Line</span>
+              <span className="text-[11px] text-indigo-400 font-semibold mt-0.5">{support.phone}</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => window.open(`mailto:${support.email}`, '_blank')}
-            className="p-4 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Mail className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-bold text-white">Email Helpdesk</span>
-            <span className="text-[10px] text-slate-300 mt-0.5 truncate max-w-full">{support.email}</span>
-          </button>
+          {support.email && (
+            <button
+              onClick={() => window.open(`mailto:${support.email}`, '_blank')}
+              className="p-4 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Mail className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-white">Email Helpdesk</span>
+              <span className="text-[10px] text-slate-300 mt-0.5 truncate max-w-full">{support.email}</span>
+            </button>
+          )}
         </div>
 
         {/* Office Address Card */}

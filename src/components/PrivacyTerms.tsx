@@ -1,5 +1,10 @@
-import React from 'react';
-import { ArrowLeft, Shield, FileText, Lock, Mail, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Shield, FileText } from 'lucide-react';
+import {
+  fetchSupportInfo,
+  readCachedSupportInfo,
+  SupportInfo,
+} from '../utils/supportInfo';
 
 interface PrivacyTermsProps {
   mode: 'privacy' | 'terms';
@@ -8,6 +13,17 @@ interface PrivacyTermsProps {
 
 export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
   const isPrivacy = mode === 'privacy';
+  // Contact rows below inline the admin's live support email/phone/
+  // address. Seed with the cached copy so offline launches never fall
+  // back to a hardcoded string, then refresh from the API on mount.
+  const [support, setSupport] = useState<SupportInfo>(() => readCachedSupportInfo());
+  useEffect(() => {
+    let mounted = true;
+    fetchSupportInfo().then(info => {
+      if (mounted) setSupport(info);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col overflow-y-auto animate-fadeIn font-display">
@@ -44,7 +60,7 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
 
         {/* Dynamic Content Sections */}
         <div className="space-y-4">
-          {isPrivacy ? <PrivacyContent /> : <TermsContent />}
+          {isPrivacy ? <PrivacyContent support={support} /> : <TermsContent support={support} />}
         </div>
 
         <div className="pt-6 text-center border-t border-slate-900 space-y-2">
@@ -68,7 +84,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function PrivacyContent() {
+function PrivacyContent({ support }: { support: SupportInfo }) {
   return (
     <>
       <Section title="1. Introduction">
@@ -111,14 +127,16 @@ function PrivacyContent() {
 
       <Section title="6. Contact Support">
         <p>For any privacy inquiries or security issues, contact our team:</p>
-        <p className="text-sky-400 font-bold font-mono">Email: info@edata.com.ng</p>
+        {support.email && (
+          <p className="text-sky-400 font-bold font-mono">Email: {support.email}</p>
+        )}
         <p className="text-sky-400 font-bold font-mono">Website: https://edata.com.ng</p>
       </Section>
     </>
   );
 }
 
-function TermsContent() {
+function TermsContent({ support }: { support: SupportInfo }) {
   return (
     <>
       <Section title="1. Acceptance of Terms">
@@ -146,7 +164,9 @@ function TermsContent() {
       </Section>
 
       <Section title="5. Contact Info">
-        <p className="text-sky-400 font-bold font-mono">Email: info@edata.com.ng</p>
+        {support.email && (
+          <p className="text-sky-400 font-bold font-mono">Email: {support.email}</p>
+        )}
         <p className="text-sky-400 font-bold font-mono">Website: https://edata.com.ng</p>
       </Section>
     </>

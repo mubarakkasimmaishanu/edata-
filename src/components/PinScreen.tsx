@@ -50,7 +50,6 @@ export interface PurchaseSummary {
 export interface PinScreenProps {
   mode: 'purchase' | 'set_pin' | 'change_pin' | 'forgot_pin' | 'upgrade_pin';
   summary?: PurchaseSummary;
-  userEmail?: string;
   onBack: () => void;
   onSuccess: (data?: any) => void;
   onSubmitPurchase?: (pin: string, recipient?: string, promoCode?: string) => Promise<void>;
@@ -60,7 +59,6 @@ export interface PinScreenProps {
 export default function PinScreen({
   mode,
   summary,
-  userEmail = '',
   onBack,
   onSuccess,
   onSubmitPurchase,
@@ -670,8 +668,7 @@ export default function PinScreen({
               {step === 1 && (
                 <div className="space-y-4 pt-2">
                   <p className={`text-xs leading-relaxed max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
-                    We will send a security verification OTP code to your account email{' '}
-                    <strong className={`font-mono ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{userEmail || 'registered address'}</strong>.
+                    A 6-digit verification code will be sent to your registered email address.
                   </p>
                   <button
                     onClick={handleRequestOtp}
