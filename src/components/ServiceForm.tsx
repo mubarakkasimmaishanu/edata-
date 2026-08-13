@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { ProductItem, PlanTypeItem } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search, X } from 'lucide-react';
 import { api } from '../services/api';
@@ -311,6 +312,8 @@ interface ServiceFormProps {
 }
 
 export default function ServiceForm(props: ServiceFormProps) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const {
     serviceType, serviceLabel, products, planTypes = [], targetNumber, setTargetNumber,
     detectedOperator, setDetectedOperator, checkoutAmount, setCheckoutAmount,
@@ -454,7 +457,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   };
 
   return (
-    <div className={`space-y-4 animate-fade-in text-slate-100 transition-all rounded-3xl ${
+    <div className={`space-y-4 animate-fade-in transition-all rounded-3xl ${
         isNetworkThemable && detectedOperator ? `border-t-4 ${activeNetworkTheme.accentBorder} pt-2` : ''
       }`}>
       {/* ─── 1. Network Selector (with Official Images) ─── */}
@@ -482,7 +485,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   className={`py-2.5 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all relative cursor-pointer ${
                     isSelected
                       ? `${(NETWORK_THEMES[net.name.toUpperCase()] || DEFAULT_THEME).activeCardRing} ring-2 scale-[1.02]`
-                      : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
+                      : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700')
                   }`}
                 >
                   {isSelected && (
@@ -497,7 +500,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       className="w-full h-full object-contain rounded-full"
                     />
                   </div>
-                  <span className="text-[11px] font-black text-white font-display">
+                  <span className={`text-[11px] font-black font-display ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     {net.name}
                   </span>
                   {isA2C && (
@@ -941,17 +944,17 @@ export default function ServiceForm(props: ServiceFormProps) {
                 <button
                   type="button"
                   onClick={() => setIsPackageModalOpen(true)}
-                  className={`w-full bg-[#161a20] border ${activeNetworkTheme.accentLightBorder} hover:${activeNetworkTheme.accentBorder} rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold text-white shadow-md transition-all cursor-pointer active:scale-[0.99]`}
+                  className={`w-full ${isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#161a20] text-white shadow-md'} ${activeNetworkTheme.accentLightBorder} hover:${activeNetworkTheme.accentBorder} rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold transition-all cursor-pointer active:scale-[0.99]`}
                 >
                   <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
                     <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeNetworkTheme.accentColor}`} />
-                    <span className={`truncate ${selectedProduct ? 'text-white font-bold' : 'text-slate-400 font-semibold'}`}>
+                    <span className={`truncate ${selectedProduct ? (isLight ? 'text-slate-900 font-black' : 'text-white font-bold') : (isLight ? 'text-slate-400 font-semibold' : 'text-slate-400 font-semibold')}`}>
                       {selectedProduct
                         ? `${formatPlanDisplayName(selectedProduct, detectedOperator)} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
                         : 'Select package'}
                     </span>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+                  <ChevronDown className={`w-4 h-4 shrink-0 ml-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
                 </button>
 
                 {/* Modal Popup Overlay matching Image 2 */}
@@ -961,15 +964,15 @@ export default function ServiceForm(props: ServiceFormProps) {
                     onClick={() => setIsPackageModalOpen(false)}
                   >
                     <div 
-                      className="bg-[#181d24] border border-slate-700/90 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in cursor-default"
+                      className={`border rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in cursor-default ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181d24] border-slate-700/90 text-white'}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       
                       {/* Modal Header */}
-                      <div className="p-4 bg-[#202732] border-b border-slate-700/80 flex items-center justify-between">
+                      <div className={`p-4 border-b flex items-center justify-between ${isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-[#202732] border-slate-700/80'}`}>
                         <div className="flex items-center gap-2">
                           <div className={`w-1.5 h-4 ${activeNetworkTheme.accentBg} rounded-full`}></div>
-                          <h3 className="text-sm font-black text-white font-display m-0">Select package</h3>
+                          <h3 className={`text-sm font-black font-display m-0 ${isLight ? 'text-slate-900' : 'text-white'}`}>Select package</h3>
                         </div>
                         <button
                           type="button"
@@ -981,7 +984,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       </div>
 
                       {/* Search Bar & Filter Chips Bar */}
-                      <div className="p-3 bg-[#1a202a] border-b border-slate-700/80 space-y-2">
+                      <div className={`p-3 border-b space-y-2 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#1a202a] border-slate-700/80'}`}>
                         <div className="relative">
                           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
@@ -989,7 +992,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             placeholder="Search plan (e.g. 1GB, SME, 500MB)..."
                             value={dataSearchQuery}
                             onChange={(e) => setDataSearchQuery(e.target.value)}
-                            className={`w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-7 py-2 text-xs text-white placeholder-slate-400 focus:outline-none ${activeNetworkTheme.inputFocusBorder} font-medium`}
+                            className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-slate-900 border-slate-700/80 text-white placeholder:text-slate-400'} border rounded-xl pl-9 pr-7 py-2 text-xs focus:outline-none ${activeNetworkTheme.inputFocusBorder} font-medium`}
                           />
                           {dataSearchQuery && (
                             <button
@@ -1105,7 +1108,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             };
 
                             return (
-                              <div key={key} className="space-y-1.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+                              <div key={key} className={`space-y-1.5 p-2.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'}`}>
                                 {/* Group Header inside modal */}
                                 <div className="px-2 py-1 flex items-center justify-between border-b border-slate-800">
                                   <span className={`text-xs font-black font-display uppercase tracking-wider flex items-center gap-1.5 ${meta.color}`}>
@@ -1139,7 +1142,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                                         className={`py-3 px-3 rounded-xl transition-all cursor-pointer text-xs font-mono flex items-center justify-between ${
                                           isSelected
                                             ? activeNetworkTheme.modalActiveRow
-                                            : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium'
+                                            : (isLight ? 'hover:bg-slate-200/60 text-slate-800 font-semibold' : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium')
                                         }`}
                                       >
                                         <span className="leading-snug pr-2">{displayStr}</span>
@@ -1246,7 +1249,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
                     isSelected
                       ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-lg scale-[1.02]`
-                      : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200'
+                      : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
                   }`}
                 >
                   {isSelected && (
@@ -1343,7 +1346,7 @@ export default function ServiceForm(props: ServiceFormProps) {
 
       {/* ─── Minimal Order Summary ─── */}
       {!isA2C && basePrice > 0 && (
-        <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-2.5 shadow-md">
+        <div className={`border rounded-2xl p-4 space-y-2.5 ${isLight ? 'bg-white border-slate-200 shadow-sm text-slate-800' : 'bg-slate-800/90 border-slate-700/80 shadow-md text-slate-300'}`}>
           {/* Current Wallet Balance */}
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
             <span>Wallet Balance</span>
