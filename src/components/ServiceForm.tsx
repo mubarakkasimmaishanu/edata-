@@ -30,6 +30,14 @@ import phedcIcon from '@/assets/icons/phedc.png';
 export function detectNetworkFromPhone(phone: string): string | null {
   const clean = phone.replace(/\D/g, '');
   if (clean.length < 4) return null;
+
+  // Check 5-digit CDMA/legacy prefix allocations first
+  if (clean.length >= 5) {
+    const prefix5 = clean.slice(0, 5);
+    const mtn5 = ['07025', '07026', '07020'];
+    if (mtn5.includes(prefix5)) return 'MTN';
+  }
+
   const prefix4 = clean.slice(0, 4);
 
   const mtn = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913', '0916', '0704', '0707'];
@@ -321,6 +329,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
   const [dataSearchQuery, setDataSearchQuery] = React.useState<string>('');
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
+  const [isManuallySelected, setIsManuallySelected] = React.useState<boolean>(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState<boolean>(false);
   const [manualContactInput, setManualContactInput] = React.useState<string>('');
 
@@ -463,6 +472,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   type="button"
                   onClick={() => {
                     setDetectedOperator(net.name);
+                    setIsManuallySelected(true);
                     setSelectedCategory(cat);
                     if (isA2C && setA2cPayout) {
                       const rate = A2C_RATES[net.name.toLowerCase()] || 0.80;
@@ -802,7 +812,10 @@ export default function ServiceForm(props: ServiceFormProps) {
                 setSelectedCategory(cat);
                 setTargetNumber(cleanVal);
 
-                if (showNetworkSelector && cleanVal.length >= 4) {
+                if (cleanVal.length === 0) {
+                  setIsManuallySelected(false);
+                }
+                if (showNetworkSelector && cleanVal.length >= 4 && !isManuallySelected) {
                   const detected = detectNetworkFromPhone(cleanVal);
                   if (detected && detected.toLowerCase() !== (detectedOperator || '').toLowerCase()) {
                     setDetectedOperator(detected);
