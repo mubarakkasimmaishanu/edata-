@@ -67,20 +67,20 @@ const NETWORK_PROVIDERS = [
 // auto-detected. Uses full class-literal strings (not built at runtime) so
 // Tailwind JIT picks them up at build time.
 type NetworkTheme = {
-  accentColor: string;       // Primary text accent (e.g. text-amber-400, text-rose-400, text-emerald-400, text-teal-400)
-  accentBg: string;          // Primary bg accent (e.g. bg-amber-400, bg-rose-500, bg-emerald-500, bg-teal-500)
-  accentBorder: string;      // Primary border accent (e.g. border-amber-400, border-rose-500, border-emerald-500, border-teal-500)
-  accentLightBg: string;     // Soft bg accent (e.g. bg-amber-500/15, bg-rose-500/15)
-  accentLightBorder: string; // Soft border accent (e.g. border-amber-500/30)
+  accentColor: string;       // Primary text accent
+  accentBg: string;          // Primary bg accent
+  accentBorder: string;      // Prominent 2px border accent
+  accentLightBg: string;     // Soft bg accent
+  accentLightBorder: string; // Prominent 2px light border accent
   btn: string;              // Pay button background + hover
   btnText: string;          // Pay button label colour
   btnShadow: string;        // Pay button glow shadow
   chipBg: string;           // Detected-operator chip background
   chipBorder: string;       // Detected-operator chip border
   chipText: string;         // Detected-operator chip text
-  inputBorder: string;      // Phone-number input resting border colour
+  inputBorder: string;      // Prominent 2px phone-number input border
   inputFocusBorder: string; // Phone-number input border colour when focused
-  inputRing: string;        // Phone-number input focus ring (soft glow)
+  inputRing: string;        // Phone-number input focus ring
   activeCardRing: string;   // Network selector card active ring
   activeCheckBadge: string; // Network selector card active checkmark badge
   modalActiveChip: string;  // Modal filter active chip styling
@@ -90,111 +90,111 @@ type NetworkTheme = {
 
 const NETWORK_THEMES: Record<string, NetworkTheme> = {
   MTN: {
-    accentColor:       'text-amber-400',
+    accentColor:       'text-amber-500 dark:text-amber-400',
     accentBg:          'bg-amber-400',
-    accentBorder:      'border-amber-400',
+    accentBorder:      'border-2 border-amber-400',
     accentLightBg:     'bg-amber-500/15',
-    accentLightBorder: 'border-amber-500/40',
+    accentLightBorder: 'border-2 border-amber-400/90',
     btn:               'bg-amber-400 hover:bg-amber-500',
     btnText:           'text-slate-950 font-black',
     btnShadow:         'shadow-amber-500/30',
-    chipBg:            'bg-amber-500/15',
-    chipBorder:        'border-amber-500/40',
-    chipText:          'text-amber-300',
-    inputBorder:       'border-amber-500/60',
-    inputFocusBorder:  'focus:border-amber-400',
-    inputRing:         'focus:ring-amber-500/20',
-    activeCardRing:    'ring-amber-400/80 border-amber-400 bg-amber-500/10 shadow-amber-500/20',
-    activeCheckBadge:  'bg-amber-400 text-slate-950',
+    chipBg:            'bg-amber-500/20',
+    chipBorder:        'border-2 border-amber-400',
+    chipText:          'text-amber-700 dark:text-amber-300 font-extrabold',
+    inputBorder:       'border-2 border-amber-400 shadow-sm shadow-amber-400/25',
+    inputFocusBorder:  'focus:border-amber-500 focus:border-2',
+    inputRing:         'focus:ring-2 focus:ring-amber-400/50',
+    activeCardRing:    'ring-2 ring-amber-400 border-2 border-amber-400 bg-amber-500/15 shadow-md shadow-amber-400/30',
+    activeCheckBadge:  'bg-amber-400 text-slate-950 font-black',
     modalActiveChip:   'bg-amber-400 text-slate-950 font-black shadow-md',
-    modalActiveRow:    'bg-amber-500/20 text-amber-300 font-extrabold border-l-4 border-amber-400',
-    modalActiveBadge:  'text-amber-300 bg-amber-500/20 border border-amber-500/40',
+    modalActiveRow:    'bg-amber-500/20 text-amber-700 dark:text-amber-300 font-extrabold border-l-4 border-amber-400',
+    modalActiveBadge:  'text-amber-700 dark:text-amber-300 bg-amber-500/20 border border-amber-500/40',
   },
   AIRTEL: {
-    accentColor:       'text-rose-400',
+    accentColor:       'text-rose-500 dark:text-rose-400',
     accentBg:          'bg-rose-500',
-    accentBorder:      'border-rose-500',
+    accentBorder:      'border-2 border-rose-500',
     accentLightBg:     'bg-rose-500/15',
-    accentLightBorder: 'border-rose-500/40',
+    accentLightBorder: 'border-2 border-rose-500/90',
     btn:               'bg-rose-500 hover:bg-rose-600',
     btnText:           'text-white font-black',
     btnShadow:         'shadow-rose-500/30',
-    chipBg:            'bg-rose-500/15',
-    chipBorder:        'border-rose-500/40',
-    chipText:          'text-rose-300',
-    inputBorder:       'border-rose-500/60',
-    inputFocusBorder:  'focus:border-rose-400',
-    inputRing:         'focus:ring-rose-500/20',
-    activeCardRing:    'ring-rose-500/80 border-rose-500 bg-rose-500/10 shadow-rose-500/20',
-    activeCheckBadge:  'bg-rose-500 text-white',
+    chipBg:            'bg-rose-500/20',
+    chipBorder:        'border-2 border-rose-500',
+    chipText:          'text-rose-700 dark:text-rose-300 font-extrabold',
+    inputBorder:       'border-2 border-rose-500 shadow-sm shadow-rose-500/25',
+    inputFocusBorder:  'focus:border-rose-600 focus:border-2',
+    inputRing:         'focus:ring-2 focus:ring-rose-500/50',
+    activeCardRing:    'ring-2 ring-rose-500 border-2 border-rose-500 bg-rose-500/15 shadow-md shadow-rose-500/30',
+    activeCheckBadge:  'bg-rose-500 text-white font-black',
     modalActiveChip:   'bg-rose-500 text-white font-black shadow-md',
-    modalActiveRow:    'bg-rose-500/20 text-rose-300 font-extrabold border-l-4 border-rose-500',
-    modalActiveBadge:  'text-rose-300 bg-rose-500/20 border border-rose-500/40',
+    modalActiveRow:    'bg-rose-500/20 text-rose-700 dark:text-rose-300 font-extrabold border-l-4 border-rose-500',
+    modalActiveBadge:  'text-rose-700 dark:text-rose-300 bg-rose-500/20 border border-rose-500/40',
   },
   GLO: {
-    accentColor:       'text-emerald-400',
+    accentColor:       'text-emerald-500 dark:text-emerald-400',
     accentBg:          'bg-emerald-500',
-    accentBorder:      'border-emerald-500',
+    accentBorder:      'border-2 border-emerald-500',
     accentLightBg:     'bg-emerald-500/15',
-    accentLightBorder: 'border-emerald-500/40',
+    accentLightBorder: 'border-2 border-emerald-500/90',
     btn:               'bg-emerald-500 hover:bg-emerald-600',
     btnText:           'text-white font-black',
     btnShadow:         'shadow-emerald-500/30',
-    chipBg:            'bg-emerald-500/15',
-    chipBorder:        'border-emerald-500/40',
-    chipText:          'text-emerald-300',
-    inputBorder:       'border-emerald-500/60',
-    inputFocusBorder:  'focus:border-emerald-400',
-    inputRing:         'focus:ring-emerald-500/20',
-    activeCardRing:    'ring-emerald-500/80 border-emerald-500 bg-emerald-500/10 shadow-emerald-500/20',
-    activeCheckBadge:  'bg-emerald-500 text-white',
+    chipBg:            'bg-emerald-500/20',
+    chipBorder:        'border-2 border-emerald-500',
+    chipText:          'text-emerald-700 dark:text-emerald-300 font-extrabold',
+    inputBorder:       'border-2 border-emerald-500 shadow-sm shadow-emerald-500/25',
+    inputFocusBorder:  'focus:border-emerald-600 focus:border-2',
+    inputRing:         'focus:ring-2 focus:ring-emerald-500/50',
+    activeCardRing:    'ring-2 ring-emerald-500 border-2 border-emerald-500 bg-emerald-500/15 shadow-md shadow-emerald-500/30',
+    activeCheckBadge:  'bg-emerald-500 text-white font-black',
     modalActiveChip:   'bg-emerald-500 text-white font-black shadow-md',
-    modalActiveRow:    'bg-emerald-500/20 text-emerald-300 font-extrabold border-l-4 border-emerald-500',
-    modalActiveBadge:  'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40',
+    modalActiveRow:    'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold border-l-4 border-emerald-500',
+    modalActiveBadge:  'text-emerald-700 dark:text-emerald-300 bg-emerald-500/20 border border-emerald-500/40',
   },
   '9MOBILE': {
-    accentColor:       'text-teal-400',
+    accentColor:       'text-teal-500 dark:text-teal-400',
     accentBg:          'bg-teal-500',
-    accentBorder:      'border-teal-500',
+    accentBorder:      'border-2 border-teal-500',
     accentLightBg:     'bg-teal-500/15',
-    accentLightBorder: 'border-teal-500/40',
+    accentLightBorder: 'border-2 border-teal-500/90',
     btn:               'bg-teal-500 hover:bg-teal-600',
     btnText:           'text-white font-black',
     btnShadow:         'shadow-teal-500/30',
-    chipBg:            'bg-teal-500/15',
-    chipBorder:        'border-teal-500/40',
-    chipText:          'text-teal-300',
-    inputBorder:       'border-teal-500/60',
-    inputFocusBorder:  'focus:border-teal-400',
-    inputRing:         'focus:ring-teal-500/20',
-    activeCardRing:    'ring-teal-500/80 border-teal-500 bg-teal-500/10 shadow-teal-500/20',
-    activeCheckBadge:  'bg-teal-500 text-white',
+    chipBg:            'bg-teal-500/20',
+    chipBorder:        'border-2 border-teal-500',
+    chipText:          'text-teal-700 dark:text-teal-300 font-extrabold',
+    inputBorder:       'border-2 border-teal-500 shadow-sm shadow-teal-500/25',
+    inputFocusBorder:  'focus:border-teal-600 focus:border-2',
+    inputRing:         'focus:ring-2 focus:ring-teal-500/50',
+    activeCardRing:    'ring-2 ring-teal-500 border-2 border-teal-500 bg-teal-500/15 shadow-md shadow-teal-500/30',
+    activeCheckBadge:  'bg-teal-500 text-white font-black',
     modalActiveChip:   'bg-teal-500 text-white font-black shadow-md',
-    modalActiveRow:    'bg-teal-500/20 text-teal-300 font-extrabold border-l-4 border-teal-500',
-    modalActiveBadge:  'text-teal-300 bg-teal-500/20 border border-teal-500/40',
+    modalActiveRow:    'bg-teal-500/20 text-teal-700 dark:text-teal-300 font-extrabold border-l-4 border-teal-500',
+    modalActiveBadge:  'text-teal-700 dark:text-teal-300 bg-teal-500/20 border border-teal-500/40',
   },
 };
 
 const DEFAULT_THEME: NetworkTheme = {
-  accentColor:       'text-sky-400',
+  accentColor:       'text-sky-500 dark:text-sky-400',
   accentBg:          'bg-sky-500',
-  accentBorder:      'border-sky-500',
+  accentBorder:      'border-2 border-sky-400',
   accentLightBg:     'bg-sky-500/15',
-  accentLightBorder: 'border-sky-500/30',
+  accentLightBorder: 'border-2 border-sky-400/90',
   btn:               'bg-sky-500 hover:bg-sky-600',
   btnText:           'text-white font-black',
   btnShadow:         'shadow-sky-500/25',
   chipBg:            'bg-slate-900',
-  chipBorder:        'border-slate-700',
+  chipBorder:        'border-2 border-slate-700',
   chipText:          'text-sky-300',
-  inputBorder:       'border-slate-700/80',
-  inputFocusBorder:  'focus:border-sky-400',
-  inputRing:         'focus:ring-sky-500/20',
-  activeCardRing:    'ring-sky-400/80 border-sky-400 bg-sky-500/10 shadow-sky-500/20',
-  activeCheckBadge:  'bg-sky-500 text-white',
+  inputBorder:       'border-2 border-slate-700/80',
+  inputFocusBorder:  'focus:border-sky-400 focus:border-2',
+  inputRing:         'focus:ring-2 focus:ring-sky-500/20',
+  activeCardRing:    'ring-2 ring-sky-400 border-2 border-sky-400 bg-sky-500/10 shadow-md shadow-sky-500/20',
+  activeCheckBadge:  'bg-sky-500 text-white font-black',
   modalActiveChip:   'bg-sky-500 text-white font-black shadow-md',
-  modalActiveRow:    'bg-sky-500/20 text-sky-300 font-extrabold border-l-4 border-sky-400',
-  modalActiveBadge:  'text-sky-300 bg-sky-500/20 border border-sky-500/40',
+  modalActiveRow:    'bg-sky-500/20 text-sky-500 dark:text-sky-300 font-extrabold border-l-4 border-sky-400',
+  modalActiveBadge:  'text-sky-700 dark:text-sky-300 bg-sky-500/20 border border-sky-500/40',
 };
 
 // ─── Cable TV Provider Config ───
@@ -455,7 +455,7 @@ export default function ServiceForm(props: ServiceFormProps) {
 
   return (
     <div className={`space-y-4 animate-fade-in text-slate-100 transition-all rounded-3xl ${
-        isNetworkThemable && detectedOperator ? `border-t-2 ${activeNetworkTheme.accentBorder} pt-1` : ''
+        isNetworkThemable && detectedOperator ? `border-t-4 ${activeNetworkTheme.accentBorder} pt-2` : ''
       }`}>
       {/* ─── 1. Network Selector (with Official Images) ─── */}
       {showNetworkSelector && (
