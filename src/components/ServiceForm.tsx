@@ -172,7 +172,7 @@ export function formatPlanDisplayName(
 ): string {
   let name = (p.name || '').trim();
   const op = (p.operator || defaultOperator || 'MTN').trim();
-  const pType = (p.planType || '').trim();
+  const pType = (p.planTypeName || '').trim();
 
   // 1. Remove duplicate leading operator if name already starts with operator
   if (!name.toLowerCase().startsWith(op.toLowerCase())) {
@@ -194,8 +194,8 @@ export function formatPlanDisplayName(
   return name;
 }
 
-export function formatPlanSectionTitle(rawTitle: string, code: string): string {
-  let title = (rawTitle || code || 'Standard').trim();
+export function formatPlanSectionTitle(rawTitle: string): string {
+  let title = (rawTitle || 'Standard').trim();
 
   // Clean double parens
   title = title.replace(/\)\)+/g, ')');
@@ -944,43 +944,32 @@ export default function ServiceForm(props: ServiceFormProps) {
                             chips from codes that only appear on plans; if
                             the admin didn't register a plan type, it does
                             not render here. */}
+                        {/* Dynamic Category Filter Chips — pure mirror of admin-defined `plan_types`. */}
                         {(() => {
-                          const codeOrder: string[] = ['ALL'];
-                          const seen = new Set<string>(['ALL']);
+                          const chipList: Array<{ id: string; label: string }> = [{ id: 'ALL', label: 'ALL' }];
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach(pt => {
-                              const c = (pt.code || '').toUpperCase().trim();
-                              if (c && !seen.has(c)) { seen.add(c); codeOrder.push(c); }
+                              const cleanName = pt.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || pt.name;
+                              chipList.push({ id: String(pt.id), label: cleanName });
                             });
                           }
 
                           return (
                             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-                              {codeOrder.map((catKey) => {
-                                const ptMatch = planTypes.find(p => p.code && p.code.toUpperCase() === catKey);
-                                let chipLabel = catKey;
-                                if (catKey === 'ALL') {
-                                  chipLabel = 'ALL';
-                                } else if (ptMatch && ptMatch.name) {
-                                  chipLabel = ptMatch.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || catKey;
-                                } else {
-                                  chipLabel = catKey.replace(/-DATA-/gi, ' ').replace(/-/g, ' ').trim().toUpperCase();
-                                }
-                                return (
-                                  <button
-                                    key={catKey}
-                                    type="button"
-                                    onClick={() => setDataTypeFilter(catKey)}
-                                    className={`filter-chip px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
-                                      dataTypeFilter.toUpperCase() === catKey
-                                        ? 'filter-chip-active bg-sky-500 text-white shadow-sm'
-                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-                                    }`}
-                                  >
-                                    {chipLabel}
-                                  </button>
-                                );
-                              })}
+                              {chipList.map((chip) => (
+                                <button
+                                  key={chip.id}
+                                  type="button"
+                                  onClick={() => setDataTypeFilter(chip.id)}
+                                  className={`filter-chip px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
+                                    dataTypeFilter === chip.id
+                                      ? 'filter-chip-active bg-sky-500 text-white shadow-sm'
+                                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  {chip.label}
+                                </button>
+                              ))}
                             </div>
                           );
                         })()}
@@ -989,38 +978,18 @@ export default function ServiceForm(props: ServiceFormProps) {
                       {/* Modal Body List grouped dynamically by Plan Type */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-500 scrollbar-track-slate-800">
                         {(() => {
-                          // Build the set of codes the admin registered
-                          // once — used both to drop orphan plans and to
-                          // build section labels/order. If the admin
-                          // didn't write it, it does not render.
-                          const adminCodeSet = new Set<string>();
-                          if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach(pt => {
-                              const c = (pt.code || '').toUpperCase().trim();
-                              if (c) adminCodeSet.add(c);
-                            });
-                          }
-
-                          // Strict pure-mirror: drop any plan whose code
-                          // isn't in the admin's plan_types list. Under
-                          // ALL, only admin-recognised plans show.
-                          let filteredList = dataProds.filter(p => {
-                            const c = (p.planType || '').toUpperCase().trim();
-                            return c && adminCodeSet.has(c);
-                          });
+                          let filteredList = dataProds;
 
                           if (dataTypeFilter !== 'ALL') {
-                            const activeFilter = dataTypeFilter.toUpperCase();
-                            filteredList = filteredList.filter(p =>
-                              (p.planType || '').toUpperCase() === activeFilter
-                            );
+                            const activeId = Number(dataTypeFilter);
+                            filteredList = filteredList.filter(p => Number(p.planTypeId) === activeId);
                           }
 
                           if (dataSearchQuery.trim()) {
                             const q = dataSearchQuery.toLowerCase();
                             filteredList = filteredList.filter(p =>
                               p.name.toLowerCase().includes(q) ||
-                              (p.planType && p.planType.toLowerCase().includes(q)) ||
+                              (p.planTypeName && p.planTypeName.toLowerCase().includes(q)) ||
                               (p.operator && p.operator.toLowerCase().includes(q))
                             );
                           }
@@ -1033,52 +1002,42 @@ export default function ServiceForm(props: ServiceFormProps) {
                             );
                           }
 
-                          // Build the label + color map strictly from the
-                          // admin's plan_types. No fallback bucket, no
-                          // baked-in keys.
                           const colorPalette = [
                             'text-amber-400', 'text-emerald-400', 'text-sky-400',
                             'text-rose-400', 'text-purple-400', 'text-amber-300',
                             'text-teal-400', 'text-indigo-400', 'text-cyan-400'
                           ];
-                          const dynamicLabels: Record<string, { title: string; color: string }> = {};
+                          const dynamicLabels: Record<number, { title: string; color: string }> = {};
 
                           if (planTypes && planTypes.length > 0) {
                             planTypes.forEach((pt, idx) => {
-                              const codeKey = (pt.code || '').toUpperCase().trim();
-                              if (!codeKey) return;
-                              dynamicLabels[codeKey] = {
-                                title: formatPlanSectionTitle(pt.name, pt.code),
+                              dynamicLabels[pt.id] = {
+                                title: formatPlanSectionTitle(pt.name),
                                 color: colorPalette[idx % colorPalette.length],
                               };
                             });
                           }
 
-                          // Group plans strictly under their matching
-                          // admin plan_type. Orphans were already dropped
-                          // above, so every plan here belongs to a known
-                          // code — no OTHER bucket exists.
-                          const groups: Record<string, ProductItem[]> = {};
+                          const groups: Record<number, ProductItem[]> = {};
                           filteredList.forEach(p => {
-                            const key = (p.planType || '').toUpperCase().trim();
+                            const key = p.planTypeId ? Number(p.planTypeId) : 0;
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(p);
                           });
 
-                          // Section order follows admin ordering exactly.
-                          const dynamicOrder: string[] = [];
+                          const groupIds: number[] = [];
                           if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach(pt => {
-                              const c = (pt.code || '').toUpperCase().trim();
-                              if (c) dynamicOrder.push(c);
-                            });
+                            planTypes.forEach(pt => groupIds.push(pt.id));
+                          }
+                          if (groups[0] && !groupIds.includes(0)) {
+                            groupIds.push(0);
                           }
 
-                          return dynamicOrder.map(key => {
+                          return groupIds.map(key => {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
                             const meta = dynamicLabels[key] || {
-                              title: formatPlanSectionTitle('', key),
+                              title: key === 0 ? 'General Plans' : `Plan Type #${key}`,
                               color: 'text-sky-400',
                             };
 
@@ -1184,9 +1143,9 @@ export default function ServiceForm(props: ServiceFormProps) {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-black text-white font-display">{selectedProduct.name}</span>
-                  {selectedProduct.planType && (
+                  {selectedProduct.planTypeName && (
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500 text-white tracking-wider">
-                      {selectedProduct.planType}
+                      {selectedProduct.planTypeName}
                     </span>
                   )}
                 </div>

@@ -52,7 +52,8 @@ export interface ProductItem {
   pricePremium: number;
   active: boolean;
   description: string;
-  planType?: string;
+  planTypeId?: number | null;
+  planTypeName?: string;
 }
 
 export interface MarketerLeader {
@@ -103,9 +104,8 @@ export interface QuickAction {
 }
 
 export interface PlanTypeItem {
-  id: number | string;
+  id: number;
   name: string;
-  code: string;
   description?: string;
 }
 
