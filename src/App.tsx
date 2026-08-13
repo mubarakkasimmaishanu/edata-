@@ -366,11 +366,8 @@ function MainApp() {
           pricePremium: parseFloat(String(rawPremium ?? '0')),
           active: plan.status === undefined || plan.status === 1 || plan.status === true,
           description: plan.description || plan.name || plan.plan_name || '',
-          // Keep the admin-assigned plan type as-is. Do NOT coerce to 'SME'
-          // — filters and grouping in ServiceForm build entirely from the
-          // /api/services `plan_types` list plus whatever plans actually
-          // carry.
-          planType: (plan.plan_type || plan.type || '').toString(),
+          planTypeId: plan.plan_type_id ? Number(plan.plan_type_id) : null,
+          planTypeName: plan.plan_type_name || '',
         });
       });
 
