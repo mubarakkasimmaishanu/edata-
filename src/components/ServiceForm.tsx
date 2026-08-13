@@ -196,26 +196,9 @@ export function formatPlanDisplayName(
 
 export function formatPlanSectionTitle(rawTitle: string): string {
   let title = (rawTitle || 'Standard').trim();
-
-  // Clean double parens
+  // Clean accidental double parens if present
   title = title.replace(/\)\)+/g, ')');
-
-  // Clean duplicate words like "Data Share Data Plans" -> "Data Share Plans"
-  if (/data\s+data/i.test(title)) {
-    title = title.replace(/data\s+data/gi, 'Data');
-  }
-  if (/plans\s+plans/i.test(title)) {
-    title = title.replace(/plans\s+plans/gi, 'Plans');
-  }
-
-  const lower = title.toLowerCase();
-  if (lower.endsWith('plan') || lower.endsWith('plans')) {
-    return title;
-  }
-  if (lower.includes('data')) {
-    return `${title} Plans`;
-  }
-  return `${title} Data Plans`;
+  return title;
 }
 
 interface ServiceFormProps {
@@ -899,8 +882,14 @@ export default function ServiceForm(props: ServiceFormProps) {
 
                 {/* Modal Popup Overlay matching Image 2 */}
                 {isPackageModalOpen && (
-                  <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-[#181d24] border border-slate-700/90 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in">
+                  <div 
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+                    onClick={() => setIsPackageModalOpen(false)}
+                  >
+                    <div 
+                      className="bg-[#181d24] border border-slate-700/90 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in cursor-default"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       
                       {/* Modal Header */}
                       <div className="p-4 bg-[#202732] border-b border-slate-700/80 flex items-center justify-between">
@@ -1037,7 +1026,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
                             const meta = dynamicLabels[key] || {
-                              title: key === 0 ? 'General Plans' : `Plan Type #${key}`,
+                              title: key === 0 ? 'General' : `Plan Type #${key}`,
                               color: 'text-sky-400',
                             };
 
@@ -1314,8 +1303,14 @@ export default function ServiceForm(props: ServiceFormProps) {
 
       {/* ── Contact Selector Fallback Modal ── */}
       {isContactModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in cursor-pointer"
+          onClick={() => setIsContactModalOpen(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-white flex items-center gap-2 font-display">
                 <Phone className="w-4 h-4 text-sky-400" /> Select Recipient Contact
