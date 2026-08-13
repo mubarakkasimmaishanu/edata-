@@ -59,8 +59,13 @@ const NETWORK_PROVIDERS = [
 // auto-detected. Uses full class-literal strings (not built at runtime) so
 // Tailwind JIT picks them up at build time.
 type NetworkTheme = {
+  accentColor: string;       // Primary text accent (e.g. text-amber-400, text-rose-400, text-emerald-400, text-teal-400)
+  accentBg: string;          // Primary bg accent (e.g. bg-amber-400, bg-rose-500, bg-emerald-500, bg-teal-500)
+  accentBorder: string;      // Primary border accent (e.g. border-amber-400, border-rose-500, border-emerald-500, border-teal-500)
+  accentLightBg: string;     // Soft bg accent (e.g. bg-amber-500/15, bg-rose-500/15)
+  accentLightBorder: string; // Soft border accent (e.g. border-amber-500/30)
   btn: string;              // Pay button background + hover
-  btnText: string;          // Pay button label colour (dark on yellow, white elsewhere)
+  btnText: string;          // Pay button label colour
   btnShadow: string;        // Pay button glow shadow
   chipBg: string;           // Detected-operator chip background
   chipBorder: string;       // Detected-operator chip border
@@ -68,66 +73,120 @@ type NetworkTheme = {
   inputBorder: string;      // Phone-number input resting border colour
   inputFocusBorder: string; // Phone-number input border colour when focused
   inputRing: string;        // Phone-number input focus ring (soft glow)
+  activeCardRing: string;   // Network selector card active ring
+  activeCheckBadge: string; // Network selector card active checkmark badge
+  modalActiveChip: string;  // Modal filter active chip styling
+  modalActiveRow: string;   // Modal selected plan item row styling
+  modalActiveBadge: string; // Modal selected plan Active pill badge
 };
 
 const NETWORK_THEMES: Record<string, NetworkTheme> = {
   MTN: {
-    btn:              'bg-amber-400 hover:bg-amber-500',
-    btnText:          'text-slate-900',
-    btnShadow:        'shadow-amber-500/30',
-    chipBg:           'bg-amber-500/15',
-    chipBorder:       'border-amber-500/40',
-    chipText:         'text-amber-300',
-    inputBorder:      'border-amber-500/60',
-    inputFocusBorder: 'focus:border-amber-400',
-    inputRing:        'focus:ring-amber-500/20',
+    accentColor:       'text-amber-400',
+    accentBg:          'bg-amber-400',
+    accentBorder:      'border-amber-400',
+    accentLightBg:     'bg-amber-500/15',
+    accentLightBorder: 'border-amber-500/40',
+    btn:               'bg-amber-400 hover:bg-amber-500',
+    btnText:           'text-slate-950 font-black',
+    btnShadow:         'shadow-amber-500/30',
+    chipBg:            'bg-amber-500/15',
+    chipBorder:        'border-amber-500/40',
+    chipText:          'text-amber-300',
+    inputBorder:       'border-amber-500/60',
+    inputFocusBorder:  'focus:border-amber-400',
+    inputRing:         'focus:ring-amber-500/20',
+    activeCardRing:    'ring-amber-400/80 border-amber-400 bg-amber-500/10 shadow-amber-500/20',
+    activeCheckBadge:  'bg-amber-400 text-slate-950',
+    modalActiveChip:   'bg-amber-400 text-slate-950 font-black shadow-md',
+    modalActiveRow:    'bg-amber-500/20 text-amber-300 font-extrabold border-l-4 border-amber-400',
+    modalActiveBadge:  'text-amber-300 bg-amber-500/20 border border-amber-500/40',
   },
   AIRTEL: {
-    btn:              'bg-rose-500 hover:bg-rose-600',
-    btnText:          'text-white',
-    btnShadow:        'shadow-rose-500/30',
-    chipBg:           'bg-rose-500/15',
-    chipBorder:       'border-rose-500/40',
-    chipText:         'text-rose-300',
-    inputBorder:      'border-rose-500/60',
-    inputFocusBorder: 'focus:border-rose-400',
-    inputRing:        'focus:ring-rose-500/20',
+    accentColor:       'text-rose-400',
+    accentBg:          'bg-rose-500',
+    accentBorder:      'border-rose-500',
+    accentLightBg:     'bg-rose-500/15',
+    accentLightBorder: 'border-rose-500/40',
+    btn:               'bg-rose-500 hover:bg-rose-600',
+    btnText:           'text-white font-black',
+    btnShadow:         'shadow-rose-500/30',
+    chipBg:            'bg-rose-500/15',
+    chipBorder:        'border-rose-500/40',
+    chipText:          'text-rose-300',
+    inputBorder:       'border-rose-500/60',
+    inputFocusBorder:  'focus:border-rose-400',
+    inputRing:         'focus:ring-rose-500/20',
+    activeCardRing:    'ring-rose-500/80 border-rose-500 bg-rose-500/10 shadow-rose-500/20',
+    activeCheckBadge:  'bg-rose-500 text-white',
+    modalActiveChip:   'bg-rose-500 text-white font-black shadow-md',
+    modalActiveRow:    'bg-rose-500/20 text-rose-300 font-extrabold border-l-4 border-rose-500',
+    modalActiveBadge:  'text-rose-300 bg-rose-500/20 border border-rose-500/40',
   },
   GLO: {
-    btn:              'bg-emerald-500 hover:bg-emerald-600',
-    btnText:          'text-white',
-    btnShadow:        'shadow-emerald-500/30',
-    chipBg:           'bg-emerald-500/15',
-    chipBorder:       'border-emerald-500/40',
-    chipText:         'text-emerald-300',
-    inputBorder:      'border-emerald-500/60',
-    inputFocusBorder: 'focus:border-emerald-400',
-    inputRing:        'focus:ring-emerald-500/20',
+    accentColor:       'text-emerald-400',
+    accentBg:          'bg-emerald-500',
+    accentBorder:      'border-emerald-500',
+    accentLightBg:     'bg-emerald-500/15',
+    accentLightBorder: 'border-emerald-500/40',
+    btn:               'bg-emerald-500 hover:bg-emerald-600',
+    btnText:           'text-white font-black',
+    btnShadow:         'shadow-emerald-500/30',
+    chipBg:            'bg-emerald-500/15',
+    chipBorder:        'border-emerald-500/40',
+    chipText:          'text-emerald-300',
+    inputBorder:       'border-emerald-500/60',
+    inputFocusBorder:  'focus:border-emerald-400',
+    inputRing:         'focus:ring-emerald-500/20',
+    activeCardRing:    'ring-emerald-500/80 border-emerald-500 bg-emerald-500/10 shadow-emerald-500/20',
+    activeCheckBadge:  'bg-emerald-500 text-white',
+    modalActiveChip:   'bg-emerald-500 text-white font-black shadow-md',
+    modalActiveRow:    'bg-emerald-500/20 text-emerald-300 font-extrabold border-l-4 border-emerald-500',
+    modalActiveBadge:  'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40',
   },
   '9MOBILE': {
-    btn:              'bg-teal-500 hover:bg-teal-600',
-    btnText:          'text-white',
-    btnShadow:        'shadow-teal-500/30',
-    chipBg:           'bg-teal-500/15',
-    chipBorder:       'border-teal-500/40',
-    chipText:         'text-teal-300',
-    inputBorder:      'border-teal-500/60',
-    inputFocusBorder: 'focus:border-teal-400',
-    inputRing:        'focus:ring-teal-500/20',
+    accentColor:       'text-teal-400',
+    accentBg:          'bg-teal-500',
+    accentBorder:      'border-teal-500',
+    accentLightBg:     'bg-teal-500/15',
+    accentLightBorder: 'border-teal-500/40',
+    btn:               'bg-teal-500 hover:bg-teal-600',
+    btnText:           'text-white font-black',
+    btnShadow:         'shadow-teal-500/30',
+    chipBg:            'bg-teal-500/15',
+    chipBorder:        'border-teal-500/40',
+    chipText:          'text-teal-300',
+    inputBorder:       'border-teal-500/60',
+    inputFocusBorder:  'focus:border-teal-400',
+    inputRing:         'focus:ring-teal-500/20',
+    activeCardRing:    'ring-teal-500/80 border-teal-500 bg-teal-500/10 shadow-teal-500/20',
+    activeCheckBadge:  'bg-teal-500 text-white',
+    modalActiveChip:   'bg-teal-500 text-white font-black shadow-md',
+    modalActiveRow:    'bg-teal-500/20 text-teal-300 font-extrabold border-l-4 border-teal-500',
+    modalActiveBadge:  'text-teal-300 bg-teal-500/20 border border-teal-500/40',
   },
 };
 
-// Default (no network detected yet, or non-mobile service) — original sky look.
 const DEFAULT_THEME: NetworkTheme = {
-  btn:              'bg-sky-500 hover:bg-sky-600',
-  btnText:          'text-white',
-  btnShadow:        'shadow-sky-500/25',
-  chipBg:           'bg-slate-900',
-  chipBorder:       'border-slate-700',
-  chipText:         'text-sky-300',
-  inputBorder:      'border-slate-700/80',
-  inputFocusBorder: 'focus:border-sky-400',
-  inputRing:        'focus:ring-sky-500/20',
+  accentColor:       'text-sky-400',
+  accentBg:          'bg-sky-500',
+  accentBorder:      'border-sky-500',
+  accentLightBg:     'bg-sky-500/15',
+  accentLightBorder: 'border-sky-500/30',
+  btn:               'bg-sky-500 hover:bg-sky-600',
+  btnText:           'text-white font-black',
+  btnShadow:         'shadow-sky-500/25',
+  chipBg:            'bg-slate-900',
+  chipBorder:        'border-slate-700',
+  chipText:          'text-sky-300',
+  inputBorder:       'border-slate-700/80',
+  inputFocusBorder:  'focus:border-sky-400',
+  inputRing:         'focus:ring-sky-500/20',
+  activeCardRing:    'ring-sky-400/80 border-sky-400 bg-sky-500/10 shadow-sky-500/20',
+  activeCheckBadge:  'bg-sky-500 text-white',
+  modalActiveChip:   'bg-sky-500 text-white font-black shadow-md',
+  modalActiveRow:    'bg-sky-500/20 text-sky-300 font-extrabold border-l-4 border-sky-400',
+  modalActiveBadge:  'text-sky-300 bg-sky-500/20 border border-sky-500/40',
 };
 
 // ─── Cable TV Provider Config ───
@@ -334,7 +393,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   // so the same lookup covers both selection paths. Falls back to the
   // default sky theme when no network is known yet or the service isn't
   // a mobile-network purchase (A2C keeps the neutral sky styling).
-  const isNetworkThemable = serviceType === 'airtime' || serviceType === 'data';
+  const isNetworkThemable = serviceType === 'airtime' || serviceType === 'data' || serviceType === 'a2c';
   const activeNetworkTheme: NetworkTheme =
     (isNetworkThemable && detectedOperator && NETWORK_THEMES[detectedOperator.toUpperCase()]) ||
     DEFAULT_THEME;
@@ -357,7 +416,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const inputIcon = serviceType === 'electricity' ? <Zap className="w-4 h-4 text-slate-400" />
     : serviceType === 'cable' ? <Tv className="w-4 h-4 text-slate-400" />
     : serviceType === 'exam' ? <BookOpen className="w-4 h-4 text-slate-400" />
-    : <Phone className="w-4 h-4 text-slate-400" />;
+    : <Phone className={`w-4 h-4 transition-colors ${activeNetworkTheme.accentColor}`} />;
 
   const productCategoryFilter = serviceType === 'cable' ? 'Cable' : serviceType === 'exam' ? 'Exam' : cat;
 
@@ -386,7 +445,9 @@ export default function ServiceForm(props: ServiceFormProps) {
   };
 
   return (
-    <div className="space-y-4 animate-fade-in text-slate-100">
+    <div className={`space-y-4 animate-fade-in text-slate-100 transition-all rounded-3xl ${
+        isNetworkThemable && detectedOperator ? `border-t-2 ${activeNetworkTheme.accentBorder} pt-1` : ''
+      }`}>
       {/* ─── 1. Network Selector (with Official Images) ─── */}
       {showNetworkSelector && (
         <div>
@@ -410,13 +471,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }}
                   className={`py-2.5 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all relative cursor-pointer ${
                     isSelected
-                      ? `${net.activeRing} ring-2 scale-[1.02] shadow-md shadow-sky-500/20`
+                      ? `${(NETWORK_THEMES[net.name.toUpperCase()] || DEFAULT_THEME).activeCardRing} ring-2 scale-[1.02]`
                       : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
-                      <Check className="w-3 h-3 text-white stroke-[3]" />
+                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${(NETWORK_THEMES[net.name.toUpperCase()] || DEFAULT_THEME).activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
+                      <Check className="w-3 h-3 stroke-[3]" />
                     </div>
                   )}
                   <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-2xs p-0.5">
@@ -714,9 +775,9 @@ export default function ServiceForm(props: ServiceFormProps) {
               <button
                 type="button"
                 onClick={handleOpenContactsClick}
-                className="text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-colors active:scale-95 cursor-pointer"
+                className={`text-xs font-bold flex items-center gap-1 transition-all active:scale-95 cursor-pointer px-2.5 py-1 rounded-xl ${activeNetworkTheme.accentLightBg} border ${activeNetworkTheme.accentLightBorder} ${activeNetworkTheme.accentColor}`}
               >
-                <Phone className="w-3 h-3" /> Contacts
+                <Phone className="w-3.5 h-3.5" /> Contacts
               </button>
             )}
           </div>
@@ -867,10 +928,10 @@ export default function ServiceForm(props: ServiceFormProps) {
                 <button
                   type="button"
                   onClick={() => setIsPackageModalOpen(true)}
-                  className="w-full bg-[#161a20] border border-slate-700/80 hover:border-sky-500/50 rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold text-white shadow-md transition-all cursor-pointer active:scale-[0.99]"
+                  className={`w-full bg-[#161a20] border ${activeNetworkTheme.accentLightBorder} hover:${activeNetworkTheme.accentBorder} rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold text-white shadow-md transition-all cursor-pointer active:scale-[0.99]`}
                 >
                   <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
-                    <Zap className="w-4 h-4 text-sky-400 shrink-0" />
+                    <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeNetworkTheme.accentColor}`} />
                     <span className={`truncate ${selectedProduct ? 'text-white font-bold' : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
                         ? `${formatPlanDisplayName(selectedProduct, detectedOperator)} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
@@ -894,7 +955,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       {/* Modal Header */}
                       <div className="p-4 bg-[#202732] border-b border-slate-700/80 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-4 bg-emerald-400 rounded-full"></div>
+                          <div className={`w-1.5 h-4 ${activeNetworkTheme.accentBg} rounded-full`}></div>
                           <h3 className="text-sm font-black text-white font-display m-0">Select package</h3>
                         </div>
                         <button
@@ -915,7 +976,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                             placeholder="Search plan (e.g. 1GB, SME, 500MB)..."
                             value={dataSearchQuery}
                             onChange={(e) => setDataSearchQuery(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-7 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-sky-400 font-medium"
+                            className={`w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-7 py-2 text-xs text-white placeholder-slate-400 focus:outline-none ${activeNetworkTheme.inputFocusBorder} font-medium`}
                           />
                           {dataSearchQuery && (
                             <button
@@ -952,7 +1013,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                                   onClick={() => setDataTypeFilter(chip.id)}
                                   className={`filter-chip px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
                                     dataTypeFilter === chip.id
-                                      ? 'filter-chip-active bg-sky-500 text-white shadow-sm'
+                                      ? activeNetworkTheme.modalActiveChip
                                       : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
                                   }`}
                                 >
@@ -1064,13 +1125,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                                         }}
                                         className={`py-3 px-3 rounded-xl transition-all cursor-pointer text-xs font-mono flex items-center justify-between ${
                                           isSelected
-                                            ? 'bg-emerald-500/20 text-emerald-300 font-extrabold border-l-4 border-emerald-400'
+                                            ? activeNetworkTheme.modalActiveRow
                                             : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium'
                                         }`}
                                       >
                                         <span className="leading-snug pr-2">{displayStr}</span>
                                         {isSelected && (
-                                          <span className="text-[10px] font-black uppercase text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-500/20 shrink-0">
+                                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${activeNetworkTheme.modalActiveBadge}`}>
                                             Active
                                           </span>
                                         )}
@@ -1171,13 +1232,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }}
                   className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
                     isSelected
-                      ? 'border-sky-400 bg-sky-500/15 text-white ring-2 ring-sky-500/40 shadow-lg shadow-sky-500/20 scale-[1.02]'
+                      ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-lg scale-[1.02]`
                       : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
-                      <Check className="w-3 h-3 text-white stroke-[3]" />
+                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${activeNetworkTheme.activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
+                      <Check className="w-3 h-3 stroke-[3]" />
                     </div>
                   )}
                   <span className="text-base font-black font-mono tracking-tight">
