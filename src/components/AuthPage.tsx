@@ -950,8 +950,14 @@ export default function AuthPage({
 
       {/* Forgot Password Modal */}
       {forgotPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-scale-up">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setForgotPasswordModalOpen(false)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-scale-up cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-black text-white">Reset Password</h3>
             <p className="text-xs text-slate-400">Enter your email address to receive a 6-digit password reset code.</p>
             <input
