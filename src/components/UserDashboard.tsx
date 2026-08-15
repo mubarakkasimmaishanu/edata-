@@ -331,87 +331,72 @@ export default function UserDashboard({
 
       <main className="flex-1 px-4 py-5 space-y-5 max-w-lg mx-auto w-full">
         {/* ── 2. Hero Wallet Balance Card (Matching Image 1 & 2) ── */}
-        <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-5.5 rounded-[2.2rem] shadow-2xl shadow-sky-950/60 relative overflow-hidden border border-sky-400/30 space-y-4">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none" />
+        <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-4 rounded-[1.8rem] shadow-xl shadow-sky-950/50 relative overflow-hidden border border-sky-400/30 space-y-2.5">
+          <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
 
-          {/* Top Row: Live Balance Pill + Details > */}
+          {/* Top Row: Main Wallet Pill + History > */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xl px-3 py-1 rounded-full border border-white/20">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-glow-pulse" />
-              <span className="text-[10px] text-white font-black uppercase tracking-widest font-display">LIVE BALANCE</span>
+            <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-xl px-2.5 py-0.5 rounded-full border border-white/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-glow-pulse" />
+              <span className="text-[9.5px] text-white font-black uppercase tracking-widest font-display">MAIN WALLET</span>
             </div>
 
             <button
               onClick={() => onNavigate('history')}
-              className="text-xs font-bold text-white hover:text-sky-100 flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full backdrop-blur-md border border-white/25 transition-all cursor-pointer font-display"
+              className="text-[11px] font-bold text-white hover:text-sky-100 flex items-center gap-1 bg-white/20 px-2.5 py-0.5 rounded-full backdrop-blur-md border border-white/25 transition-all cursor-pointer font-display"
             >
-              History <ChevronRight className="w-3.5 h-3.5" />
+              History <ChevronRight className="w-3 h-3" />
             </button>
           </div>
 
-          {/* Middle Row: Balance Digits + Eye Toggle + Add Money Capsule
-              Balance uses a fluid `clamp()` font size so a 7-digit
-              balance (₦1,000,000.00) never slides under the Add Money
-              pill on narrow phones. The balance group is `flex-1
-              min-w-0` so it can shrink, and Add Money keeps `shrink-0`
-              so it stays fully tappable. */}
-          <div className="flex items-center justify-between gap-2 pt-1">
+          {/* Middle Row: Balance Digits + Eye Toggle + Add Money Capsule */}
+          <div className="flex items-center justify-between gap-2 py-0.5">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span
                 className="font-black font-mono tracking-tight text-white drop-shadow-sm tabular-nums whitespace-nowrap"
-                style={{ fontSize: 'clamp(1.125rem, 5.8vw, 1.875rem)' }}
+                style={{ fontSize: 'clamp(1.125rem, 5.5vw, 1.75rem)' }}
               >
-                {isBalanceHidden ? '₦ ••••••••' : formatMoney(currentUser.walletBalance)}
+                {isBalanceHidden ? '₦ ••••••••' : formatMoney(currentUser.mainWallet ?? currentUser.walletBalance)}
               </span>
 
               <button
                 onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-                className="text-white/80 hover:text-white transition-colors p-1.5 bg-white/20 rounded-xl backdrop-blur-md border border-white/20 active:scale-95 cursor-pointer shrink-0"
+                className="text-white/80 hover:text-white transition-colors p-1 bg-white/20 rounded-lg backdrop-blur-md border border-white/20 active:scale-95 cursor-pointer shrink-0"
                 aria-label={isBalanceHidden ? 'Show balance' : 'Hide balance'}
               >
-                {isBalanceHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {isBalanceHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
 
-            {/* Add Money Button — shrink-0 guarantees it never gets
-                covered by the balance digits, no matter the amount. */}
+            {/* Add Money Button */}
             <button
               onClick={() => onNavigate('fund')}
-              className="bg-white text-sky-950 font-black text-xs px-3.5 py-2.5 rounded-full shadow-xl transition-spring active:scale-95 flex items-center justify-center gap-1.5 btn-sheen cursor-pointer shrink-0 font-display"
+              className="bg-white text-sky-950 font-black text-xs px-3 py-2 rounded-full shadow-lg transition-spring active:scale-95 flex items-center justify-center gap-1 btn-sheen cursor-pointer shrink-0 font-display"
             >
-              <Plus className="w-4 h-4 text-sky-600 stroke-[3]" />
+              <Plus className="w-3.5 h-3.5 text-sky-600 stroke-[3]" />
               Add Money
             </button>
           </div>
 
-          {/* Sleek Tripartite Sub-Wallets Transparency Strip */}
-          <div className="grid grid-cols-3 gap-1.5 p-2 bg-sky-950/50 backdrop-blur-md border border-white/15 rounded-xl">
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-[8.5px] font-black text-sky-200/80 uppercase tracking-wider truncate font-display">MAIN</span>
-              <span className="text-[11px] font-black text-white font-mono truncate tabular-nums">
-                {isBalanceHidden ? '••••' : formatMoney(currentUser.mainWallet ?? currentUser.walletBalance)}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-start min-w-0 border-l border-white/10 pl-2">
-              <span className="text-[8.5px] font-black text-emerald-300/90 uppercase tracking-wider truncate font-display">
-                COMMISSION
-              </span>
-              <span className="text-[11px] font-black text-emerald-300 font-mono truncate tabular-nums">
+          {/* Compact 2-Column Sub-Wallets Transparency Strip (COMMISSION & BONUS) */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 px-2.5 bg-sky-950/40 backdrop-blur-md border border-white/15 rounded-xl">
+            <div className="flex items-center justify-between min-w-0 pr-2 border-r border-white/10">
+              <span className="text-[9px] font-black text-emerald-300/90 uppercase tracking-wider font-display truncate">COMMISSION</span>
+              <span className="text-xs font-black text-emerald-300 font-mono tabular-nums shrink-0 ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.commissionWallet ?? 0)}
               </span>
             </div>
 
-            <div className="flex flex-col items-start min-w-0 border-l border-white/10 pl-2">
-              <div className="flex items-center gap-1 w-full justify-between">
-                <span className="text-[8.5px] font-black text-amber-300/90 uppercase tracking-wider truncate font-display">BONUS</span>
+            <div className="flex items-center justify-between min-w-0 pl-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="text-[9px] font-black text-amber-300/90 uppercase tracking-wider font-display truncate">BONUS</span>
                 {currentUser.bonusExpiresAt && (
-                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/20 px-1 rounded border border-amber-400/30">
+                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/25 px-1 rounded border border-amber-400/30 shrink-0">
                     14d
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-black text-amber-300 font-mono truncate tabular-nums">
+              <span className="text-xs font-black text-amber-300 font-mono tabular-nums shrink-0 ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.bonusWallet ?? 0)}
               </span>
             </div>
@@ -425,13 +410,8 @@ export default function UserDashboard({
               const accNum = vAcc.account_number;
               const bankName = vAcc.bank_name || 'Virtual Account';
               return (
-                // Two-line layout so the FULL account number is never
-                // truncated regardless of bank name length or device
-                // width: line 1 = tiny label + bank chip, line 2 = the
-                // 10-digit number in bold mono. Copy button is
-                // icon-only (title/aria-label carry the semantics) so
                 // the number gets the widest possible track.
-                <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
+                <div className="p-2 px-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-xl flex items-center justify-between gap-2 shadow-inner">
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest font-display">VIRTUAL ACCOUNT</span>
