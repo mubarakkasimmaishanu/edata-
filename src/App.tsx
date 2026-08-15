@@ -506,6 +506,12 @@ function MainApp() {
         } catch {}
       }
 
+      const mainW = parseFloat(walletRes?.data?.main_wallet ?? walletRes?.data?.balance ?? parsedBalance);
+      const commW = parseFloat(walletRes?.data?.commission_wallet ?? 0);
+      const bonusW = parseFloat(walletRes?.data?.bonus_wallet ?? 0);
+      const bonusExp = walletRes?.data?.bonus_expires_at ?? null;
+      const totalEff = parseFloat(walletRes?.data?.total_effective_balance ?? (mainW + commW + bonusW));
+
       const syncedUser: UserProfile = {
         id: user.id || currentUser.id,
         name: computedName,
@@ -513,7 +519,12 @@ function MainApp() {
         lastname: lastName || currentUser.lastname || '',
         email: user.email || currentUser.email || '',
         phone: user.phone || user.mobile || currentUser.phone || '',
-        walletBalance: parsedBalance,
+        walletBalance: totalEff > 0 ? totalEff : parsedBalance,
+        mainWallet: mainW,
+        commissionWallet: commW,
+        bonusWallet: bonusW,
+        bonusExpiresAt: bonusExp,
+        totalEffectiveBalance: totalEff,
         category: user.level_label || user.category || user.user_level || currentUser.category || 'Basic User',
         bvn: user.bvn || currentUser.bvn || '',
         nin: user.nin || currentUser.nin || '',
