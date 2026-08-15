@@ -363,6 +363,10 @@ export const api = {
     const qs = appVersion ? `?app_version=${encodeURIComponent(appVersion)}` : '';
     return request(`/popups${qs}`, {}, silent);
   },
+
+  async getReferralConfig(silent = false) {
+    return request('/referral-config', {}, silent);
+  },
 };
 
 
