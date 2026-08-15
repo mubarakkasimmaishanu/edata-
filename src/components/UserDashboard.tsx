@@ -384,6 +384,39 @@ export default function UserDashboard({
             </button>
           </div>
 
+          {/* Sleek Tripartite Sub-Wallets Transparency Strip */}
+          <div className="grid grid-cols-3 gap-1.5 p-2 bg-sky-950/50 backdrop-blur-md border border-white/15 rounded-xl">
+            <div className="flex flex-col items-start min-w-0">
+              <span className="text-[8.5px] font-black text-sky-200/80 uppercase tracking-wider truncate font-display">MAIN</span>
+              <span className="text-[11px] font-black text-white font-mono truncate tabular-nums">
+                {isBalanceHidden ? '••••' : formatMoney(currentUser.mainWallet ?? currentUser.walletBalance)}
+              </span>
+            </div>
+
+            <div className="flex flex-col items-start min-w-0 border-l border-white/10 pl-2">
+              <span className="text-[8.5px] font-black text-emerald-300/90 uppercase tracking-wider truncate font-display">
+                COMMISSION
+              </span>
+              <span className="text-[11px] font-black text-emerald-300 font-mono truncate tabular-nums">
+                {isBalanceHidden ? '••••' : formatMoney(currentUser.commissionWallet ?? 0)}
+              </span>
+            </div>
+
+            <div className="flex flex-col items-start min-w-0 border-l border-white/10 pl-2">
+              <div className="flex items-center gap-1 w-full justify-between">
+                <span className="text-[8.5px] font-black text-amber-300/90 uppercase tracking-wider truncate font-display">BONUS</span>
+                {currentUser.bonusExpiresAt && (
+                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/20 px-1 rounded border border-amber-400/30">
+                    14d
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-black text-amber-300 font-mono truncate tabular-nums">
+                {isBalanceHidden ? '••••' : formatMoney(currentUser.bonusWallet ?? 0)}
+              </span>
+            </div>
+          </div>
+
           {/* Bottom Area: Backend KatPay Virtual Account Capsule */}
           {(() => {
             const vAcc = localVirtualAccount || currentUser.virtualAccount || (currentUser.virtualAccounts && currentUser.virtualAccounts.length > 0 ? currentUser.virtualAccounts[0] : null);

@@ -6,7 +6,12 @@ export interface UserProfile {
   email: string;
   phone: string;
   walletBalance: number;
-  category: 'Basic User' | 'Referred User' | 'Premium User';
+  mainWallet?: number;
+  commissionWallet?: number;
+  bonusWallet?: number;
+  bonusExpiresAt?: string | null;
+  totalEffectiveBalance?: number;
+  category: 'Basic User' | 'Referred User' | 'Premium User' | string;
   bvn: string;
   nin: string;
   isVerified: boolean;
