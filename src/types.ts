@@ -164,3 +164,34 @@ export interface PopupBanner {
   updated_at?: string;
 }
 
+export interface DownlineUser {
+  id: number | string;
+  name: string;
+  email: string;
+  date: string;
+  level: string;
+}
+
+export interface ReferralStep {
+  step: number;
+  title: string;
+  desc: string;
+}
+
+export interface ReferralConfig {
+  banner_title: string;
+  banner_subtitle: string;
+  case1_label: string;
+  case1_desc: string;
+  case2_label: string;
+  case2_desc: string;
+  case3_label: string;
+  case3_desc: string;
+  referral_code: string;
+  referral_link: string;
+  commission_wallet_balance: number;
+  total_referrals_count: number;
+  downlines: DownlineUser[];
+  how_it_works: ReferralStep[];
+}
+
