@@ -4,6 +4,6 @@
     <string name="title_activity_main">eData</string>
     <string name="package_name">com.eDATA.app</string>
     <string name="custom_url_scheme">com.eDATA.app</string>
-    <string name="server_client_id">518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com</string>
-    <string name="default_web_client_id">518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com</string>
+    <string name="server_client_id">452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com</string>
+    <string name="default_web_client_id">452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com</string>
 </resources>

@@ -7,12 +7,33 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:452311037053:android:1edcb8d0315e857471ed14",
+        "mobilesdk_app_id": "1:452311037053:android:d6536a470cad292371ed14",
         "android_client_info": {
           "package_name": "com.eDATA.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "452311037053-hke28p0il0a44mh4vtkg7e1u439ig076.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.eDATA.app",
+            "certificate_hash": "542f0e7632bfaf66fad41b49042147c7d08c72fb"
+          }
+        },
+        {
+          "client_id": "452311037053-om0oi8g2ls33kf0e71q2lh6lr39v0e33.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.eDATA.app",
+            "certificate_hash": "0d6e9b446afb00cca3a8eb7a5eee0a7527466984"
+          }
+        },
+        {
+          "client_id": "452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyANGYhM1gMmq4sNhW6Hbv63mQPH_wXLVrc"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
@@ -31,7 +57,12 @@
           "package_name": "com.saukiglobal.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyANGYhM1gMmq4sNhW6Hbv63mQPH_wXLVrc"
@@ -39,7 +70,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

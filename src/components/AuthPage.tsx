@@ -61,8 +61,8 @@ export default function AuthPage({
   // Google Auth State
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
 
-  // Web OAuth client ID (used by GIS on the web; native reads it from strings.xml)
-  const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
+  // Google Client ID (Web Client ID from Firebase / Google Cloud Console)
+  const GOOGLE_CLIENT_ID = '452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com';
 
   // Initialize the correct SDK exactly once per platform
   useEffect(() => {
