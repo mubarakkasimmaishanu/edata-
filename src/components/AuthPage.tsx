@@ -268,7 +268,7 @@ export default function AuthPage({
       const res = await api.signupRequest(authEmail, authPromo);
       if (res.success) {
         setScreenMode('otp');
-        toast.success(res.message || `Verification code sent to ${authEmail}`);
+        toast.success(res.message || 'Verification code sent to your registered email');
       } else {
         toast.error(res.error || 'Failed to send signup verification code.');
       }
@@ -368,7 +368,7 @@ export default function AuthPage({
         setAuthEmail(forgotPasswordEmail);
         setForgotPasswordModalOpen(false);
         setScreenMode('forgot_otp');
-        toast.success(res.message || `Password reset code sent to ${forgotPasswordEmail}`);
+        toast.success(res.message || 'Password reset code sent to your registered email');
       } else {
         toast.error(res.error || 'Failed to request password reset code.');
       }
@@ -683,7 +683,7 @@ export default function AuthPage({
               <div className="space-y-2 text-center">
                 <h2 className="text-2xl font-black text-white">Enter Verification Code</h2>
                 <p className="text-xs text-slate-400 font-medium">
-                  We sent a 6-digit code to <span className="font-bold text-sky-400">{authEmail}</span>.
+                  We sent a 6-digit code to <span className="font-bold text-sky-400">your registered email</span>.
                 </p>
               </div>
 
@@ -744,7 +744,7 @@ export default function AuthPage({
               <div className="space-y-2 text-center">
                 <h2 className="text-2xl font-black text-white">Enter Reset Code</h2>
                 <p className="text-xs text-slate-400 font-medium">
-                  We sent a 6-digit code to <span className="font-bold text-sky-400">{authEmail}</span>.
+                  We sent a 6-digit code to <span className="font-bold text-sky-400">your registered email</span>.
                 </p>
               </div>
 
@@ -804,7 +804,7 @@ export default function AuthPage({
               <div className="space-y-2 text-center">
                 <h2 className="text-2xl font-black text-white">Set New Password</h2>
                 <p className="text-xs text-slate-400 font-medium">
-                  Create a new password for <span className="font-bold text-sky-400">{authEmail}</span>.
+                  Create a new password for <span className="font-bold text-sky-400">your account</span>.
                 </p>
               </div>
 
