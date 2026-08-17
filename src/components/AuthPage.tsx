@@ -442,7 +442,11 @@ export default function AuthPage({
           <div className="flex-1 flex flex-col justify-between space-y-6">
             <div className="space-y-6 pt-2">
               {/* Header Title */}
-              <div className="text-center space-y-1 pt-4 pb-2">
+              {/* App Brand Header */}
+              <div className="text-center space-y-1 pt-4 pb-2 flex flex-col items-center">
+                <div className="w-16 h-16 mb-2 rounded-2xl overflow-hidden shadow-lg shadow-sky-500/20 border border-sky-500/30 flex items-center justify-center bg-slate-900/50 backdrop-blur-md">
+                  <img src={edataLogo} alt="eData Logo" className="w-full h-full object-contain" />
+                </div>
                 <h1 className="text-3xl font-black tracking-tight flex items-center justify-center gap-0.5 font-display">
                   <span className="text-[#0284c7] font-extrabold">e</span>
                   <span className={`font-extrabold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Data</span>
