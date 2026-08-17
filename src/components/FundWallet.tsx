@@ -34,6 +34,15 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
 
   useEffect(() => {
     fetchFundData();
+
+    // ── Rapid 2.5-Second Live DVA Top-Up Listener ──
+    const interval = setInterval(() => {
+      if (onRefreshWallet) {
+        onRefreshWallet();
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchFundData = async () => {

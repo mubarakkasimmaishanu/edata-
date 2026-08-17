@@ -612,24 +612,78 @@ function MainApp() {
     return () => clearTimeout(splashTimer);
   }, []);
 
-  // ── Ultra-Fast Real-Time Background Synchronization Engine (3-Second Heartbeat) ──
+  // ── Rapid Lightweight Wallet Synchronizer (<100ms response) ──
+  const fetchWalletFast = async (silent = true) => {
+    if (!getAuthToken()) return;
+    try {
+      const walletRes = await api.getWallet(silent);
+      if (walletRes && walletRes.success !== false) {
+        const walletData = walletRes.data || walletRes;
+        const mainW = parseFloat(walletData?.main_wallet ?? walletData?.balance ?? 0);
+        const commW = parseFloat(walletData?.commission_wallet ?? 0);
+        const bonusW = parseFloat(walletData?.bonus_wallet ?? 0);
+        const bonusExp = walletData?.bonus_expires_at ?? null;
+        const totalEff = parseFloat(walletData?.total_effective_balance ?? (mainW + commW + bonusW));
+        const newBalance = totalEff > 0 ? totalEff : mainW;
+
+        if (newBalance !== undefined && !isNaN(newBalance)) {
+          setCurrentUser(prev => {
+            if (prev.walletBalance > 0 && newBalance > prev.walletBalance) {
+              const diff = newBalance - prev.walletBalance;
+              toast.success(`⚡ Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+            }
+            const updated: UserProfile = {
+              ...prev,
+              walletBalance: newBalance,
+              mainWallet: mainW,
+              commissionWallet: commW,
+              bonusWallet: bonusW,
+              bonusExpiresAt: bonusExp,
+              totalEffectiveBalance: totalEff,
+            };
+            try {
+              localStorage.setItem('edata_current_user', JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+        }
+      }
+    } catch {
+      // silent background check
+    }
+  };
+
+  // ── Ultra-Fast Real-Time Background Synchronization Engine (2.5s Rapid Wallet Heartbeat) ──
   useEffect(() => {
-    let pollInterval: any = null;
+    let walletPollInterval: any = null;
+    let fullSyncInterval: any = null;
     let capAppListener: any = null;
 
     const startPolling = () => {
-      if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(() => {
+      stopPolling();
+      // Rapid 2.5s lightweight wallet top-up check (DVA auto-credit detection)
+      walletPollInterval = setInterval(() => {
+        if (getAuthToken() && currentScreen === 'app') {
+          fetchWalletFast(true);
+        }
+      }, 2500);
+
+      // Periodic 30s full catalog & transaction sync
+      fullSyncInterval = setInterval(() => {
         if (getAuthToken() && currentScreen === 'app') {
           fetchAllData(true);
         }
-      }, 3000);
+      }, 30000);
     };
 
     const stopPolling = () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
+      if (walletPollInterval) {
+        clearInterval(walletPollInterval);
+        walletPollInterval = null;
+      }
+      if (fullSyncInterval) {
+        clearInterval(fullSyncInterval);
+        fullSyncInterval = null;
       }
     };
 
@@ -639,9 +693,10 @@ function MainApp() {
       stopPolling();
     }
 
-    // Immediate Sync on Foreground App Focus (Browser Tab & Native Mobile App Focus)
+    // Instant Sync on Foreground App Focus (When returning from Banking App after DVA transfer)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && getAuthToken() && currentScreen === 'app') {
+        fetchWalletFast(true);
         fetchAllData(true);
         startPolling();
       } else if (document.visibilityState === 'hidden') {
@@ -654,6 +709,7 @@ function MainApp() {
     import('@capacitor/app').then(({ App: CapApp }) => {
       CapApp.addListener('appStateChange', (state) => {
         if (state.isActive && getAuthToken() && currentScreen === 'app') {
+          fetchWalletFast(true);
           fetchAllData(true);
           startPolling();
         } else if (!state.isActive) {
@@ -671,7 +727,7 @@ function MainApp() {
         capAppListener.remove();
       }
     };
-  }, [currentScreen, currentUser.walletBalance]);
+  }, [currentScreen]);
 
   const handleGlobalRefresh = () => {
     fetchAllData();
