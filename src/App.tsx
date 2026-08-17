@@ -67,7 +67,6 @@ type ActiveView =
 
 function MainApp() {
   const toast = useToast();
-  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
   const [products, setProducts] = useState<ProductItem[]>(() => {
     try {
@@ -576,10 +575,6 @@ function MainApp() {
   };
 
   useEffect(() => {
-    const splashTimer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2800);
-
     const checkConnectionOnLoad = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/detect-network?phone=0803`);
@@ -608,8 +603,6 @@ function MainApp() {
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }
-
-    return () => clearTimeout(splashTimer);
   }, []);
 
   // ── Rapid Lightweight Wallet Synchronizer (<100ms response) ──
@@ -1115,7 +1108,6 @@ function MainApp() {
 
   return (
     <>
-      {showSplash && <SplashScreen />}
       <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
         <div className="w-full flex-1 flex flex-col">
           {currentScreen !== 'app' ? (
