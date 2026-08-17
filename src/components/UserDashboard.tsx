@@ -379,26 +379,26 @@ export default function UserDashboard({
           </div>
 
           {/* Separate Rounded Pill Containers for COMMISSION & BONUS (Matching Sketch) */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {/* Commission Pill */}
-            <div className="flex items-center justify-between px-3 py-1.5 bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/25 rounded-full shadow-sm transition-all">
-              <span className="text-[10px] font-bold text-sky-100 tracking-wide font-display">Commission</span>
-              <span className="text-[11.5px] font-black text-emerald-300 font-mono tabular-nums ml-1">
+          <div className="grid grid-cols-2 gap-3 pt-0.5">
+            {/* Commission Pill Container */}
+            <div className="flex items-center justify-between px-3.5 py-2 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
+              <span className="text-[11px] font-bold text-sky-100 font-display tracking-tight">Commission</span>
+              <span className="text-xs font-black text-emerald-300 font-mono tabular-nums ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.commissionWallet ?? 0)}
               </span>
             </div>
 
-            {/* Bonus Pill */}
-            <div className="flex items-center justify-between px-3 py-1.5 bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/25 rounded-full shadow-sm transition-all">
+            {/* Bonus Pill Container */}
+            <div className="flex items-center justify-between px-3.5 py-2 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
               <div className="flex items-center gap-1 min-w-0">
-                <span className="text-[10px] font-bold text-sky-100 tracking-wide font-display truncate">Bonus</span>
+                <span className="text-[11px] font-bold text-sky-100 font-display tracking-tight truncate">Bonus</span>
                 {currentUser.bonusExpiresAt && (
-                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/30 px-1 rounded-full border border-amber-400/30 shrink-0">
+                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/35 px-1.5 py-0.2 rounded-full border border-amber-400/40 shrink-0">
                     14d
                   </span>
                 )}
               </div>
-              <span className="text-[11.5px] font-black text-amber-300 font-mono tabular-nums ml-1">
+              <span className="text-xs font-black text-amber-300 font-mono tabular-nums ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.bonusWallet ?? 0)}
               </span>
             </div>
