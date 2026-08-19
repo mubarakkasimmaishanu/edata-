@@ -494,24 +494,33 @@ export default function UserDashboard({
           </div>
 
           <div className="grid grid-cols-5 gap-2">
-            {actionsToDisplay.map((item, idx) => {
-              const iconSrc = getActionIcon(item.icon, item.network);
-              return (
-                <button
-                  key={item.id || idx}
-                  onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
-                  className="flex flex-col items-center justify-start gap-1.5 transition-all group cursor-pointer active:scale-95 min-w-0"
-                  title={item.title}
-                >
-                  <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
-                    <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
-                  </div>
-                  <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display w-full text-center leading-tight whitespace-normal break-words hyphens-auto">
-                    {item.title}
-                  </span>
-                </button>
-              );
-            })}
+            {actionsToDisplay.length > 0 ? (
+              actionsToDisplay.map((item, idx) => {
+                const iconSrc = getActionIcon(item.icon, item.network);
+                return (
+                  <button
+                    key={item.id || idx}
+                    onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
+                    className="flex flex-col items-center justify-start gap-1.5 transition-all group cursor-pointer active:scale-95 min-w-0"
+                    title={item.title}
+                  >
+                    <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
+                      <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
+                    </div>
+                    <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display w-full text-center leading-tight whitespace-normal break-words hyphens-auto">
+                      {item.title}
+                    </span>
+                  </button>
+                );
+              })
+            ) : isSyncing ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 animate-pulse min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-slate-700/60 border border-slate-700/50" />
+                  <div className="h-2 w-10 bg-slate-750/70 rounded" />
+                </div>
+              ))
+            ) : null}
           </div>
         </section>
 

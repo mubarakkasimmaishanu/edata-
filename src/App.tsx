@@ -247,16 +247,10 @@ function MainApp() {
     });
   };
 
-  const fetchAllData = async (silent = false) => {
-    if (!silent) setIsSyncing(true);
+  // ── 1. Fast Independent Catalog Synchronizer (<0ms perceived from cache, silent live refresh) ──
+  const syncCatalog = async (silent = true) => {
     try {
-      const [profileRes, walletRes, txRes, servicesRes] = await Promise.all([
-        api.getProfile(silent),
-        api.getWallet(silent),
-        api.getTransactions(silent),
-        api.getServices(silent),
-      ]);
-
+      const servicesRes = await api.getServices(silent);
       const resData = servicesRes?.data || servicesRes || {};
       const dbServices: any[] = resData.services || (Array.isArray(resData) ? resData : []);
       let dbPlans: any[] = resData.plans || resData.data_plans || resData.plans_list || [];
@@ -280,8 +274,7 @@ function MainApp() {
       // Derive "container services" purely from the shape of the admin's
       // response: any service that has at least one plan hanging off it
       // (via `service_type_id`) is a container — its own row shouldn't be
-      // pushed as a buyable, because the plans are the buyables. This
-      // stays flexible: whatever the admin sets up, we mirror.
+      // pushed as a buyable, because the plans are the buyables.
       const serviceIdsWithPlans = new Set<string>();
       dbPlans.forEach((plan: any) => {
         const sid = plan.service_type_id;
@@ -299,10 +292,6 @@ function MainApp() {
         else if (srv.category_id === 5) category = 'Electricity';
         else if (srv.category_id === 6) category = 'A2C';
 
-        // Skip container services — the buyables are the individual plans
-        // the admin attached (one DataPlan per bundle, one CableBouquet
-        // per package, one MeterTariff per band). Without this, a
-        // container leaks a ₦0 row like "MTN Data — ₦0" into the picker.
         if (serviceIdsWithPlans.has(String(srv.id))) return;
 
         const slugLower = String(srv.slug || srv.name || '').toLowerCase();
@@ -347,10 +336,6 @@ function MainApp() {
         else if (catId === 4) planCat = 'Cable TV';
         else if (catId === 5) planCat = 'Electricity';
 
-        // Prefer per-tier prices coming from the backend so the UI can
-        // resolve `Basic / Referred / Premium` accurately. Fall back to
-        // the resolved `price` (already per-user) if a specific tier
-        // column is absent. NEVER inject a hardcoded amount.
         const rawSelling = plan.selling_price ?? plan.price ?? plan.amount;
         const rawReferred = plan.referred_price ?? plan.price ?? plan.amount;
         const rawPremium = plan.premium_price ?? plan.price ?? plan.amount;
@@ -374,11 +359,15 @@ function MainApp() {
       const qaFromServices = resData.quick_actions || servicesRes?.data?.quick_actions || servicesRes?.quick_actions;
       if (Array.isArray(qaFromServices)) {
         setQuickActions(qaFromServices);
+        try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices)); } catch {}
       } else {
         try {
           const qaRes = await api.getQuickActions(silent);
           const qaList = qaRes?.data?.quick_actions || qaRes?.data || qaRes || [];
-          if (Array.isArray(qaList)) setQuickActions(qaList);
+          if (Array.isArray(qaList)) {
+            setQuickActions(qaList);
+            try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaList)); } catch {}
+          }
         } catch {}
       }
 
@@ -386,15 +375,14 @@ function MainApp() {
       const ptFromServices = resData.plan_types || servicesRes?.data?.plan_types || servicesRes?.plan_types;
       if (Array.isArray(ptFromServices)) {
         setPlanTypes(ptFromServices);
+        try { localStorage.setItem('edata_cached_plan_types', JSON.stringify(ptFromServices)); } catch {}
       }
 
-      setProducts(mappedProducts);
+      if (mappedProducts.length > 0) {
+        setProducts(mappedProducts);
+        try { localStorage.setItem('edata_cached_products', JSON.stringify(mappedProducts)); } catch {}
+      }
 
-      // Derive the set of active service categories directly from what
-      // the backend returned. If /api/services drops (say) every
-      // Electricity ServiceType, `electricity` will not appear here and
-      // the UserDashboard + ServicesCatalog will hide the Electricity
-      // tile on the very next render.
       const catToVerb: Record<number, string> = {
         1: 'airtime', 2: 'data', 3: 'exams',
         4: 'cable', 5: 'electricity', 6: 'a2c',
@@ -406,11 +394,123 @@ function MainApp() {
         if (isActive && catToVerb[cid]) catSet.add(catToVerb[cid]);
       });
       const catArray = Array.from(catSet);
-      setServiceCategories(catArray);
-      try {
-        localStorage.setItem('edata_cached_service_categories', JSON.stringify(catArray));
-      } catch {}
+      if (catArray.length > 0) {
+        setServiceCategories(catArray);
+        try { localStorage.setItem('edata_cached_service_categories', JSON.stringify(catArray)); } catch {}
+      }
+    } catch (err) {
+      // silent catalog sync
+    }
+  };
 
+  // ── 2. User Profile & Wallet Synchronizer ──
+  const syncProfileAndWallet = async (silent = true) => {
+    const [profileRes, walletRes] = await Promise.all([
+      api.getProfile(silent),
+      api.getWallet(silent),
+    ]);
+
+    const user = profileRes?.data?.user || profileRes?.data || profileRes?.user || profileRes || {};
+    const walletSucceeded = walletRes?.success !== false;
+    const profileSucceeded = profileRes?.success !== false;
+    const walletData = walletSucceeded ? (walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || {}) : {};
+
+    let extractedBalance: number | null = null;
+    if (walletSucceeded && walletRes?.data?.balance !== undefined && walletRes?.data?.balance !== null) {
+      extractedBalance = parseFloat(walletRes.data.balance);
+    }
+    if (extractedBalance === null && walletSucceeded && walletRes?.data?.wallet_balance !== undefined) {
+      extractedBalance = parseFloat(walletRes.data.wallet_balance);
+    }
+    if (extractedBalance === null && profileSucceeded) {
+      const profData = profileRes?.data || {};
+      if (profData.wallet_balance !== undefined && profData.wallet_balance !== null) {
+        extractedBalance = parseFloat(profData.wallet_balance);
+      } else if (profData.balance !== undefined && profData.balance !== null) {
+        extractedBalance = parseFloat(profData.balance);
+      }
+      const profUser = profData.user || profData;
+      if (extractedBalance === null && profUser.wallet_balance !== undefined) {
+        extractedBalance = parseFloat(profUser.wallet_balance);
+      }
+      if (extractedBalance === null && profUser.balance !== undefined) {
+        extractedBalance = parseFloat(profUser.balance);
+      }
+    }
+    if (extractedBalance === null && walletSucceeded) {
+      const wb = walletData?.balance ?? walletData?.wallet_balance ?? walletData?.walletBalance;
+      if (wb !== undefined && wb !== null) {
+        extractedBalance = parseFloat(wb);
+      }
+    }
+
+    const parsedBalance = (extractedBalance !== null && !isNaN(extractedBalance))
+      ? extractedBalance
+      : currentUser.walletBalance;
+
+    if (silent && currentUser.walletBalance > 0 && parsedBalance > currentUser.walletBalance) {
+      const diff = parsedBalance - currentUser.walletBalance;
+      toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+    }
+
+    const firstName = user.firstname || user.first_name || '';
+    const lastName = user.lastname || user.last_name || '';
+    const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
+
+    const vAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
+    const primaryVAccount = vAccounts.length > 0 && vAccounts[0].account_number ? {
+      bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
+      account_number: vAccounts[0].account_number || vAccounts[0].accountNo || '',
+      account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
+    } : (currentUser.virtualAccount || null);
+
+    if (primaryVAccount && primaryVAccount.account_number) {
+      try {
+        localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
+      } catch {}
+    }
+
+    const mainW = parseFloat(walletRes?.data?.main_wallet ?? walletRes?.data?.balance ?? parsedBalance);
+    const commW = parseFloat(walletRes?.data?.commission_wallet ?? 0);
+    const bonusW = parseFloat(walletRes?.data?.bonus_wallet ?? 0);
+    const bonusExp = walletRes?.data?.bonus_expires_at ?? null;
+    const totalEff = parseFloat(walletRes?.data?.total_effective_balance ?? (mainW + commW + bonusW));
+
+    const syncedUser: UserProfile = {
+      id: user.id || currentUser.id,
+      name: computedName,
+      firstname: firstName || currentUser.firstname || '',
+      lastname: lastName || currentUser.lastname || '',
+      email: user.email || currentUser.email || '',
+      phone: user.phone || user.mobile || currentUser.phone || '',
+      walletBalance: totalEff > 0 ? totalEff : parsedBalance,
+      mainWallet: mainW,
+      commissionWallet: commW,
+      bonusWallet: bonusW,
+      bonusExpiresAt: bonusExp,
+      totalEffectiveBalance: totalEff,
+      category: user.level_label || user.category || user.user_level || currentUser.category || 'Basic User',
+      bvn: user.bvn || currentUser.bvn || '',
+      nin: user.nin || currentUser.nin || '',
+      isVerified: true,
+      pinCode: '',
+      hasPin: user.has_pin !== undefined ? Boolean(user.has_pin) : (user.hasPin !== undefined ? Boolean(user.hasPin) : currentUser.hasPin),
+      hasPendingUpgrade: Boolean(user.has_pending_upgrade),
+      upgradeFee: parseFloat(user.premium_upgrade_fee || user.upgrade_fee || '0'),
+      photo: resolveImageUrl(user.photo || user.avatar || user.picture) || currentUser.photo || null,
+      avatar: resolveImageUrl(user.avatar || user.photo || user.picture) || currentUser.avatar || null,
+      picture: resolveImageUrl(user.picture || user.photo || user.avatar) || currentUser.picture || null,
+      virtualAccount: primaryVAccount,
+      virtualAccounts: vAccounts,
+    };
+
+    handleSetCurrentUser(syncedUser);
+  };
+
+  // ── 3. Transaction History Synchronizer ──
+  const syncTransactions = async (silent = true) => {
+    try {
+      const txRes = await api.getTransactions(silent);
       const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
         id: t.reference,
         type: t.type === 'Exam Card' ? 'Exam Token' : (t.type === 'Cable TV' || t.type === 'Cable' ? 'Cable TV' : t.type),
@@ -423,136 +523,31 @@ function MainApp() {
         disputeRaised: false,
       }));
       setTransactions(mappedTx);
+      try { localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx)); } catch {}
+    } catch {}
+  };
 
-      try {
-        localStorage.setItem('edata_cached_products', JSON.stringify(mappedProducts));
-        localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx));
-        if (Array.isArray(qaFromServices)) {
-          localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices));
-        }
-        if (Array.isArray(ptFromServices)) {
-          localStorage.setItem('edata_cached_plan_types', JSON.stringify(ptFromServices));
-        }
-      } catch {}
+  // ── 4. Notifications Synchronizer ──
+  const syncNotifications = async (silent = true) => {
+    try {
+      const notifsRes = await api.getNotifications(silent);
+      const notifArray = notifsRes?.data?.notifications || notifsRes?.notifications || (Array.isArray(notifsRes?.data) ? notifsRes.data : Array.isArray(notifsRes) ? notifsRes : []);
+      const unread = notifsRes?.data?.unread_count ?? notifArray.filter((n: any) => !n.is_read && !n.read).length;
+      setUnreadCount(unread);
+    } catch {}
+  };
 
-      const user = profileRes?.data?.user || profileRes?.data || profileRes?.user || profileRes || {};
-      const walletSucceeded = walletRes?.success !== false;
-      const profileSucceeded = profileRes?.success !== false;
-      const walletData = walletSucceeded ? (walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || {}) : {};
-
-      // Extract balance from all possible API response locations
-      let extractedBalance: number | null = null;
-
-      // 1. Try wallet endpoint response (data.balance)
-      if (walletSucceeded && walletRes?.data?.balance !== undefined && walletRes?.data?.balance !== null) {
-        extractedBalance = parseFloat(walletRes.data.balance);
-      }
-      // 2. Try wallet endpoint alternate key (data.wallet_balance)
-      if (extractedBalance === null && walletSucceeded && walletRes?.data?.wallet_balance !== undefined) {
-        extractedBalance = parseFloat(walletRes.data.wallet_balance);
-      }
-      // 3. Try profile endpoint (data.wallet_balance or data.balance)
-      if (extractedBalance === null && profileSucceeded) {
-        const profData = profileRes?.data || {};
-        if (profData.wallet_balance !== undefined && profData.wallet_balance !== null) {
-          extractedBalance = parseFloat(profData.wallet_balance);
-        } else if (profData.balance !== undefined && profData.balance !== null) {
-          extractedBalance = parseFloat(profData.balance);
-        }
-        // Also check nested user object from profile
-        const profUser = profData.user || profData;
-        if (extractedBalance === null && profUser.wallet_balance !== undefined) {
-          extractedBalance = parseFloat(profUser.wallet_balance);
-        }
-        if (extractedBalance === null && profUser.balance !== undefined) {
-          extractedBalance = parseFloat(profUser.balance);
-        }
-      }
-      // 4. Fallback: try walletData generic extraction
-      if (extractedBalance === null && walletSucceeded) {
-        const wb = walletData?.balance ?? walletData?.wallet_balance ?? walletData?.walletBalance;
-        if (wb !== undefined && wb !== null) {
-          extractedBalance = parseFloat(wb);
-        }
-      }
-
-      // If we couldn't extract a valid balance from the API, preserve the current balance
-      // This prevents silent sync failures from resetting the balance to ₦0.00
-      const parsedBalance = (extractedBalance !== null && !isNaN(extractedBalance))
-        ? extractedBalance
-        : currentUser.walletBalance;
-
-      // Real-time live credit notification alert
-      if (silent && currentUser.walletBalance > 0 && parsedBalance > currentUser.walletBalance) {
-        const diff = parsedBalance - currentUser.walletBalance;
-        toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
-      }
-
-      const firstName = user.firstname || user.first_name || '';
-      const lastName = user.lastname || user.last_name || '';
-      const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
-
-      const vAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
-      const primaryVAccount = vAccounts.length > 0 && vAccounts[0].account_number ? {
-        bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
-        account_number: vAccounts[0].account_number || vAccounts[0].accountNo || '',
-        account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
-      } : (currentUser.virtualAccount || null);
-
-      if (primaryVAccount && primaryVAccount.account_number) {
-        try {
-          localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
-        } catch {}
-      }
-
-      const mainW = parseFloat(walletRes?.data?.main_wallet ?? walletRes?.data?.balance ?? parsedBalance);
-      const commW = parseFloat(walletRes?.data?.commission_wallet ?? 0);
-      const bonusW = parseFloat(walletRes?.data?.bonus_wallet ?? 0);
-      const bonusExp = walletRes?.data?.bonus_expires_at ?? null;
-      const totalEff = parseFloat(walletRes?.data?.total_effective_balance ?? (mainW + commW + bonusW));
-
-      const syncedUser: UserProfile = {
-        id: user.id || currentUser.id,
-        name: computedName,
-        firstname: firstName || currentUser.firstname || '',
-        lastname: lastName || currentUser.lastname || '',
-        email: user.email || currentUser.email || '',
-        phone: user.phone || user.mobile || currentUser.phone || '',
-        walletBalance: totalEff > 0 ? totalEff : parsedBalance,
-        mainWallet: mainW,
-        commissionWallet: commW,
-        bonusWallet: bonusW,
-        bonusExpiresAt: bonusExp,
-        totalEffectiveBalance: totalEff,
-        category: user.level_label || user.category || user.user_level || currentUser.category || 'Basic User',
-        bvn: user.bvn || currentUser.bvn || '',
-        nin: user.nin || currentUser.nin || '',
-        isVerified: true,
-        pinCode: '',
-        hasPin: user.has_pin !== undefined ? Boolean(user.has_pin) : (user.hasPin !== undefined ? Boolean(user.hasPin) : currentUser.hasPin),
-        hasPendingUpgrade: Boolean(user.has_pending_upgrade),
-        // Upgrade fee is admin-managed via Setting; if the profile hasn't
-        // returned it yet, hold 0 (the UI treats 0 as "waiting for server").
-        upgradeFee: parseFloat(user.premium_upgrade_fee || user.upgrade_fee || '0'),
-        photo: resolveImageUrl(user.photo || user.avatar || user.picture) || currentUser.photo || null,
-        avatar: resolveImageUrl(user.avatar || user.photo || user.picture) || currentUser.avatar || null,
-        picture: resolveImageUrl(user.picture || user.photo || user.avatar) || currentUser.picture || null,
-        virtualAccount: primaryVAccount,
-        virtualAccounts: vAccounts,
-      };
-
-      handleSetCurrentUser(syncedUser);
-
+  const fetchAllData = async (silent = false) => {
+    if (!silent) setIsSyncing(true);
+    try {
+      await Promise.allSettled([
+        syncCatalog(silent),
+        syncProfileAndWallet(silent),
+        syncTransactions(silent),
+        syncNotifications(silent),
+      ]);
       setApiStatus('connected');
       setLastSynced(new Date().toLocaleTimeString());
-
-      // Sync Notifications unread count
-      try {
-        const notifsRes = await api.getNotifications(silent);
-        const notifArray = notifsRes?.data?.notifications || notifsRes?.notifications || (Array.isArray(notifsRes?.data) ? notifsRes.data : Array.isArray(notifsRes) ? notifsRes : []);
-        const unread = notifsRes?.data?.unread_count ?? notifArray.filter((n: any) => !n.is_read && !n.read).length;
-        setUnreadCount(unread);
-      } catch {}
     } catch (err: any) {
       if (!silent) {
         const msg = err?.message?.toLowerCase() || '';
@@ -898,26 +893,16 @@ function MainApp() {
 
   const handleLogout = () => {
     setAuthToken(null);
-    // Clear every cache — auth tokens, user profile, wallet virtual
-    // account, AND the admin-managed catalogue caches (products, plan
-    // types, quick actions, service categories, transactions). Without
-    // this, the next user (or the same user after a plan/type change)
-    // would briefly see stale data plucked from the previous session's
-    // localStorage before the first /api/services poll completes.
+    // Clear user-specific private data (tokens, profile, wallet, transactions).
+    // The public catalog (plans, plan types, quick actions) is retained so the next
+    // session / login renders instantly with 0ms delay.
     [
       'edata_token',
       'edata_current_user',
       'edata_sandbox',
       'google_session',
       'edata_virtual_account',
-      'edata_cached_products',
-      'edata_cached_plan_types',
-      'edata_cached_quick_actions',
-      'edata_cached_service_categories',
       'edata_cached_transactions',
-      // Popups are per-device *and* per-user in intent — clear the
-      // dismissed set on logout so the next signed-in user sees
-      // announcements from scratch.
       'edata_dismissed_popups',
     ].forEach(k => {
       try { localStorage.removeItem(k); } catch {}
@@ -927,10 +912,6 @@ function MainApp() {
     setActivePopup(null);
     setPopups([]);
     setCurrentUser(DEFAULT_USER);
-    setProducts([]);
-    setPlanTypes([]);
-    setQuickActions([]);
-    setServiceCategories([]);
     setTransactions([]);
     setApiStatus('offline');
     setCurrentScreen('auth');
@@ -953,6 +934,11 @@ function MainApp() {
       if (params.quickAction.plan_id) {
         targetPlanId = params.quickAction.plan_id;
       }
+    }
+
+    // Trigger silent background catalog check when switching between active service views
+    if (['dashboard', 'services', 'airtime', 'data'].includes(targetView) && getAuthToken()) {
+      syncCatalog(true);
     }
 
     // Refuse to navigate into a service view the admin has fully
