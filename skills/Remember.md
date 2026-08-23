@@ -186,7 +186,7 @@
   - Rendered 4-provider card selection grid (**WAEC**, **NECO**, **NABTEB**, **NBAIS**) using official emblem logo assets (`waec.png`, `neco.png`, `nabteb.png`, `nbais.png`) scaled to `w-14 h-14` (56px).
   - Added rounded Quantity selector counter control box with `-` / `+` buttons and live total calculation (`unit price × quantity`).
   - Removed unnecessary phone number field from Exam Scratch Card form as requested.
-  - Simplified order summary box to show minimal 2-line layout displaying **Wallet Balance** (`₦70,791.00`) and **Total Outflow** (`-₦3,200.00`).
+  - Simplified order summary box to show minimal 2-line layout displaying **Wallet Balance** (`₦70,791.00`) and **Total Amount** (`-₦3,200.00`).
 - **Electricity Distribution Company Custom Logo Dropdown Redesign:**
   - Redesigned Electricity Token purchase form (`ServiceForm.tsx`) following CheapDataHub reference layout.
   - Built an interactive DisCo dropdown displaying official high-resolution logo images (`aedc.png`, `ekedc.png`, `ibedc.png`, `ikeja.png`, `jos.png`, `kaduna.png`, `kedco.png`, `phedc.png`) across 8 major DisCos (AEDC, EKEDC, IKEDC, IBEDC, JED, KAEDCO, KEDCO, PHED).

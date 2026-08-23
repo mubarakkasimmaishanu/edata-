@@ -31,21 +31,21 @@
   color: #0f172a;
 }
 
-/* ─── Translucent dark surfaces (sticky headers, floating overlays) →
-       true frosted white. These are the ONLY light-theme surfaces that
-       need `backdrop-filter`: they sit above scrolling content and the
-       blur shows real background behind them. Keep blur radius modest
-       (10px) so low-end Android WebViews stay smooth. ─── */
+/* ─── Light theme top headers & notch bar: Solid crisp white with NO blur
+       over the notch/status bar area so phone status icons stay razor-sharp ─── */
+.light .sticky,
+.light header,
+.light .safe-top,
 .light .bg-slate-900\/90,
 .light .bg-slate-900\/95,
 .light .bg-slate-900\/80,
 .light .bg-slate-950\/90,
 .light .bg-slate-950\/80,
 .light .bg-slate-950\/60 {
-  background-color: rgba(255, 255, 255, 0.85) !important;
+  background-color: #ffffff !important;
   color: #0f172a;
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-color: #e2e8f0 !important;
 }
 

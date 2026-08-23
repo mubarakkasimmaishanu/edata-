@@ -81,7 +81,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
   // eData Brand Unique Color Palette
   const isLight = theme === 'light';
   const pageBg      = isLight ? 'bg-[#f4f7fb]'                 : 'bg-slate-950';
-  const headerBg    = isLight ? 'bg-white/90 border-slate-200' : 'bg-slate-900/90 border-slate-800';
+  const headerBg    = isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900/90 border-slate-800';
   const cardBg      = isLight ? 'bg-white border-slate-200'    : 'bg-slate-900/90 border-slate-800';
   const inputBg     = isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800';
   const headingText = isLight ? 'text-slate-900'               : 'text-white';

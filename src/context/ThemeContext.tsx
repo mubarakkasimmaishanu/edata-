@@ -29,16 +29,33 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (!metaTheme) {
+      metaTheme = document.createElement('meta');
+      metaTheme.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaTheme);
+    }
+    let metaApple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (!metaApple) {
+      metaApple = document.createElement('meta');
+      metaApple.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
+      document.head.appendChild(metaApple);
+    }
+
     if (theme === 'dark') {
       root.classList.add('dark');
       root.classList.remove('light');
       body.classList.add('dark');
       body.classList.remove('light');
+      metaTheme.setAttribute('content', '#0f172a');
+      metaApple.setAttribute('content', 'black-translucent');
     } else {
       root.classList.add('light');
       root.classList.remove('dark');
       body.classList.add('light');
       body.classList.remove('dark');
+      metaTheme.setAttribute('content', '#ffffff');
+      metaApple.setAttribute('content', 'default');
     }
   }, [theme]);
 
