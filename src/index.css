@@ -694,19 +694,11 @@ body {
 }
 
 /* ─── Safe Area (Status Bar / Notch Protection) ─── */
-@supports(padding: max(0px)) {
-  .safe-bottom {
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-  }
-  .safe-top {
-    padding-top: max(28px, env(safe-area-inset-top));
-  }
+.safe-bottom {
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
 }
-
-/* Fallback for Android WebView where env() is not supported */
 .safe-top {
-  padding-top: 28px;
-  padding-top: max(28px, env(safe-area-inset-top, 28px));
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ─── 60/120Hz High Refresh Rate & GPU Hardware Acceleration ─── */

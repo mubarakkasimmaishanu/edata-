@@ -19,6 +19,7 @@
     "@capacitor/browser": "^6.0.6",
     "@capacitor/cli": "^6.2.0",
     "@capacitor/core": "^6.2.0",
+    "@capacitor/status-bar": "^6.0.3",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@google/genai": "^2.15.0",
     "@tailwindcss/vite": "^4.1.14",
