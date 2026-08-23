@@ -21,20 +21,20 @@ import PinScreen from './components/PinScreen';
 // the user navigates to it — cold start bundle shrinks by ~300 KB and
 // each chunk downloads in <200 ms on typical mobile networks. Suspense
 // boundary below shows a minimal dot loader during the fetch.
-const BuyAirtime         = React.lazy(() => import('./components/BuyAirtime'));
-const BuyData            = React.lazy(() => import('./components/BuyData'));
-const CableTV            = React.lazy(() => import('./components/CableTV'));
-const ElectricityBill    = React.lazy(() => import('./components/ElectricityBill'));
-const ExamPins           = React.lazy(() => import('./components/ExamPins'));
-const AirtimeToCash      = React.lazy(() => import('./components/AirtimeToCash'));
-const FundWallet         = React.lazy(() => import('./components/FundWallet'));
+const BuyAirtime = React.lazy(() => import('./components/BuyAirtime'));
+const BuyData = React.lazy(() => import('./components/BuyData'));
+const CableTV = React.lazy(() => import('./components/CableTV'));
+const ElectricityBill = React.lazy(() => import('./components/ElectricityBill'));
+const ExamPins = React.lazy(() => import('./components/ExamPins'));
+const AirtimeToCash = React.lazy(() => import('./components/AirtimeToCash'));
+const FundWallet = React.lazy(() => import('./components/FundWallet'));
 const TransactionHistory = React.lazy(() => import('./components/TransactionHistory'));
-const ProfileSettings    = React.lazy(() => import('./components/ProfileSettings'));
-const HelpSupport        = React.lazy(() => import('./components/HelpSupport'));
-const Notifications      = React.lazy(() => import('./components/Notifications'));
-const ServicesCatalog    = React.lazy(() => import('./components/ServicesCatalog'));
-const ResellerUpgrade    = React.lazy(() => import('./components/ResellerUpgrade'));
-const ReferralScreen     = React.lazy(() => import('./components/ReferralScreen'));
+const ProfileSettings = React.lazy(() => import('./components/ProfileSettings'));
+const HelpSupport = React.lazy(() => import('./components/HelpSupport'));
+const Notifications = React.lazy(() => import('./components/Notifications'));
+const ServicesCatalog = React.lazy(() => import('./components/ServicesCatalog'));
+const ResellerUpgrade = React.lazy(() => import('./components/ResellerUpgrade'));
+const ReferralScreen = React.lazy(() => import('./components/ReferralScreen'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
 // so the transition is silent (no white flash, no jarring spinner).
@@ -72,28 +72,28 @@ function MainApp() {
     try {
       const saved = localStorage.getItem('edata_cached_products');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return INITIAL_PRODUCTS;
   });
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     try {
       const saved = localStorage.getItem('edata_cached_transactions');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return INITIAL_TRANSACTIONS;
   });
   const [quickActions, setQuickActions] = useState<QuickAction[]>(() => {
     try {
       const saved = localStorage.getItem('edata_cached_quick_actions');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [];
   });
   const [planTypes, setPlanTypes] = useState<PlanTypeItem[]>(() => {
     try {
       const saved = localStorage.getItem('edata_cached_plan_types');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [];
   });
   // Set of mobile service_type keys (`airtime`, `data`, `cable`, `electricity`,
@@ -105,7 +105,7 @@ function MainApp() {
     try {
       const saved = localStorage.getItem('edata_cached_service_categories');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [];
   });
   const [preselectedNetwork, setPreselectedNetwork] = useState<string>('');
@@ -137,7 +137,7 @@ function MainApp() {
     try {
       const saved = localStorage.getItem('edata_current_user');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return DEFAULT_USER;
   });
   const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
@@ -183,7 +183,7 @@ function MainApp() {
       // and exit the app.
       import('@capacitor/app').then(({ App: CapApp }) => {
         CapApp.exitApp();
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -222,7 +222,7 @@ function MainApp() {
         }
         removeListener = () => h.remove();
       });
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => {
       cancelled = true;
@@ -235,7 +235,7 @@ function MainApp() {
       const next = typeof user === 'function' ? user(prev) : user;
       try {
         localStorage.setItem('edata_current_user', JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -246,6 +246,7 @@ function MainApp() {
       return next;
     });
   };
+
 
   // ── 1. Fast Independent Catalog Synchronizer (<0ms perceived from cache, silent live refresh) ──
   const syncCatalog = async (silent = true) => {
@@ -297,9 +298,9 @@ function MainApp() {
         const slugLower = String(srv.slug || srv.name || '').toLowerCase();
         const opName = slugLower.includes('mtn') ? 'MTN'
           : slugLower.includes('glo') ? 'Glo'
-          : slugLower.includes('airtel') ? 'Airtel'
-          : slugLower.includes('9mobile') || slugLower.includes('etisalat') ? '9mobile'
-          : (srv.slug || srv.name || 'MTN').toUpperCase();
+            : slugLower.includes('airtel') ? 'Airtel'
+              : slugLower.includes('9mobile') || slugLower.includes('etisalat') ? '9mobile'
+                : (srv.slug || srv.name || 'MTN').toUpperCase();
 
         mappedProducts.push({
           id: String(srv.id),
@@ -359,28 +360,28 @@ function MainApp() {
       const qaFromServices = resData.quick_actions || servicesRes?.data?.quick_actions || servicesRes?.quick_actions;
       if (Array.isArray(qaFromServices)) {
         setQuickActions(qaFromServices);
-        try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices)); } catch {}
+        try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaFromServices)); } catch { }
       } else {
         try {
           const qaRes = await api.getQuickActions(silent);
           const qaList = qaRes?.data?.quick_actions || qaRes?.data || qaRes || [];
           if (Array.isArray(qaList)) {
             setQuickActions(qaList);
-            try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaList)); } catch {}
+            try { localStorage.setItem('edata_cached_quick_actions', JSON.stringify(qaList)); } catch { }
           }
-        } catch {}
+        } catch { }
       }
 
       // Sync Plan Types from backend REST API
       const ptFromServices = resData.plan_types || servicesRes?.data?.plan_types || servicesRes?.plan_types;
       if (Array.isArray(ptFromServices)) {
         setPlanTypes(ptFromServices);
-        try { localStorage.setItem('edata_cached_plan_types', JSON.stringify(ptFromServices)); } catch {}
+        try { localStorage.setItem('edata_cached_plan_types', JSON.stringify(ptFromServices)); } catch { }
       }
 
       if (mappedProducts.length > 0) {
         setProducts(mappedProducts);
-        try { localStorage.setItem('edata_cached_products', JSON.stringify(mappedProducts)); } catch {}
+        try { localStorage.setItem('edata_cached_products', JSON.stringify(mappedProducts)); } catch { }
       }
 
       const catToVerb: Record<number, string> = {
@@ -396,7 +397,7 @@ function MainApp() {
       const catArray = Array.from(catSet);
       if (catArray.length > 0) {
         setServiceCategories(catArray);
-        try { localStorage.setItem('edata_cached_service_categories', JSON.stringify(catArray)); } catch {}
+        try { localStorage.setItem('edata_cached_service_categories', JSON.stringify(catArray)); } catch { }
       }
     } catch (err) {
       // silent catalog sync
@@ -467,7 +468,7 @@ function MainApp() {
     if (primaryVAccount && primaryVAccount.account_number) {
       try {
         localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
-      } catch {}
+      } catch { }
     }
 
     const mainW = parseFloat(walletRes?.data?.main_wallet ?? walletRes?.data?.balance ?? parsedBalance);
@@ -523,8 +524,8 @@ function MainApp() {
         disputeRaised: false,
       }));
       setTransactions(mappedTx);
-      try { localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx)); } catch {}
-    } catch {}
+      try { localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx)); } catch { }
+    } catch { }
   };
 
   // ── 4. Notifications Synchronizer ──
@@ -534,7 +535,7 @@ function MainApp() {
       const notifArray = notifsRes?.data?.notifications || notifsRes?.notifications || (Array.isArray(notifsRes?.data) ? notifsRes.data : Array.isArray(notifsRes) ? notifsRes : []);
       const unread = notifsRes?.data?.unread_count ?? notifArray.filter((n: any) => !n.is_read && !n.read).length;
       setUnreadCount(unread);
-    } catch {}
+    } catch { }
   };
 
   const fetchAllData = async (silent = false) => {
@@ -631,7 +632,7 @@ function MainApp() {
             };
             try {
               localStorage.setItem('edata_current_user', JSON.stringify(updated));
-            } catch {}
+            } catch { }
             return updated;
           });
         }
@@ -706,7 +707,7 @@ function MainApp() {
       }).then(l => {
         capAppListener = l;
       });
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => {
       stopPolling();
@@ -786,7 +787,7 @@ function MainApp() {
         'edata_dismissed_popups',
         JSON.stringify(Array.from(dismissedPopupsRef.current))
       );
-    } catch {}
+    } catch { }
   };
 
   const handlePopupDismiss = () => {
@@ -845,7 +846,7 @@ function MainApp() {
     import('@capacitor/browser')
       .then(({ Browser }) => Browser.open({ url }))
       .catch(() => {
-        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch {}
+        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { }
       });
 
     // For force-update popups (dismissible=false) DON'T remove the popup
@@ -905,7 +906,7 @@ function MainApp() {
       'edata_cached_transactions',
       'edata_dismissed_popups',
     ].forEach(k => {
-      try { localStorage.removeItem(k); } catch {}
+      try { localStorage.removeItem(k); } catch { }
     });
     dismissedPopupsRef.current.clear();
     sessionDismissedPopupsRef.current.clear();
@@ -947,8 +948,8 @@ function MainApp() {
     // views (not admin-managed service categories) and always work.
     const gatedViews = ['airtime', 'data', 'cable', 'electricity', 'exams', 'a2c'];
     if (gatedViews.includes(targetView)
-        && serviceCategories.length > 0
-        && !serviceCategories.includes(targetView)) {
+      && serviceCategories.length > 0
+      && !serviceCategories.includes(targetView)) {
       toast.info('This service is currently unavailable.');
       return;
     }
@@ -1261,19 +1262,19 @@ function MainApp() {
                   summary={
                     pinScreenMode === 'purchase' && activeQuickAction
                       ? {
-                          title: activeQuickAction.title,
-                          subtitle: `${activeQuickAction.network} • Instant Delivery`,
-                          amount: quickActionPrice,
-                          recipient: (activeQuickAction.service_type === 'exams' || activeQuickAction.service_type === 'exam')
-                            ? undefined
-                            : (currentUser.phone || '08000000000'),
-                          provider: activeQuickAction.network,
-                          iconType: (activeQuickAction.service_type as any) || 'data',
-                          details: [
-                            { label: 'Service', value: (activeQuickAction.service_type || 'data').toUpperCase() },
-                            { label: 'Provider', value: activeQuickAction.network },
-                          ],
-                        }
+                        title: activeQuickAction.title,
+                        subtitle: `${activeQuickAction.network} • Instant Delivery`,
+                        amount: quickActionPrice,
+                        recipient: (activeQuickAction.service_type === 'exams' || activeQuickAction.service_type === 'exam')
+                          ? undefined
+                          : (currentUser.phone || '08000000000'),
+                        provider: activeQuickAction.network,
+                        iconType: (activeQuickAction.service_type as any) || 'data',
+                        details: [
+                          { label: 'Service', value: (activeQuickAction.service_type || 'data').toUpperCase() },
+                          { label: 'Provider', value: activeQuickAction.network },
+                        ],
+                      }
                       : undefined
                   }
                   onBack={() => {
