@@ -49,6 +49,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       body.classList.remove('light');
       metaTheme.setAttribute('content', '#0f172a');
       metaApple.setAttribute('content', 'black-translucent');
+
+      // Native Capacitor Status Bar on Android / iOS
+      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#0f172a' }).catch(() => {});
+      }).catch(() => {});
     } else {
       root.classList.add('light');
       root.classList.remove('dark');
@@ -56,6 +62,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       body.classList.remove('dark');
       metaTheme.setAttribute('content', '#ffffff');
       metaApple.setAttribute('content', 'default');
+
+      // Native Capacitor Status Bar on Android / iOS (dark icons on light background)
+      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+        StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
+      }).catch(() => {});
     }
   }, [theme]);
 
