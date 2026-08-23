@@ -225,7 +225,7 @@ const ELECTRICITY_PROVIDERS = [
   { name: 'PHED', fullName: 'PORT HARCOURT ELECTRIC PHED', icon: phedcIcon },
 ];
 
-const AIRTIME_SHORTCUTS = [100, 200, 500, 1000, 2000, 5000];
+const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
 const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
   { id: 1, name: 'VTU Direct', code: 'VTU', description: 'Standard Instant VTU Airtime Top-Up' },
   { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', description: 'VTU to Wallet Airtime' },
@@ -405,7 +405,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
   const showVerifyButton = ['electricity', 'cable'].includes(serviceType);
-  const amountEditable = ['electricity', 'airtime'].includes(serviceType);
+  const amountEditable = ['electricity'].includes(serviceType);
   const showContactPicker = ['airtime', 'data'].includes(serviceType);
   const isA2C = serviceType === 'a2c';
 
@@ -1267,17 +1267,55 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Amount Input (Airtime, Electricity & A2C) ─── */}
+      {/* ─── Written Amount Selection for Airtime ─── */}
+      {serviceType === 'airtime' && (
+        <div className="space-y-2">
+          <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+            Select Amount
+          </label>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+            {AIRTIME_SHORTCUTS.map((amt) => {
+              const isSelected = checkoutAmount === amt.toString();
+              return (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCheckoutAmount(amt.toString());
+                  }}
+                  className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all relative cursor-pointer active:scale-95 ${
+                    isSelected
+                      ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-md scale-[1.02]`
+                      : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
+                  }`}
+                >
+                  {isSelected && (
+                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${activeNetworkTheme.activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  )}
+                  <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
+                    ₦{amt.toLocaleString('en-NG')}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Amount Input (Electricity & A2C) ─── */}
       {(amountEditable || isA2C) && (
         <div className="space-y-2">
           <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-            {isA2C ? 'Airtime Amount (₦)' : serviceType === 'airtime' ? 'Amount (₦)' : 'Amount (₦)'}
+            {isA2C ? 'Airtime Amount (₦)' : 'Amount (₦)'}
           </label>
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold font-mono">₦</span>
             <input
               type="text"
-              placeholder={serviceType === 'airtime' ? 'Enter amount (min ₦50)' : 'Enter amount'}
+              placeholder="Enter amount"
               value={checkoutAmount}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, '');
@@ -1288,37 +1326,9 @@ export default function ServiceForm(props: ServiceFormProps) {
                   setA2cPayout(parseFloat(val || '0') * rate);
                 }
               }}
-              className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-slate-800/90 border-slate-700/80 text-white placeholder-slate-400'} border rounded-2xl pl-9 pr-4 py-3.5 text-sm font-black font-mono tabular-nums focus:outline-none shadow-md ${activeNetworkTheme.inputFocusBorder}`}
+              className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl pl-9 pr-4 py-3.5 text-sm text-white placeholder-slate-400 font-black font-mono tabular-nums focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 shadow-md"
             />
           </div>
-
-          {/* Quick preset amount chips for airtime */}
-          {serviceType === 'airtime' && (
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-              {AIRTIME_SHORTCUTS.map((amt) => {
-                const isSelected = checkoutAmount === amt.toString();
-                return (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategory(cat);
-                      setCheckoutAmount(amt.toString());
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black font-mono transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
-                      isSelected
-                        ? `${activeNetworkTheme.accentBg} ${activeNetworkTheme.btnText} shadow-md`
-                        : (isLight
-                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-                            : 'bg-slate-800/90 text-slate-300 hover:bg-slate-700/90 border border-slate-700/80')
-                    }`}
-                  >
-                    ₦{amt.toLocaleString('en-NG')}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 
