@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { ProductItem, PlanTypeItem } from '../types';
+import { ProductItem, PlanTypeItem, AirtimeTypeItem } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search, X } from 'lucide-react';
 import { api } from '../services/api';
 import { isValidRecipient, isValidPhoneNumber, normalizePhoneNumber } from '../utils/phoneValidation';
@@ -226,6 +226,13 @@ const ELECTRICITY_PROVIDERS = [
 ];
 
 const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
+const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
+  { id: 1, name: 'VTU Direct', code: 'VTU', description: 'Standard Instant VTU Airtime Top-Up' },
+  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', description: 'VTU to Wallet Airtime' },
+  { id: 3, name: 'SNS', code: 'SNS', description: 'Share and Sell (SNS) Airtime' },
+  { id: 4, name: 'Airtime Bonus', code: 'BONUS', description: 'Airtime Bonus / Awuf4U Offers' },
+];
+
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
 
 // ─── Clean Plan Display & Section Title Formatters ───
@@ -274,6 +281,9 @@ interface ServiceFormProps {
   serviceLabel: string;
   products: ProductItem[];
   planTypes?: PlanTypeItem[];
+  airtimeTypes?: AirtimeTypeItem[];
+  selectedAirtimeType?: string;
+  setSelectedAirtimeType?: (v: string) => void;
   targetNumber: string;
   setTargetNumber: (v: string) => void;
   detectedOperator: string;
@@ -315,7 +325,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const {
-    serviceType, serviceLabel, products, planTypes = [], targetNumber, setTargetNumber,
+    serviceType, serviceLabel, products, planTypes = [], airtimeTypes = [], selectedAirtimeType = 'VTU Direct', setSelectedAirtimeType, targetNumber, setTargetNumber,
     detectedOperator, setDetectedOperator, checkoutAmount, setCheckoutAmount,
     selectedProduct, setSelectedProduct, setSelectedCategory, getDynamicPrice,
     promoCodeInput, setPromoCodeInput, appliedPromo, setAppliedPromo,
@@ -911,6 +921,62 @@ export default function ServiceForm(props: ServiceFormProps) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      
+      {/* ─── 2b. Airtime Type Selector (e.g. VTU Direct, VTU2WALLET, SNS, Airtime Bonus) ─── */}
+      {serviceType === 'airtime' && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+              Airtime Type
+            </label>
+            <span className={`text-[10px] font-extrabold uppercase font-mono px-2 py-0.5 rounded-md ${activeNetworkTheme.accentLightBg} ${activeNetworkTheme.accentColor} border ${activeNetworkTheme.accentLightBorder}`}>
+              {selectedAirtimeType || 'VTU Direct'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).map((typeItem) => {
+              const isSelected = (selectedAirtimeType || 'VTU Direct').toLowerCase() === typeItem.name.toLowerCase();
+              return (
+                <button
+                  key={typeItem.name}
+                  type="button"
+                  onClick={() => {
+                    if (setSelectedAirtimeType) {
+                      setSelectedAirtimeType(typeItem.name);
+                    }
+                  }}
+                  className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 text-center ${
+                    isSelected
+                      ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} ring-2 ${activeNetworkTheme.inputRing} shadow-lg scale-[1.02]`
+                      : (isLight
+                          ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs'
+                          : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-300')
+                  }`}
+                >
+                  {isSelected && (
+                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${activeNetworkTheme.activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  )}
+                  <span className={`text-xs font-black font-display tracking-tight leading-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : 'text-slate-200'}`}>
+                    {typeItem.name}
+                  </span>
+                  {typeItem.code && typeItem.code !== typeItem.name && (
+                    <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">
+                      {typeItem.code}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <span className="block text-[10px] text-slate-400 font-medium">
+            Choose format: VTU Direct, VTU2WALLET, SNS, or Airtime Bonus.
+          </span>
         </div>
       )}
 

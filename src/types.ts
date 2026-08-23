@@ -195,3 +195,11 @@ export interface ReferralConfig {
   how_it_works: ReferralStep[];
 }
 
+
+export interface AirtimeTypeItem {
+  id: number;
+  service_type_id?: number | null;
+  name: string;
+  code: string;
+  description?: string;
+}

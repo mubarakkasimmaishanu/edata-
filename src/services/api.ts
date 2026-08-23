@@ -205,6 +205,8 @@ export const api = {
     amount: number;
     target_number: string;
     transaction_pin: string;
+    airtime_type?: string;
+    airtime_type_id?: number | string;
     quantity?: number;
     plan_id?: number | string;
     promo_id?: number | string;
