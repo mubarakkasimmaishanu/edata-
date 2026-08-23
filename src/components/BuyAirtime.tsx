@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ServiceForm from './ServiceForm';
-import { ProductItem, UserProfile } from '../types';
+import { ProductItem, UserProfile, AirtimeTypeItem } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
@@ -17,10 +17,19 @@ interface BuyAirtimeProps {
   onSuccess?: () => void;
 }
 
+const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
+  { id: 1, name: 'VTU Direct', code: 'VTU', description: 'Standard Instant VTU Airtime Top-Up' },
+  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', description: 'VTU to Wallet Airtime' },
+  { id: 3, name: 'SNS', code: 'SNS', description: 'Share and Sell (SNS) Airtime' },
+  { id: 4, name: 'Airtime Bonus', code: 'BONUS', description: 'Airtime Bonus / Awuf4U Offers' },
+];
+
 export default function BuyAirtime({ currentUser, products, initialNetwork, onBack, onSuccess }: BuyAirtimeProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
   const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
+  const [selectedAirtimeType, setSelectedAirtimeType] = useState('VTU Direct');
+  const [airtimeTypes, setAirtimeTypes] = useState<AirtimeTypeItem[]>(DEFAULT_AIRTIME_TYPES);
   const [checkoutAmount, setCheckoutAmount] = useState('100');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
@@ -28,11 +37,20 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   // Android back closes the PIN sheet before it can pop the whole page.
   useBackHandler(showPinScreen, () => setShowPinScreen(false));
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialNetwork) {
       setDetectedOperator(initialNetwork);
     }
   }, [initialNetwork]);
+
+  // Load configured airtime types from backend
+  useEffect(() => {
+    api.getServices(true).then((res) => {
+      if (res?.data?.airtime_types && Array.isArray(res.data.airtime_types) && res.data.airtime_types.length > 0) {
+        setAirtimeTypes(res.data.airtime_types);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Promo state
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -78,11 +96,15 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   const handleConfirmPurchase = async (pinInput: string) => {
     const networkMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
     const netId = networkMap[detectedOperator.toUpperCase()] || 23;
+    const selectedTypeObj = airtimeTypes.find(t => t.name.toLowerCase() === selectedAirtimeType.toLowerCase());
+
     const res = await api.purchase({
       service_id: netId,
       amount: parseFloat(checkoutAmount),
       target_number: targetNumber,
-      transaction_pin: pinInput
+      transaction_pin: pinInput,
+      airtime_type: selectedAirtimeType,
+      airtime_type_id: selectedTypeObj?.id
     });
     toast.success(res.message || 'Airtime purchase successful!');
     if (onSuccess) onSuccess();
@@ -95,7 +117,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
         mode="purchase"
         summary={{
           title: `${detectedOperator || 'Mobile'} Airtime Top-Up`,
-          subtitle: 'Instant Airtime Purchase',
+          subtitle: `Instant Delivery • ${selectedAirtimeType}`,
           amount: parseFloat(checkoutAmount) - promoDiscount,
           recipient: targetNumber,
           provider: detectedOperator,
@@ -138,6 +160,9 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           serviceType="airtime"
           serviceLabel="Buy Airtime"
           products={products}
+          airtimeTypes={airtimeTypes}
+          selectedAirtimeType={selectedAirtimeType}
+          setSelectedAirtimeType={setSelectedAirtimeType}
           targetNumber={targetNumber}
           setTargetNumber={setTargetNumber}
           detectedOperator={detectedOperator}
