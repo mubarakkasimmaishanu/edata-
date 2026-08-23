@@ -95,7 +95,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
     <div className={`min-h-screen ${pageBg} flex flex-col max-w-lg mx-auto w-full`}>
       {/* Header */}
       <header className={`sticky top-0 z-30 backdrop-blur-md border-b px-4 py-3.5 flex items-center gap-3 safe-top ${
-        theme === 'light' ? 'bg-white/90 border-slate-200' : 'bg-slate-950/90 border-slate-800'
+        theme === 'light' ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-950/90 border-slate-800'
       }`}>
         <button
           onClick={onBack}

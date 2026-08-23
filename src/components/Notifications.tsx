@@ -135,7 +135,7 @@ export default function Notifications({ notifications: propNotifications = [], o
     }`}>
       {/* ── Top Header Bar ── */}
       <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b px-4 py-3.5 flex items-center justify-between shadow-md transition-colors safe-top ${
-        theme === 'light' ? 'bg-white/90 border-slate-200/80 shadow-slate-200/50' : 'bg-slate-950/90 border-slate-900'
+        theme === 'light' ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-slate-950/90 border-slate-900'
       }`}>
         <div className="flex items-center gap-3">
           <button

@@ -1394,8 +1394,8 @@ export default function ServiceForm(props: ServiceFormProps) {
           </div>
 
           {/* Total Amount */}
-          <div className="border-t border-slate-700/80 pt-2.5 flex justify-between items-center">
-            <span className="text-sm font-black text-white font-display">Total Outflow</span>
+          <div className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-700/80'} pt-2.5 flex justify-between items-center`}>
+            <span className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display`}>Total Amount</span>
             <span className="text-base font-black font-mono text-rose-400 tabular-nums">
               -₦{basePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
