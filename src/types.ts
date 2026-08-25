@@ -214,6 +214,11 @@ export interface ElectricityDisco {
   code?: string;
   status?: number;
   is_active?: boolean;
+  selling_price?: number;
+  cost_price?: number;
+  referred_price?: number;
+  premium_price?: number;
+  price?: number;
   min_amount?: number;
   max_amount?: number;
   meter_types?: string[];
