@@ -201,5 +201,52 @@ export interface AirtimeTypeItem {
   service_type_id?: number | null;
   name: string;
   code: string;
+  amounts?: number[];
+  discount_percent?: number | null;
   description?: string;
+  status?: number;
+}
+
+export interface ElectricityDisco {
+  id: number | string;
+  name: string;
+  slug: string;
+  code?: string;
+  status?: number;
+  is_active?: boolean;
+  min_amount?: number;
+  max_amount?: number;
+  meter_types?: string[];
+  image?: string | null;
+  icon?: string | null;
+  description?: string;
+  fullName?: string;
+}
+
+export interface CablePlan {
+  id: number | string;
+  service_type_id: number | string;
+  operator?: string;
+  name: string;
+  plan_name: string;
+  bundle_id?: string;
+  price: number;
+  priceNormal?: number;
+  selling_price?: number;
+  referred_price?: number;
+  premium_price?: number;
+  status?: number;
+}
+
+export interface CableProvider {
+  id: number | string;
+  name: string;
+  slug: string;
+  code?: string;
+  status?: number;
+  is_active?: boolean;
+  image?: string | null;
+  icon?: string | null;
+  description?: string;
+  plans?: CablePlan[];
 }
