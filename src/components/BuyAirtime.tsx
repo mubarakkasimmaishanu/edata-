@@ -18,10 +18,11 @@ interface BuyAirtimeProps {
 }
 
 const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
-  { id: 1, name: 'VTU Direct', code: 'VTU', description: 'Standard Instant VTU Airtime Top-Up' },
-  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', description: 'VTU to Wallet Airtime' },
-  { id: 3, name: 'SNS', code: 'SNS', description: 'Share and Sell (SNS) Airtime' },
-  { id: 4, name: 'Airtime Bonus', code: 'BONUS', description: 'Airtime Bonus / Awuf4U Offers' },
+  { id: 1, name: 'VTU Direct', code: 'VTU', amounts: [100, 200, 300, 400, 500, 1000], description: 'Standard Instant VTU Airtime Top-Up' },
+  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', amounts: [100, 200, 300, 400, 500, 1000], description: 'VTU to Wallet Airtime' },
+  { id: 3, name: 'SNS', code: 'SNS', amounts: [100, 200, 300, 400, 500, 1000], description: 'Share and Sell (SNS) Airtime' },
+  { id: 4, name: 'Airtime Bonus', code: 'BONUS', amounts: [100, 200, 300, 400, 500, 1000], description: 'Airtime Bonus / Awuf4U Offers' },
+  { id: 5, name: 'VTU TopUp', code: 'VTU_TOPUP', amounts: [100, 200, 300, 400, 500, 1000], description: 'Direct TopUp Airtime Channel' },
 ];
 
 export default function BuyAirtime({ currentUser, products, initialNetwork, onBack, onSuccess }: BuyAirtimeProps) {

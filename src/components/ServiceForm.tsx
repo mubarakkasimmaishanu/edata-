@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { ProductItem, PlanTypeItem, AirtimeTypeItem } from '../types';
+import { ProductItem, CableProvider, PlanTypeItem, AirtimeTypeItem, ElectricityDisco } from '../types';
 import { ArrowRight, Phone, Check, ChevronDown, Zap, Tv, BookOpen, CreditCard, RefreshCw, Tag, Search, X } from 'lucide-react';
-import { api } from '../services/api';
+import { api, resolveImageUrl } from '../services/api';
 import { isValidRecipient, isValidPhoneNumber, normalizePhoneNumber } from '../utils/phoneValidation';
 import { openContactPicker } from '../utils/contactPicker';
 import { useBackHandler } from '../utils/backHandler';
@@ -225,12 +225,13 @@ const ELECTRICITY_PROVIDERS = [
   { name: 'PHED', fullName: 'PORT HARCOURT ELECTRIC PHED', icon: phedcIcon },
 ];
 
-const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000, 2000];
+const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000];
 const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
-  { id: 1, name: 'VTU Direct', code: 'VTU', description: 'Standard Instant VTU Airtime Top-Up' },
-  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', description: 'VTU to Wallet Airtime' },
-  { id: 3, name: 'SNS', code: 'SNS', description: 'Share and Sell (SNS) Airtime' },
-  { id: 4, name: 'Airtime Bonus', code: 'BONUS', description: 'Airtime Bonus / Awuf4U Offers' },
+  { id: 1, name: 'VTU Direct', code: 'VTU', amounts: [100, 200, 300, 400, 500, 1000], description: 'Standard Instant VTU Airtime Top-Up' },
+  { id: 2, name: 'VTU2WALLET', code: 'VTU2WALLET', amounts: [100, 200, 300, 400, 500, 1000], description: 'VTU to Wallet Airtime' },
+  { id: 3, name: 'SNS', code: 'SNS', amounts: [100, 200, 300, 400, 500, 1000], description: 'Share and Sell (SNS) Airtime' },
+  { id: 4, name: 'Airtime Bonus', code: 'BONUS', amounts: [100, 200, 300, 400, 500, 1000], description: 'Airtime Bonus / Awuf4U Offers' },
+  { id: 5, name: 'VTU TopUp', code: 'VTU_TOPUP', amounts: [100, 200, 300, 400, 500, 1000], description: 'Direct TopUp Airtime Channel' },
 ];
 
 const A2C_RATES: Record<string, number> = { mtn: 0.82, airtel: 0.80, glo: 0.78, '9mobile': 0.75 };
@@ -277,6 +278,10 @@ export function formatPlanSectionTitle(rawTitle: string): string {
 }
 
 interface ServiceFormProps {
+  dynamicDiscos?: ElectricityDisco[];
+  dynamicCableProviders?: CableProvider[];
+  currentMeterType?: 'PrePaid' | 'PostPaid';
+  onMeterTypeChange?: (val: 'PrePaid' | 'PostPaid') => void;
   serviceType: 'airtime' | 'data' | 'electricity' | 'cable' | 'exam' | 'a2c';
   serviceLabel: string;
   products: ProductItem[];
@@ -333,7 +338,10 @@ export default function ServiceForm(props: ServiceFormProps) {
     handleCheckoutInitiate, onOpenContacts, onBack, currentBalance,
     isValidatingNumber, handleValidateNumber, customerName, validationError,
     a2cBank, setA2cBank, a2cAccount, setA2cAccount, a2cPayout, setA2cPayout,
-    toast, isPurchasing = false, userPhone = '',
+    toast,
+  dynamicDiscos = [],
+  currentMeterType,
+  onMeterTypeChange, isPurchasing = false, userPhone = '',
   } = props;
 
   const [examQuantity, setExamQuantity] = React.useState<number>(1);
@@ -697,95 +705,141 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── 1d. Electricity DisCo Dropdown ─── */}
-      {serviceType === 'electricity' && (
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-              Distribution Company
-            </label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDiscoOpen(!discoOpen)}
-                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white flex items-center justify-between shadow-md font-semibold cursor-pointer"
-              >
-                {(() => {
-                  const currentName = detectedOperator || 'AEDC';
-                  const disco = ELECTRICITY_PROVIDERS.find(d => 
-                    d.name.toLowerCase() === currentName.toLowerCase() ||
-                    d.fullName.toLowerCase().includes(currentName.toLowerCase())
-                  ) || ELECTRICITY_PROVIDERS[0];
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
-                        <img src={disco.icon} alt={disco.name} className="w-full h-full object-contain rounded-lg" />
-                      </div>
-                      <span className="font-black text-white text-xs font-mono tracking-tight">{disco.fullName}</span>
-                    </div>
-                  );
-                })()}
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${discoOpen ? 'rotate-180' : ''}`} />
-              </button>
+      {/* ─── 1d. Electricity DisCo Dropdown (100% Dynamic from Backend) ─── */}
+      {serviceType === 'electricity' && (() => {
+        // Build unified list combining dynamic API list with fallback icon mappings
+        const activeList = (dynamicDiscos && dynamicDiscos.length > 0) ? dynamicDiscos.map(d => {
+          const fallback = ELECTRICITY_PROVIDERS.find(p => 
+            p.name.toLowerCase() === (d.slug || '').toLowerCase() ||
+            p.name.toLowerCase() === (d.code || '').toLowerCase() ||
+            d.name.toLowerCase().includes(p.name.toLowerCase())
+          );
+          const resolvedImg = d.image ? resolveImageUrl(d.image) : (fallback ? fallback.icon : aedcIcon);
+          return {
+            id: d.id,
+            name: d.code || d.slug || d.name,
+            fullName: d.name || (fallback ? fallback.fullName : d.slug),
+            icon: resolvedImg || aedcIcon,
+            meterTypes: (d.meter_types && d.meter_types.length > 0) ? d.meter_types : ['PrePaid', 'PostPaid'],
+            minAmount: d.min_amount || 500,
+          };
+        }) : ELECTRICITY_PROVIDERS.map(p => ({
+          id: p.name,
+          name: p.name,
+          fullName: p.fullName,
+          icon: p.icon,
+          meterTypes: ['PrePaid', 'PostPaid'],
+          minAmount: 500,
+        }));
 
-              {/* Dropdown Options List */}
-              {discoOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-30 max-h-60 overflow-y-auto p-1.5 space-y-1 animate-scale-in">
-                  {ELECTRICITY_PROVIDERS.map((disco) => {
-                    const isSelected = (detectedOperator || 'AEDC').toLowerCase() === disco.name.toLowerCase();
-                    return (
-                      <button
-                        key={disco.name}
-                        type="button"
-                        onClick={() => {
-                          setDetectedOperator(disco.name);
-                          setSelectedCategory('Electricity');
-                          const matchProd = products.find(p =>
-                            (p.category as string) === 'Electricity' &&
-                            p.active &&
-                            (p.operator?.toLowerCase().includes(disco.name.toLowerCase()) || p.name.toLowerCase().includes(disco.name.toLowerCase()))
-                          );
-                          if (matchProd) setSelectedProduct(matchProd);
-                          setDiscoOpen(false);
-                        }}
-                        className={`w-full p-2.5 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
-                          isSelected ? 'bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30' : 'hover:bg-slate-700/60 text-slate-200 font-medium'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
-                            <img src={disco.icon} alt={disco.name} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-md" />
+        const currentName = detectedOperator || activeList[0]?.name || 'AEDC';
+        const selectedDisco = activeList.find(d => 
+          d.name.toLowerCase() === currentName.toLowerCase() ||
+          d.fullName.toLowerCase().includes(currentName.toLowerCase())
+        ) || activeList[0];
+
+        const activeMeterType = currentMeterType || meterType;
+        const availableMeterTypes = selectedDisco?.meterTypes || ['PrePaid', 'PostPaid'];
+
+        return (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                  Distribution Company
+                </label>
+                {dynamicDiscos.length > 0 && (
+                  <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live DisCos ({activeList.length})
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDiscoOpen(!discoOpen)}
+                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white flex items-center justify-between shadow-md font-semibold cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                      <img src={selectedDisco?.icon} alt={selectedDisco?.name} className="w-full h-full object-contain rounded-lg" />
+                    </div>
+                    <span className="font-black text-white text-xs font-mono tracking-tight">{selectedDisco?.fullName}</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${discoOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Options List */}
+                {discoOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-30 max-h-60 overflow-y-auto p-1.5 space-y-1 animate-scale-in">
+                    {activeList.map((disco) => {
+                      const isSelected = (detectedOperator || activeList[0]?.name).toLowerCase() === disco.name.toLowerCase();
+                      return (
+                        <button
+                          key={disco.name + disco.id}
+                          type="button"
+                          onClick={() => {
+                            setDetectedOperator(disco.name);
+                            setSelectedCategory('Electricity');
+                            const matchProd = products.find(p =>
+                              (p.category as string) === 'Electricity' &&
+                              p.active &&
+                              (p.operator?.toLowerCase().includes(disco.name.toLowerCase()) || p.name.toLowerCase().includes(disco.name.toLowerCase()))
+                            );
+                            if (matchProd) setSelectedProduct(matchProd);
+                            setDiscoOpen(false);
+                          }}
+                          className={`w-full p-2.5 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                            isSelected ? 'bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30' : 'hover:bg-slate-700/60 text-slate-200 font-medium'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                              <img src={disco.icon} alt={disco.name} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-md" />
+                            </div>
+                            <span className="text-xs font-semibold">{disco.fullName}</span>
                           </div>
-                          <span className="text-xs font-semibold">{disco.fullName}</span>
-                        </div>
-                        {isSelected && <Check className="w-4 h-4 text-sky-400" />}
-                      </button>
+                          {isSelected && <Check className="w-4 h-4 text-sky-400" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Dynamic Meter Type Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                Meter Type
+              </label>
+              <div className="relative">
+                <select
+                  value={activeMeterType}
+                  onChange={(e) => {
+                    const val = e.target.value as 'PrePaid' | 'PostPaid';
+                    setMeterType(val);
+                    if (onMeterTypeChange) onMeterTypeChange(val);
+                  }}
+                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white font-bold appearance-none pr-10 shadow-md cursor-pointer"
+                >
+                  {availableMeterTypes.map((mt) => {
+                    const normalized = mt.toLowerCase().includes('post') ? 'PostPaid' : 'PrePaid';
+                    const displayLabel = mt.toLowerCase().includes('post') ? 'PostPaid Meter' : 'PrePaid Meter';
+                    return (
+                      <option key={mt} value={normalized} className="bg-slate-800 text-white">
+                        {displayLabel}
+                      </option>
                     );
                   })}
-                </div>
-              )}
+                </select>
+                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
             </div>
           </div>
-
-          {/* Meter Type Dropdown */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-              Meter Type
-            </label>
-            <div className="relative">
-              <select
-                value={meterType}
-                onChange={(e) => setMeterType(e.target.value as 'PrePaid' | 'PostPaid')}
-                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white font-bold appearance-none pr-10 shadow-md cursor-pointer"
-              >
-                <option value="PrePaid" className="bg-slate-800 text-white">PrePaid Meter</option>
-                <option value="PostPaid" className="bg-slate-800 text-white">PostPaid Meter</option>
-              </select>
-              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── 2. Destination Input ─── */}
       {serviceType !== 'exam' && (
@@ -935,8 +989,17 @@ export default function ServiceForm(props: ServiceFormProps) {
             <select
               value={selectedAirtimeType || 'VTU Direct'}
               onChange={(e) => {
+                const newTypeName = e.target.value;
                 if (setSelectedAirtimeType) {
-                  setSelectedAirtimeType(e.target.value);
+                  setSelectedAirtimeType(newTypeName);
+                }
+                const matched = (airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).find(
+                  (t) => t.name.toLowerCase() === newTypeName.toLowerCase()
+                );
+                const availAmounts = (matched?.amounts && matched.amounts.length > 0) ? matched.amounts : AIRTIME_SHORTCUTS;
+                const curAmtNum = parseInt(checkoutAmount, 10);
+                if (!availAmounts.includes(curAmtNum)) {
+                  setCheckoutAmount(availAmounts[0].toString());
                 }
               }}
               className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-800/90 border-slate-700/80 text-white'} border rounded-2xl px-4 py-3.5 text-xs font-bold appearance-none pr-10 shadow-md cursor-pointer focus:outline-none ${activeNetworkTheme.inputFocusBorder}`}
@@ -1205,41 +1268,76 @@ export default function ServiceForm(props: ServiceFormProps) {
             );
           })()}
 
-          {/* Cable TV Dropdown */}
-          {serviceType === 'cable' && (
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-                Select Plan
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedProduct?.id || ''}
-                  onChange={(e) => {
-                    const prod = products.find(p => p.id === e.target.value);
-                    if (prod) {
-                      setSelectedProduct(prod);
-                      setCheckoutAmount(getDynamicPrice(prod).toString());
-                    }
-                  }}
-                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-xs font-black text-white appearance-none pr-10 shadow-md cursor-pointer focus:border-sky-400 focus:outline-none"
-                >
-                  {products
-                    .filter(p => {
-                      const matchCat = (p.category as string) === 'Cable' || p.category === 'Cable TV';
-                      const matchOp = detectedOperator ? p.operator?.toLowerCase() === detectedOperator.toLowerCase() : true;
-                      return matchCat && p.active && matchOp;
-                    })
-                    .map(p => (
-                      <option key={p.id} value={p.id} className="bg-slate-800 text-white">
-                        {p.name} (₦{getDynamicPrice(p).toLocaleString()})
-                      </option>
-                    ))
-                  }
-                </select>
-                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          {/* Cable TV Dropdown (100% Dynamic Admin Packages) */}
+          {serviceType === 'cable' && (() => {
+            const currentOp = detectedOperator || 'DSTV';
+            const matchedProv = dynamicCableProviders.find(p => 
+              p.name.toLowerCase() === currentOp.toLowerCase() || 
+              (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase())
+            );
+
+            // Extract packages either directly from provider's plans or from global products list
+            let cablePackages: ProductItem[] = [];
+            if (matchedProv && matchedProv.plans && matchedProv.plans.length > 0) {
+              cablePackages = matchedProv.plans.map(pl => ({
+                id: pl.id.toString(),
+                service_type_id: pl.service_type_id,
+                name: pl.plan_name || pl.name,
+                category: 'Cable TV',
+                operator: matchedProv.name,
+                priceNormal: Number(pl.price || pl.priceNormal || pl.selling_price),
+                priceReferred: Number(pl.referred_price || pl.price || pl.selling_price),
+                pricePremium: Number(pl.premium_price || pl.price || pl.selling_price),
+                active: true,
+                bundle_id: pl.bundle_id,
+              }));
+            } else {
+              cablePackages = products.filter(p => {
+                const matchCat = (p.category as string) === 'Cable' || p.category === 'Cable TV';
+                const matchOp = currentOp ? (p.operator?.toLowerCase() === currentOp.toLowerCase() || (matchedProv && p.service_type_id == matchedProv.id)) : true;
+                return matchCat && p.active && matchOp;
+              });
+            }
+
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                    Select Plan / Package
+                  </label>
+                  {cablePackages.length > 0 && (
+                    <span className="text-[10px] font-bold text-sky-400 font-mono">
+                      {cablePackages.length} Available
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <select
+                    value={selectedProduct?.id || ''}
+                    onChange={(e) => {
+                      const prod = cablePackages.find(p => p.id === e.target.value) || products.find(p => p.id === e.target.value);
+                      if (prod) {
+                        setSelectedProduct(prod);
+                        setCheckoutAmount(getDynamicPrice(prod).toString());
+                      }
+                    }}
+                    className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-xs font-black text-white appearance-none pr-10 shadow-md cursor-pointer focus:border-sky-400 focus:outline-none"
+                  >
+                    {cablePackages.length === 0 ? (
+                      <option value="" disabled className="bg-slate-800 text-slate-400">No active packages for {currentOp}</option>
+                    ) : (
+                      cablePackages.map(p => (
+                        <option key={p.id} value={p.id} className="bg-slate-800 text-white">
+                          {p.name} — ₦{getDynamicPrice(p).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Selected Data Plan Detail Preview Card */}
           {serviceType === 'data' && selectedProduct && (
@@ -1267,43 +1365,52 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── Written Amount Selection for Airtime ─── */}
-      {serviceType === 'airtime' && (
-        <div className="space-y-2">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-            Select Amount
-          </label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-            {AIRTIME_SHORTCUTS.map((amt) => {
-              const isSelected = checkoutAmount === amt.toString();
-              return (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    setCheckoutAmount(amt.toString());
-                  }}
-                  className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all relative cursor-pointer active:scale-95 ${
-                    isSelected
-                      ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-md scale-[1.02]`
-                      : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
-                  }`}
-                >
-                  {isSelected && (
-                    <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${activeNetworkTheme.activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
-                  <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
-                    ₦{amt.toLocaleString('en-NG')}
-                  </span>
-                </button>
-              );
-            })}
+      {/* ─── Written Amount Selection for Airtime (Controlled Dynamically by Admin) ─── */}
+      {serviceType === 'airtime' && (() => {
+        const matchedType = (airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).find(
+          (t) => t.name.toLowerCase() === (selectedAirtimeType || '').toLowerCase()
+        ) || (airtimeTypes && airtimeTypes[0]) || DEFAULT_AIRTIME_TYPES[0];
+        const dynamicAirtimeAmounts = (matchedType?.amounts && matchedType.amounts.length > 0)
+          ? matchedType.amounts
+          : AIRTIME_SHORTCUTS;
+
+        return (
+          <div className="space-y-2">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+              Select Amount
+            </label>
+            <div className="grid grid-cols-3 gap-2.5">
+              {dynamicAirtimeAmounts.map((amt) => {
+                const isSelected = checkoutAmount === amt.toString();
+                return (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setCheckoutAmount(amt.toString());
+                    }}
+                    className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all relative cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-md scale-[1.02]`
+                        : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 ${activeNetworkTheme.activeCheckBadge} rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900`}>
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
+                      ₦{amt.toLocaleString('en-NG')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── Amount Input (Electricity & A2C) ─── */}
       {(amountEditable || isA2C) && (
