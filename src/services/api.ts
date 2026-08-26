@@ -177,6 +177,27 @@ export const api = {
     return request('/transactions', {}, silent);
   },
 
+  
+  async getCableProviders(silent = false) {
+    try {
+      const res = await request('/cable-providers', {}, silent);
+      if (res && res.success && res.data) {
+        return res;
+      }
+    } catch {}
+    return request('/services', {}, silent);
+  },
+
+    async getElectricityDiscos(silent = false) {
+    try {
+      const res = await request('/electricity-discos', {}, silent);
+      if (res && res.success && res.data) {
+        return res;
+      }
+    } catch {}
+    return request('/services', {}, silent);
+  },
+
   async getServices(silent = false) {
     return request('/services', {}, silent);
   },
@@ -186,10 +207,10 @@ export const api = {
   },
 
 
-  async validateMeterOrSmartcard(serviceId: number | string, number: string) {
+  async validateMeterOrSmartcard(serviceId: number | string, number: string, meterType?: string) {
     return request('/validate', {
       method: 'POST',
-      body: JSON.stringify({ service_id: serviceId, number }),
+      body: JSON.stringify({ service_id: serviceId, number, meter_type: meterType }),
     });
   },
 
@@ -205,6 +226,8 @@ export const api = {
     amount: number;
     target_number: string;
     transaction_pin: string;
+    meter_type?: string;
+    phone?: string;
     airtime_type?: string;
     airtime_type_id?: number | string;
     quantity?: number;
@@ -368,6 +391,14 @@ export const api = {
 
   async getReferralConfig(silent = false) {
     return request('/referral-config', {}, silent);
+  },
+
+  // Register Firebase Cloud Messaging (FCM) Push Device Token
+  async registerPushToken(token: string, platform: string = 'android') {
+    return request('/register-push-token', {
+      method: 'POST',
+      body: JSON.stringify({ push_token: token, token, platform }),
+    }, true);
   },
 };
 

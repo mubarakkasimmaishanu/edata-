@@ -18,15 +18,58 @@ interface ExamPinsProps {
 export default function ExamPins({ currentUser, products, initialProvider, onBack, onSuccess }: ExamPinsProps) {
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('1'); // Quantity
-  const [detectedOperator, setDetectedOperator] = useState(initialProvider || 'WAEC');
+  
+  // Dynamically filter active exam products from synced catalog
+  const examProducts = React.useMemo(() => {
+    return products.filter(p => 
+      ((p.category as string) === 'Exam' || (p.category as string) === 'Exam Token' || (p.category as string) === 'Exam Card') &&
+      p.active !== false
+    );
+  }, [products]);
+
+  const [detectedOperator, setDetectedOperator] = useState(() => {
+    if (initialProvider) return initialProvider;
+    if (examProducts.length > 0) {
+      return examProducts[0].operator || examProducts[0].code || examProducts[0].name.split(' ')[0] || 'WAEC';
+    }
+    return 'WAEC';
+  });
+
+  const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(() => {
+    if (initialProvider) {
+      const match = examProducts.find(p => 
+        (p.operator?.toLowerCase() === initialProvider.toLowerCase()) || 
+        p.name.toLowerCase().includes(initialProvider.toLowerCase())
+      );
+      if (match) return match;
+    }
+    return examProducts[0] || null;
+  });
+
+  const [checkoutAmount, setCheckoutAmount] = useState(() => {
+    const initProd = selectedProduct || examProducts[0];
+    return initProd ? initProd.priceNormal.toString() : '';
+  });
 
   React.useEffect(() => {
     if (initialProvider) {
       setDetectedOperator(initialProvider);
+      const match = examProducts.find(p => 
+        (p.operator?.toLowerCase() === initialProvider.toLowerCase()) || 
+        p.name.toLowerCase().includes(initialProvider.toLowerCase())
+      );
+      if (match) {
+        setSelectedProduct(match);
+        setCheckoutAmount((match.priceNormal * (parseInt(targetNumber, 10) || 1)).toString());
+      }
+    } else if (!selectedProduct && examProducts.length > 0) {
+      const first = examProducts[0];
+      setSelectedProduct(first);
+      setDetectedOperator(first.operator || first.code || first.name.split(' ')[0] || 'WAEC');
+      setCheckoutAmount((first.priceNormal * (parseInt(targetNumber, 10) || 1)).toString());
     }
-  }, [initialProvider]);
-  const [checkoutAmount, setCheckoutAmount] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
+  }, [initialProvider, examProducts]);
+
   const [showPinScreen, setShowPinScreen] = useState(false);
 
   // Android back closes the PIN sheet before it can pop the whole page.

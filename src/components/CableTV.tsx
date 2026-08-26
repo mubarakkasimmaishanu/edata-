@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ServiceForm from './ServiceForm';
-import { ProductItem, UserProfile } from '../types';
+import { ProductItem, UserProfile, CableProvider } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
@@ -17,14 +17,62 @@ interface CableTVProps {
 
 export default function CableTV({ currentUser, products, initialProvider, onBack, onSuccess }: CableTVProps) {
   const toast = useToast();
+  const [dynamicCableProviders, setDynamicCableProviders] = useState<CableProvider[]>([]);
   const [targetNumber, setTargetNumber] = useState('');
   const [detectedOperator, setDetectedOperator] = useState(initialProvider || 'DSTV');
+
+  // Auto-fetch dynamic Cable TV providers and packages from backend API
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProviders = async () => {
+      try {
+        const res = await api.getCableProviders(true);
+        if (!isMounted) return;
+        if (res && res.success) {
+          const list: CableProvider[] = res.data || res.cable_providers || [];
+          if (list.length > 0) {
+            setDynamicCableProviders(list);
+            
+            // Set initial selected operator to first provider if not matching
+            const currentOp = initialProvider || 'DSTV';
+            const matched = list.find(p => p.name.toLowerCase() === currentOp.toLowerCase() || (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase()));
+            const activeProv = matched || list[0];
+            if (activeProv) {
+              setDetectedOperator(activeProv.name);
+              if (activeProv.plans && activeProv.plans.length > 0) {
+                const first = activeProv.plans[0];
+                const prodItem: ProductItem = {
+                  id: first.id.toString(),
+                  serviceTypeId: first.service_type_id,
+                  name: first.plan_name || first.name,
+                  category: 'Cable TV',
+                  operator: activeProv.name,
+                  priceNormal: Number(first.price || first.priceNormal || first.selling_price),
+                  priceReferred: Number(first.referred_price || first.price || first.selling_price),
+                  pricePremium: Number(first.premium_price || first.price || first.selling_price),
+                  active: true,
+                  bundle_id: first.bundle_id,
+                };
+                setSelectedProduct(prodItem);
+                setCheckoutAmount(prodItem.priceNormal.toString());
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load dynamic cable providers:', e);
+      }
+    };
+    fetchProviders();
+    return () => { isMounted = false; };
+  }, [initialProvider]);
 
   React.useEffect(() => {
     if (initialProvider) {
       setDetectedOperator(initialProvider);
     }
   }, [initialProvider]);
+
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
@@ -41,14 +89,31 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoError, setPromoError] = useState('');
 
-  const getDynamicPrice = (p: ProductItem) => p.priceNormal;
+  const getDynamicPrice = (p: ProductItem) => {
+    if ((currentUser as any).user_level === 'premium' && p.pricePremium) {
+      return p.pricePremium;
+    }
+    if ((currentUser as any).user_level === 'referred' && p.priceReferred) {
+      return p.priceReferred;
+    }
+    return p.priceNormal || p.price;
+  };
+
+  const getSelectedProviderObj = () => {
+    return dynamicCableProviders.find(p => 
+      p.name.toLowerCase() === detectedOperator.toLowerCase() || 
+      (p.slug && p.slug.toLowerCase() === detectedOperator.toLowerCase())
+    ) || null;
+  };
 
   const handleValidateNumber = async () => {
     if (!targetNumber || targetNumber.length < 8) return;
     setIsValidatingNumber(true);
     setValidationError('');
     try {
-      const res = await api.validateMeterOrSmartcard(4, targetNumber);
+      const provObj = getSelectedProviderObj();
+      const serviceIdentifier = provObj ? (provObj.id || provObj.slug) : detectedOperator.toLowerCase();
+      const res = await api.validateMeterOrSmartcard(serviceIdentifier, targetNumber);
       if (res.data?.name || res.name) {
         const name = res.data?.name || res.name;
         setCustomerName(name);
@@ -72,7 +137,8 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
       toast.warning('Please select a cable package.');
       return;
     }
-    if (selectedProduct.priceNormal > currentUser.walletBalance) {
+    const price = getDynamicPrice(selectedProduct);
+    if (price > currentUser.walletBalance) {
       toast.error('Insufficient wallet balance.');
       return;
     }
@@ -81,9 +147,13 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
 
   const handleConfirmPurchase = async (pinInput: string) => {
     if (!selectedProduct) return;
+    const provObj = getSelectedProviderObj();
+    const serviceIdentifier = provObj ? provObj.id : (selectedProduct.service_type_id || 4);
+    const finalPrice = getDynamicPrice(selectedProduct);
+
     const res = await api.purchase({
-      service_id: 4, // Cable TV
-      amount: selectedProduct.priceNormal,
+      service_id: serviceIdentifier,
+      amount: finalPrice,
       target_number: targetNumber,
       plan_id: selectedProduct.id,
       transaction_pin: pinInput
@@ -94,17 +164,18 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
   };
 
   if (showPinScreen && selectedProduct) {
+    const finalPrice = getDynamicPrice(selectedProduct);
     return (
       <PinScreen
         mode="purchase"
         summary={{
           title: selectedProduct.name,
           subtitle: `${detectedOperator} Subscription`,
-          amount: selectedProduct.priceNormal,
+          amount: finalPrice,
           recipient: targetNumber,
           provider: detectedOperator,
           iconType: 'cable',
-          details: customerName ? [{ label: 'Customer Name', value: customerName }] : undefined,
+          details: customerName ? [{ label: 'Subscriber Name', value: customerName }] : undefined,
         }}
         onBack={() => setShowPinScreen(false)}
         onSuccess={() => setShowPinScreen(false)}
@@ -115,7 +186,7 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
-      {/* ── Top Header ── */}
+      {/* ─── Top Header ─── */}
       <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
         <div className="flex items-center gap-2.5">
           <button
@@ -143,6 +214,7 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
           serviceType="cable"
           serviceLabel="Cable TV Subscription"
           products={products}
+          dynamicCableProviders={dynamicCableProviders}
           targetNumber={targetNumber}
           setTargetNumber={setTargetNumber}
           detectedOperator={detectedOperator}
