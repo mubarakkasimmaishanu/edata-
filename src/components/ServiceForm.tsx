@@ -340,6 +340,7 @@ export default function ServiceForm(props: ServiceFormProps) {
     a2cBank, setA2cBank, a2cAccount, setA2cAccount, a2cPayout, setA2cPayout,
     toast,
   dynamicDiscos = [],
+  dynamicCableProviders = [],
   currentMeterType,
   onMeterTypeChange, isPurchasing = false, userPhone = '',
   } = props;
@@ -590,120 +591,181 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── 1c. Exam Scratch Card Provider Selector ─── */}
-      {serviceType === 'exam' && (
-        <div className="space-y-4">
-          <div>
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2 font-display">
-              Exams Body
-            </label>
-            <div className="grid grid-cols-4 gap-2.5">
-              {EXAM_PROVIDERS.map((net) => {
-                const currentOp = detectedOperator || 'WAEC';
-                const isSelected = currentOp.toLowerCase() === net.name.toLowerCase();
-                return (
-                  <button
-                    key={net.name}
-                    type="button"
-                    onClick={() => {
-                      setDetectedOperator(net.name);
-                      setSelectedCategory('Exam');
-                      const matchProd = products.find(p =>
-                        ((p.category as string) === 'Exam' || (p.category as string) === 'Exam Token' || (p.category as string) === 'Exam Card') &&
-                        p.active &&
-                        (p.operator?.toLowerCase() === net.name.toLowerCase() || p.name.toLowerCase().includes(net.name.toLowerCase()))
-                      ) || products.find(p => (p.category as string) === 'Exam' || (p.category as string) === 'Exam Token');
-                      
-                      if (matchProd) {
-                        setSelectedProduct(matchProd);
-                        const unitPrice = getDynamicPrice(matchProd);
-                        setCheckoutAmount((unitPrice * examQuantity).toString());
-                      }
-                    }}
-                    className={`py-3.5 px-1 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative cursor-pointer ${
-                      isSelected
-                        ? `${net.activeRing} ring-2 scale-[1.02] shadow-md shadow-sky-500/20`
-                        : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
-                        <Check className="w-3 h-3 text-white stroke-[3]" />
-                      </div>
-                    )}
-                    
-                    {net.icon ? (
-                      <div className="w-13 h-13 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-2xs p-1">
-                        <img
-                          src={net.icon}
-                          alt={net.name}
-                          className="w-full h-full object-contain rounded-xl"
-                        />
-                      </div>
-                    ) : (
-                      <div className={`w-13 h-13 rounded-2xl ${net.badgeBg} flex items-center justify-center shadow-sm font-black text-xs font-mono tracking-tight`}>
-                        {net.name}
-                      </div>
-                    )}
+      {/* ─── 1c. Exam Scratch Card Provider Selector (100% Dynamic from Backend) ─── */}
+      {serviceType === 'exam' && (() => {
+        // Filter dynamic exam cards from backend products
+        const dynamicExamProducts = products.filter(p => 
+          ((p.category as string) === 'Exam' || (p.category as string) === 'Exam Token' || (p.category as string) === 'Exam Card') &&
+          p.active !== false
+        );
 
-                    <span className="text-[11.5px] font-black text-white tracking-wide font-display">
-                      {net.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        // Build unified list of exam bodies
+        const activeExamList = dynamicExamProducts.length > 0 ? dynamicExamProducts.map(p => {
+          const fallback = EXAM_PROVIDERS.find(ep => 
+            ep.name.toLowerCase() === (p.operator || '').toLowerCase() ||
+            p.name.toLowerCase().includes(ep.name.toLowerCase())
+          );
+          const resolvedImg = p.image ? resolveImageUrl(p.image) : (fallback ? fallback.icon : null);
+          const shortName = p.operator || p.code || p.name.split(' ')[0] || 'Exam';
+          return {
+            id: p.id,
+            name: shortName,
+            fullName: p.name,
+            product: p,
+            icon: resolvedImg,
+            activeRing: fallback ? fallback.activeRing : 'ring-sky-400/60 border-sky-400 bg-sky-500/10',
+            badgeBg: fallback ? fallback.badgeBg : 'bg-purple-600 text-white',
+            price: getDynamicPrice(p),
+          };
+        }) : EXAM_PROVIDERS.map(ep => {
+          const matchProd = products.find(p =>
+            ((p.category as string) === 'Exam' || (p.category as string) === 'Exam Token' || (p.category as string) === 'Exam Card') &&
+            (p.operator?.toLowerCase() === ep.name.toLowerCase() || p.name.toLowerCase().includes(ep.name.toLowerCase()))
+          );
+          return {
+            id: matchProd ? matchProd.id : ep.name,
+            name: ep.name,
+            fullName: matchProd ? matchProd.name : `${ep.name} Scratch Card`,
+            product: matchProd || null,
+            icon: ep.icon,
+            activeRing: ep.activeRing,
+            badgeBg: ep.badgeBg,
+            price: matchProd ? getDynamicPrice(matchProd) : 0,
+          };
+        });
 
-          {/* Quantity Selector Box */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
-              Quantity
-            </label>
-            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-2.5 flex items-center justify-between shadow-md">
-              <button
-                type="button"
-                onClick={() => {
-                  const newQty = Math.max(1, examQuantity - 1);
-                  setExamQuantity(newQty);
-                  // Use the admin-defined unit price only; never fall back
-                  // to a hardcoded amount. Total collapses to 0 until the
-                  // user picks a live plan above.
-                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
-                  setCheckoutAmount((unitPrice * newQty).toString());
-                }}
-                disabled={examQuantity <= 1}
-                className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40 font-black flex items-center justify-center transition-colors active:scale-95 text-lg cursor-pointer"
-              >
-                -
-              </button>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-white font-mono tabular-nums">
-                  {examQuantity}
-                </span>
-                <span className="text-xs font-bold text-slate-400">
-                  {examQuantity === 1 ? 'Pin' : 'Pins'}
-                </span>
+        // Ensure auto-selection of first exam product if not selected
+        if (!selectedProduct && activeExamList.length > 0 && activeExamList[0].product) {
+          const firstExam = activeExamList[0];
+          setTimeout(() => {
+            if (firstExam.product) {
+              setSelectedProduct(firstExam.product);
+              setDetectedOperator(firstExam.name);
+              setCheckoutAmount((getDynamicPrice(firstExam.product) * examQuantity).toString());
+            }
+          }, 0);
+        }
+
+        const currentOp = detectedOperator || (activeExamList[0]?.name || 'WAEC');
+
+        return (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                  Select Examination Body
+                </label>
+                {selectedProduct && (
+                  <span className="text-xs font-bold text-sky-400 font-mono">
+                    ₦{getDynamicPrice(selectedProduct).toLocaleString('en-NG', { minimumFractionDigits: 2 })} / card
+                  </span>
+                )}
               </div>
+              <div className="grid grid-cols-4 gap-2.5">
+                {activeExamList.map((exam) => {
+                  const isSelected = currentOp.toLowerCase() === exam.name.toLowerCase() || (selectedProduct && String(selectedProduct.id) === String(exam.id));
+                  return (
+                    <button
+                      key={exam.name + '-' + exam.id}
+                      type="button"
+                      onClick={() => {
+                        setDetectedOperator(exam.name);
+                        setSelectedCategory('Exam');
+                        if (exam.product) {
+                          setSelectedProduct(exam.product);
+                          const unitPrice = getDynamicPrice(exam.product);
+                          setCheckoutAmount((unitPrice * examQuantity).toString());
+                        }
+                      }}
+                      className={`py-3.5 px-1 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative cursor-pointer ${
+                        isSelected
+                          ? `${exam.activeRing} ring-2 scale-[1.02] shadow-md shadow-sky-500/20`
+                          : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-sky-500 rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
+                          <Check className="w-3 h-3 text-white stroke-[3]" />
+                        </div>
+                      )}
+                      
+                      {exam.icon ? (
+                        <div className="w-13 h-13 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-2xs p-1">
+                          <img
+                            src={exam.icon}
+                            alt={exam.name}
+                            className="w-full h-full object-contain rounded-xl"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`w-13 h-13 rounded-2xl ${exam.badgeBg} flex items-center justify-center shadow-sm font-black text-xs font-mono tracking-tight`}>
+                          {exam.name}
+                        </div>
+                      )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  const newQty = Math.min(10, examQuantity + 1);
-                  setExamQuantity(newQty);
-                  const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
-                  setCheckoutAmount((unitPrice * newQty).toString());
-                }}
-                disabled={examQuantity >= 10}
-                className="w-10 h-10 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-black flex items-center justify-center transition-colors active:scale-95 text-lg shadow-sm shadow-sky-500/20 cursor-pointer"
-              >
-                +
-              </button>
+                      <span className="text-[11.5px] font-black text-white tracking-wide font-display text-center truncate w-full px-0.5">
+                        {exam.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quantity Selector Box */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                  Quantity
+                </label>
+                {selectedProduct && (
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Total: <strong className="text-white">₦{(getDynamicPrice(selectedProduct) * examQuantity).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong>
+                  </span>
+                )}
+              </div>
+              <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-2.5 flex items-center justify-between shadow-md">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newQty = Math.max(1, examQuantity - 1);
+                    setExamQuantity(newQty);
+                    const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
+                    setCheckoutAmount((unitPrice * newQty).toString());
+                  }}
+                  disabled={examQuantity <= 1}
+                  className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40 font-black flex items-center justify-center transition-colors active:scale-95 text-lg cursor-pointer"
+                >
+                  -
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black text-white font-mono tabular-nums">
+                    {examQuantity}
+                  </span>
+                  <span className="text-xs font-bold text-slate-400">
+                    {examQuantity === 1 ? 'Pin' : 'Pins'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newQty = Math.min(10, examQuantity + 1);
+                    setExamQuantity(newQty);
+                    const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
+                    setCheckoutAmount((unitPrice * newQty).toString());
+                  }}
+                  disabled={examQuantity >= 10}
+                  className="w-10 h-10 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-black flex items-center justify-center transition-colors active:scale-95 text-lg shadow-sm shadow-sky-500/20 cursor-pointer"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── 1d. Electricity DisCo Dropdown (100% Dynamic from Backend) ─── */}
       {serviceType === 'electricity' && (() => {
@@ -1281,10 +1343,12 @@ export default function ServiceForm(props: ServiceFormProps) {
             if (matchedProv && matchedProv.plans && matchedProv.plans.length > 0) {
               cablePackages = matchedProv.plans.map(pl => ({
                 id: pl.id.toString(),
+                serviceTypeId: pl.service_type_id,
                 service_type_id: pl.service_type_id,
                 name: pl.plan_name || pl.name,
-                category: 'Cable TV',
+                category: 'Cable TV' as const,
                 operator: matchedProv.name,
+                description: pl.plan_name || pl.name || 'Cable TV Package',
                 priceNormal: Number(pl.price || pl.priceNormal || pl.selling_price),
                 priceReferred: Number(pl.referred_price || pl.price || pl.selling_price),
                 pricePremium: Number(pl.premium_price || pl.price || pl.selling_price),

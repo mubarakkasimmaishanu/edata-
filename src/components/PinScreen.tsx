@@ -16,12 +16,20 @@ import {
   KeyRound,
   Mail,
   Tag,
+  Fingerprint,
 } from 'lucide-react';
 import PinInput from './PinInput';
 import { api } from '../services/api';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { isValidRecipient } from '../utils/phoneValidation';
+import {
+  checkBiometrics,
+  isBiometricsEnabled,
+  enableBiometrics,
+  authenticateWithBiometrics,
+  BiometricStatus,
+} from '../services/biometric';
 
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -92,6 +100,12 @@ export default function PinScreen({
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [validatingPromo, setValidatingPromo] = useState(false);
 
+  // Biometric state & status
+  const [bioStatus, setBioStatus] = useState<BiometricStatus | null>(null);
+  const [bioPrompting, setBioPrompting] = useState(false);
+  const [showBioEnrollModal, setShowBioEnrollModal] = useState(false);
+  const [enrolledPin, setEnrolledPin] = useState('');
+
   const loading = externalLoading || isSubmitting;
 
   const serviceTypeLower = (summary?.iconType || '').toLowerCase();
@@ -130,6 +144,41 @@ export default function PinScreen({
     }
   };
 
+  const triggerBiometricAuth = async () => {
+    if (loading || bioPrompting) return;
+    if (mode === 'purchase' && requiresRecipient && !isRecipientValid) {
+      return;
+    }
+    setBioPrompting(true);
+    try {
+      const unlockedPin = await authenticateWithBiometrics({
+        title: summary?.title ? `Pay for ${summary.title}` : 'Authorize Payment',
+        subtitle: summary?.amount ? `Confirm ₦${typeof summary.amount === 'number' ? summary.amount.toLocaleString() : summary.amount} Payment` : 'Touch sensor to confirm',
+        amount: summary?.amount,
+        recipient: recipientPhone || summary?.recipient,
+      });
+
+      if (unlockedPin && unlockedPin.length === 4) {
+        setPin(unlockedPin);
+        handleComplete(unlockedPin);
+      }
+    } finally {
+      setBioPrompting(false);
+    }
+  };
+
+  useEffect(() => {
+    checkBiometrics().then(status => {
+      setBioStatus(status);
+      if ((mode === 'purchase' || mode === 'upgrade_pin') && status.isEnabled) {
+        // Smoothly auto-prompt fingerprint after mount
+        const timer = setTimeout(() => {
+          triggerBiometricAuth();
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    });
+  }, [mode]);
 
   const handleApplyPromoCode = async () => {
     if (!promoCodeInput.trim()) return;
@@ -232,7 +281,15 @@ export default function PinScreen({
         try {
           const res = await api.setPin(tempPin, completedValue);
           toast.success(res?.message || 'Transaction PIN set successfully!');
-          onSuccess(res);
+          
+          // Check if biometrics is available on device to prompt enrollment
+          const status = await checkBiometrics();
+          if (status.isAvailable && status.isEnrolled && !status.isEnabled) {
+            setEnrolledPin(completedValue);
+            setShowBioEnrollModal(true);
+          } else {
+            onSuccess(res);
+          }
         } catch (err: any) {
           setHasError(true);
           setErrorMessage(err?.message || 'Failed to set PIN.');
@@ -823,6 +880,29 @@ export default function PinScreen({
                   )}
                 </button>
               </div>
+
+              {/* Biometric Quick Pay Button for Purchase/Upgrade */}
+              {(mode === 'purchase' || mode === 'upgrade_pin') && bioStatus?.isEnabled && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={triggerBiometricAuth}
+                    disabled={loading || bioPrompting || (mode === 'purchase' && requiresRecipient && !isRecipientValid)}
+                    className={`w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer border shadow-sm ${
+                      theme === 'light'
+                        ? 'bg-sky-50/90 hover:bg-sky-100/90 border-sky-300/80 text-sky-800 shadow-sky-500/10'
+                        : 'bg-gradient-to-r from-sky-500/15 to-blue-600/15 hover:from-sky-500/25 hover:to-blue-600/25 border-sky-500/40 text-sky-300 shadow-sky-950/30'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                      theme === 'light' ? 'bg-sky-500 text-white shadow-sm' : 'bg-sky-500/25 text-sky-300'
+                    }`}>
+                      <Fingerprint className="w-3.5 h-3.5 animate-pulse" />
+                    </div>
+                    <span className="font-display">Pay with {bioStatus.typeName || 'Fingerprint'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -845,6 +925,59 @@ export default function PinScreen({
           </div>
         )}
       </main>
+
+      {/* ── OPay-Style Biometric Quick Enrollment Modal ── */}
+      {showBioEnrollModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl animate-scale-up text-center ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10' : 'bg-slate-900 border-slate-800 text-white shadow-slate-950/50'
+          }`}>
+            <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center mb-4 border ${
+              theme === 'light'
+                ? 'bg-sky-50 border-sky-200 text-sky-600 shadow-md shadow-sky-500/10'
+                : 'bg-sky-500/15 border-sky-500/30 text-sky-400 shadow-lg shadow-sky-500/20'
+            }`}>
+              <Fingerprint className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="text-base font-black font-display mb-1.5">Enable {bioStatus?.typeName || 'Fingerprint'} Payments?</h3>
+            <p className={`text-xs mb-6 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+              Authorize Airtime, Data, and Bills with a single touch in under 1 second without typing your PIN every time.
+            </p>
+            <div className="space-y-2.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await enableBiometrics(enrolledPin);
+                    toast.success(`${bioStatus?.typeName || 'Fingerprint'} payment enabled successfully!`);
+                  } catch {
+                    toast.info('Biometric setup skipped.');
+                  } finally {
+                    setShowBioEnrollModal(false);
+                    onSuccess();
+                  }
+                }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display"
+              >
+                <Fingerprint className="w-4 h-4 text-sky-200" />
+                <span>Enable {bioStatus?.typeName || 'Fingerprint'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBioEnrollModal(false);
+                  onSuccess();
+                }}
+                className={`w-full py-3 px-4 rounded-2xl font-bold text-xs transition-all cursor-pointer ${
+                  theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/80'
+                }`}
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

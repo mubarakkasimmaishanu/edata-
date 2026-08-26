@@ -13,7 +13,15 @@ import ChangePasswordScreen from './ChangePasswordScreen';
 import EditProfileScreen from './EditProfileScreen';
 import ResellerUpgrade from './ResellerUpgrade';
 import DeleteAccount from './DeleteAccount';
+import PinInput from './PinInput';
 import { Gift } from 'lucide-react';
+import {
+  checkBiometrics,
+  isBiometricsEnabled,
+  enableBiometrics,
+  disableBiometrics,
+  BiometricStatus,
+} from '../services/biometric';
 
 interface ProfileSettingsProps {
   currentUser: UserProfile;
@@ -34,8 +42,69 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   // Full-screen view states for Edit Profile, Change Password, Privacy Policy, Terms, Reseller Upgrade, Delete Account
   const [fullScreenView, setFullScreenView] = useState<'edit_profile' | 'change_password' | 'privacy' | 'terms' | 'reseller_upgrade' | 'delete_account' | null>(null);
 
-  // Biometric toggle state
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
+  // Biometric toggle state & status
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [bioStatus, setBioStatus] = useState<BiometricStatus | null>(null);
+  const [showPinPromptForBio, setShowPinPromptForBio] = useState(false);
+  const [bioPinInput, setBioPinInput] = useState('');
+  const [enrollingBio, setEnrollingBio] = useState(false);
+
+  // Load biometric hardware status on mount
+  React.useEffect(() => {
+    checkBiometrics().then(status => {
+      setBioStatus(status);
+      setBiometricEnabled(status.isEnabled);
+    });
+  }, []);
+
+  const handleToggleBiometrics = async () => {
+    if (biometricEnabled) {
+      // Disable biometrics
+      disableBiometrics();
+      setBiometricEnabled(false);
+      setBioStatus(prev => prev ? ({ ...prev, isEnabled: false }) : null);
+      toast.info('Biometric payment authorization disabled.');
+      return;
+    }
+
+    // User wants to enable biometrics
+    const status = await checkBiometrics();
+    setBioStatus(status);
+
+    if (!status.isAvailable || !status.isEnrolled) {
+      toast.warning('No biometrics enrolled on this device. Please set up a Fingerprint in your phone settings.');
+      return;
+    }
+
+    if (!currentUser.hasPin) {
+      toast.warning('Please set up a Transaction PIN before enabling biometrics.');
+      setPinScreenMode('set_pin');
+      return;
+    }
+
+    // Open PIN prompt modal to securely link PIN with biometric hardware
+    setBioPinInput('');
+    setShowPinPromptForBio(true);
+  };
+
+  const handleConfirmBioPin = async (enteredPin: string) => {
+    if (enteredPin.length !== 4) {
+      toast.warning('Please enter your 4-digit PIN.');
+      return;
+    }
+    setEnrollingBio(true);
+    try {
+      await enableBiometrics(enteredPin);
+      setBiometricEnabled(true);
+      setBioStatus(prev => prev ? ({ ...prev, isEnabled: true }) : null);
+      setShowPinPromptForBio(false);
+      toast.success(`${bioStatus?.typeName || 'Fingerprint'} authorization activated! 🚀`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Biometric authorization failed or was cancelled.');
+    } finally {
+      setEnrollingBio(false);
+    }
+  };
 
   // Copy states & loading states
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -372,8 +441,17 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                   <Fingerprint className="w-4.5 h-4.5" />
                 </div>
                 <div>
-                  <span className="text-xs font-black text-white block font-display">Biometric Lock</span>
-                  <span className="text-[10.5px] text-slate-400 font-medium">Enable Touch ID / Face ID login</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-white block font-display">Biometric Payment Lock</span>
+                    {biometricEnabled && (
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10.5px] text-slate-400 font-medium">
+                    Authorize checkouts with {bioStatus?.typeName || 'Fingerprint'}
+                  </span>
                 </div>
               </div>
 
@@ -381,10 +459,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 <input
                   type="checkbox"
                   checked={biometricEnabled}
-                  onChange={() => {
-                    setBiometricEnabled(!biometricEnabled);
-                    toast.info(`Biometric lock ${!biometricEnabled ? 'enabled' : 'disabled'}.`);
-                  }}
+                  onChange={handleToggleBiometrics}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500" />
@@ -559,6 +634,67 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               onLogout();
             }}
           />
+        </div>
+      )}
+
+      {/* ── Biometric PIN Verification Modal ── */}
+      {showPinPromptForBio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl animate-scale-up text-center ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10' : 'bg-slate-900 border-slate-800 text-white shadow-slate-950/50'
+          }`}>
+            <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3.5 border ${
+              theme === 'light'
+                ? 'bg-sky-50 border-sky-200 text-sky-600 shadow-md shadow-sky-500/10'
+                : 'bg-sky-500/15 border-sky-500/30 text-sky-400 shadow-lg shadow-sky-500/20'
+            }`}>
+              <Fingerprint className="w-7 h-7 animate-pulse" />
+            </div>
+            <h3 className="text-base font-black font-display mb-1">Link {bioStatus?.typeName || 'Fingerprint'}</h3>
+            <p className={`text-xs mb-5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+              Enter your 4-digit Transaction PIN, then scan your fingerprint to verify ownership.
+            </p>
+
+            <div className="mb-6 flex justify-center">
+              <PinInput
+                length={4}
+                value={bioPinInput}
+                onChange={setBioPinInput}
+                onComplete={handleConfirmBioPin}
+                disabled={enrollingBio}
+                mask={true}
+                autoFocus={true}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleConfirmBioPin(bioPinInput)}
+                disabled={bioPinInput.length !== 4 || enrollingBio}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display"
+              >
+                {enrollingBio ? (
+                  <span>Verifying Fingerprint...</span>
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4 text-sky-200" />
+                    <span>Scan & Activate</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPinPromptForBio(false)}
+                disabled={enrollingBio}
+                className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs transition-all cursor-pointer ${
+                  theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/80'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem, Popup
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
+import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
 
 // Eager: always visible on cold start OR needed instantly (no route wait
 // is acceptable). Dashboard is the entry point, BottomNav sits over every
@@ -594,6 +595,10 @@ function MainApp() {
           setCurrentScreen('auth');
         }
       });
+      // Initialize Push Notifications on mobile
+      initPushNotifications((targetView) => {
+        if (targetView) navigateTo(targetView);
+      }, toast);
     } else {
       // No token — always show login screen
       setCurrentScreen('auth');
@@ -890,6 +895,10 @@ function MainApp() {
     setActiveView('dashboard');
     setViewHistory(['dashboard']);
     fetchAllData();
+    initPushNotifications((targetView) => {
+      if (targetView) navigateTo(targetView);
+    }, toast);
+    syncPushTokenOnLogin();
   };
 
   const handleLogout = () => {

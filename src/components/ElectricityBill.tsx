@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ServiceForm from './ServiceForm';
-import { ProductItem, UserProfile } from '../types';
+import { ProductItem, UserProfile, ElectricityDisco } from '../types';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 import PinScreen from './PinScreen';
@@ -19,12 +19,43 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('');
   const [detectedOperator, setDetectedOperator] = useState(initialDisco || 'AEDC');
+  const [meterType, setMeterType] = useState<'PrePaid' | 'PostPaid'>('PrePaid');
+  const [dynamicDiscos, setDynamicDiscos] = useState<ElectricityDisco[]>([]);
+  const [isLoadingDiscos, setIsLoadingDiscos] = useState(false);
 
-  React.useEffect(() => {
+  // Fetch dynamic electricity discos from backend API
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDiscos() {
+      setIsLoadingDiscos(true);
+      try {
+        const res = await api.getElectricityDiscos(true);
+        if (res && res.success && res.data) {
+          const list = Array.isArray(res.data) ? res.data : (res.data.electricity_discos || []);
+          if (list && list.length > 0 && isMounted) {
+            setDynamicDiscos(list);
+            // If current operator is not set or not in list, select first active
+            if (!initialDisco && list[0]) {
+              setDetectedOperator(list[0].code || list[0].name || list[0].slug);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to fetch dynamic discos:', e);
+      } finally {
+        if (isMounted) setIsLoadingDiscos(false);
+      }
+    }
+    loadDiscos();
+    return () => { isMounted = false; };
+  }, [initialDisco]);
+
+  useEffect(() => {
     if (initialDisco) {
       setDetectedOperator(initialDisco);
     }
   }, [initialDisco]);
+
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
@@ -38,21 +69,37 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
 
   const getDynamicPrice = (p: ProductItem) => p.priceNormal;
 
+  // Resolve selected disco dynamically
+  const currentDiscoObj = dynamicDiscos.find(d => 
+    (d.code && d.code.toLowerCase() === detectedOperator.toLowerCase()) ||
+    (d.slug && d.slug.toLowerCase() === detectedOperator.toLowerCase()) ||
+    (d.name && d.name.toLowerCase().includes(detectedOperator.toLowerCase()))
+  ) || dynamicDiscos[0];
+
+  const currentServiceId = currentDiscoObj ? currentDiscoObj.id : (selectedProduct ? selectedProduct.id : 5);
+  const minPurchaseAmount = (currentDiscoObj && currentDiscoObj.min_amount) ? currentDiscoObj.min_amount : 500;
+
   const handleValidateMeter = async () => {
-    if (!targetNumber || targetNumber.length < 8) return;
+    if (!targetNumber || targetNumber.length < 6) {
+      toast.warning('Please enter a valid meter number to verify.');
+      return;
+    }
     setIsValidatingNumber(true);
     setValidationError('');
+    setCustomerName('');
     try {
-      const res = await api.validateMeterOrSmartcard(5, targetNumber);
-      if (res.data?.name || res.name) {
-        const name = res.data?.name || res.name;
+      const res = await api.validateMeterOrSmartcard(currentServiceId, targetNumber, meterType);
+      const name = res.data?.customer_name || res.data?.name || res.customer_name || res.name;
+      if (name) {
         setCustomerName(name);
-        toast.success(`Meter Owner: ${name}`);
+        toast.success(`Meter Verified: ${name}`);
       } else {
-        setValidationError('Invalid Meter Number.');
+        setValidationError('Meter verification returned no name. Please double-check the number.');
       }
     } catch (err: any) {
-      setValidationError(err.message || 'Meter Verification Failed');
+      const errMsg = err.message || 'Meter Verification Failed';
+      setValidationError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsValidatingNumber(false);
     }
@@ -60,12 +107,12 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
 
   const handleCheckoutInitiate = () => {
     const amountNum = parseFloat(checkoutAmount);
-    if (!targetNumber || targetNumber.length < 8) {
+    if (!targetNumber || targetNumber.length < 6) {
       toast.warning('Please enter a valid Meter Number.');
       return;
     }
-    if (isNaN(amountNum) || amountNum < 500) {
-      toast.warning('Minimum electricity payment is ₦500.');
+    if (isNaN(amountNum) || amountNum < minPurchaseAmount) {
+      toast.warning(`Minimum electricity payment is ₦${minPurchaseAmount.toLocaleString()}.`);
       return;
     }
     if (amountNum > currentUser.walletBalance) {
@@ -77,9 +124,10 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
 
   const handleConfirmPurchase = async (pinInput: string) => {
     const res = await api.purchase({
-      service_id: 5, // Electricity
+      service_id: currentServiceId,
       amount: parseFloat(checkoutAmount),
       target_number: targetNumber,
+      meter_type: meterType,
       transaction_pin: pinInput
     });
     toast.success(res.message || 'Electricity bill paid successfully!');
@@ -87,18 +135,24 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     onBack();
   };
 
+  const discoDisplayName = currentDiscoObj ? (currentDiscoObj.fullName || currentDiscoObj.name) : detectedOperator;
+
   if (showPinScreen) {
     return (
       <PinScreen
         mode="purchase"
         summary={{
-          title: `${detectedOperator} Electricity Token`,
-          subtitle: 'Electricity Bill Payment',
+          title: `${discoDisplayName} Token`,
+          subtitle: `${meterType} Meter Recharge`,
           amount: parseFloat(checkoutAmount),
           recipient: targetNumber,
-          provider: detectedOperator,
+          provider: discoDisplayName,
           iconType: 'electricity',
-          details: customerName ? [{ label: 'Meter Owner', value: customerName }] : undefined,
+          details: [
+            ...(customerName ? [{ label: 'Meter Owner', value: customerName }] : []),
+            { label: 'Meter Type', value: meterType },
+            { label: 'Meter Number', value: targetNumber },
+          ],
         }}
         onBack={() => setShowPinScreen(false)}
         onSuccess={() => setShowPinScreen(false)}
@@ -164,6 +218,9 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
           customerName={customerName}
           validationError={validationError}
           toast={toast}
+          dynamicDiscos={dynamicDiscos}
+          currentMeterType={meterType}
+          onMeterTypeChange={setMeterType}
         />
       </div>
     </div>

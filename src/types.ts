@@ -56,9 +56,31 @@ export interface ProductItem {
   priceReferred: number;
   pricePremium: number;
   active: boolean;
-  description: string;
+  description?: string;
   planTypeId?: number | null;
   planTypeName?: string;
+  image?: string | null;
+  code?: string;
+  serviceTypeId?: number | string;
+  service_type_id?: number | string;
+  bundle_id?: string | null;
+  price?: number;
+}
+
+export interface ExamCardItem {
+  id: number | string;
+  name: string;
+  slug?: string;
+  code?: string;
+  selling_price?: number;
+  cost_price?: number;
+  referred_price?: number;
+  premium_price?: number;
+  price: number;
+  status?: number;
+  is_active?: boolean;
+  image?: string | null;
+  description?: string;
 }
 
 export interface MarketerLeader {
