@@ -40,7 +40,16 @@ import gotvIcon from '@/assets/icons/gotv.png';
 import startimesIcon from '@/assets/icons/startimes.png';
 import waecIcon from '@/assets/icons/waec.png';
 import necoIcon from '@/assets/icons/neco.png';
+import nabtebIcon from '@/assets/icons/nabteb.png';
+import nbaisIcon from '@/assets/icons/nbais.png';
 import aedcIcon from '@/assets/icons/aedc.png';
+import ekedcIcon from '@/assets/icons/ekedc.png';
+import ikejaIcon from '@/assets/icons/ikeja.png';
+import ibedcIcon from '@/assets/icons/ibedc.png';
+import kedcoIcon from '@/assets/icons/kedco.png';
+import kadunaIcon from '@/assets/icons/kaduna.png';
+import josIcon from '@/assets/icons/jos.png';
+import phedcIcon from '@/assets/icons/phedc.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 
 export interface PurchaseSummary {
@@ -417,7 +426,7 @@ export default function PinScreen({
 
   const renderIcon = () => {
     const netLower = (summary?.provider || summary?.title || summary?.icon || '').toLowerCase();
-    let logoSrc = mtnIcon;
+    let logoSrc: string | null = null;
     if (netLower.includes('mtn')) logoSrc = mtnIcon;
     else if (netLower.includes('airtel')) logoSrc = airtelIcon;
     else if (netLower.includes('glo')) logoSrc = gloIcon;
@@ -427,15 +436,34 @@ export default function PinScreen({
     else if (netLower.includes('startimes')) logoSrc = startimesIcon;
     else if (netLower.includes('waec')) logoSrc = waecIcon;
     else if (netLower.includes('neco')) logoSrc = necoIcon;
-    else if (netLower.includes('aedc') || summary?.iconType === 'electricity') logoSrc = aedcIcon;
+    else if (netLower.includes('nabteb')) logoSrc = nabtebIcon;
+    else if (netLower.includes('nbais')) logoSrc = nbaisIcon;
+    else if (netLower.includes('aedc')) logoSrc = aedcIcon;
+    else if (netLower.includes('ekedc')) logoSrc = ekedcIcon;
+    else if (netLower.includes('ikeja')) logoSrc = ikejaIcon;
+    else if (netLower.includes('ibedc')) logoSrc = ibedcIcon;
+    else if (netLower.includes('kedco')) logoSrc = kedcoIcon;
+    else if (netLower.includes('kaduna') || netLower.includes('kaedco')) logoSrc = kadunaIcon;
+    else if (netLower.includes('jos') || netLower.includes('jed')) logoSrc = josIcon;
+    else if (netLower.includes('phed')) logoSrc = phedcIcon;
+    else if (summary?.iconType === 'electricity') logoSrc = aedcIcon;
     else if (summary?.iconType === 'a2c') logoSrc = walletIcon;
 
+    if (logoSrc) {
+      return (
+        <img
+          src={logoSrc}
+          alt={summary?.provider || summary?.title || 'Service'}
+          className="w-full h-full object-contain rounded-xl"
+        />
+      );
+    }
+
+    // Generic fallback icon for unrecognized services
     return (
-      <img
-        src={logoSrc}
-        alt={summary?.provider || summary?.title || 'Network'}
-        className="w-full h-full object-contain rounded-xl"
-      />
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-sky-500/20 to-indigo-500/20 rounded-xl">
+        <ShieldCheck className="w-5 h-5 text-sky-400" />
+      </div>
     );
   };
 
