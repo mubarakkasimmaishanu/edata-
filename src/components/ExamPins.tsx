@@ -95,11 +95,10 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
     if (!selectedProduct) return;
     const quantity = parseInt(targetNumber, 10) || 1;
     const res = await api.purchase({
-      service_id: selectedProduct?.serviceTypeId || 3, // Exam Token
+      service_id: selectedProduct?.serviceTypeId || selectedProduct?.id || 3, // Exam Token
       amount: (selectedProduct?.priceNormal || 0) * quantity,
       target_number: currentUser.phone || '08000000000',
       quantity: quantity,
-      plan_id: selectedProduct?.id,
       transaction_pin: pinInput
     });
     toast.success(res.message || 'Exam token purchased successfully!');
