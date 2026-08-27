@@ -1,12 +1,26 @@
 import React, { useState, useCallback } from 'react';
 import { Transaction } from '../types';
-import { ChevronLeft, Search, Download, Clock, Copy, MessageCircle, RotateCcw, CheckCircle, AlertCircle } from 'lucide-react';
-// jsPDF (594 KB) is dynamically imported inside `downloadPDFReceipt` so it
-// only ships to users who actually download a receipt. Keeps cold-start
-// bundle ~750 KB lighter (jsPDF + its DOMPurify dependency).
+import {
+  ChevronLeft,
+  Search,
+  Download,
+  Clock,
+  Copy,
+  Check,
+  MessageCircle,
+  RotateCcw,
+  CheckCircle2,
+  AlertCircle,
+  Share2,
+  BookOpen,
+  Zap,
+  Tag,
+  Hash,
+  KeyRound,
+} from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import { useToast } from './Toast';
-
+import { useTheme } from '../context/ThemeContext';
 import { formatMoney } from '../utils/formatters';
 import { fetchSupportInfo, readCachedSupportInfo } from '../utils/supportInfo';
 
@@ -16,11 +30,115 @@ interface TransactionHistoryProps {
   onNavigate?: (view: string) => void;
 }
 
-// Memoized row — the list can be long, and every keystroke in the search
-// input triggers a re-render of the parent. Without memo, all rows would
-// re-reconcile even though only the filtered set changed. `React.memo`
-// short-circuits rows whose `tx` prop is reference-identical and whose
-// `onOpen` handler is stable (the parent wraps it in useCallback).
+export interface ExtractedPinCard {
+  pin?: string;
+  serial?: string;
+  label?: string;
+}
+
+/**
+ * Intelligent helper to extract exam cards / PINs and Serial numbers
+ * from structured fields, arrays, JSON payloads, or raw description strings.
+ * Automatically deduplicates identical PINs and serials.
+ */
+export function extractExamCards(tx: Transaction): ExtractedPinCard[] {
+  const cards: ExtractedPinCard[] = [];
+  const seenPairs = new Set<string>();
+
+  const addUnique = (pin?: string, serial?: string) => {
+    const cleanPin = pin ? String(pin).trim() : undefined;
+    const cleanSerial = serial ? String(serial).trim() : undefined;
+    if (!cleanPin && !cleanSerial) return;
+    const key = `${cleanPin || ''}:::${cleanSerial || ''}`;
+    if (seenPairs.has(key)) return;
+    seenPairs.add(key);
+    cards.push({ pin: cleanPin, serial: cleanSerial });
+  };
+
+  // 1. If explicitly provided via pins array
+  if (Array.isArray(tx.pins) && tx.pins.length > 0) {
+    tx.pins.forEach((item: any) => {
+      if (typeof item === 'object' && item !== null) {
+        addUnique(
+          item.pin || item.token || item.code,
+          item.serial_number || item.serial || item.serial_no || item.serialNo
+        );
+      } else if (item) {
+        addUnique(String(item), undefined);
+      }
+    });
+    if (cards.length > 0) return cards;
+  }
+
+  // 2. Check direct transaction properties
+  if (tx.serialNumber || tx.pin) {
+    addUnique(tx.pin || undefined, tx.serialNumber || undefined);
+  }
+
+  // 3. Search in description text without duplicate string concatenation
+  const text = (tx.rawDescription || tx.productName || '').trim();
+  if (text) {
+    // Try JSON parsing
+    if (text.includes('{') || text.includes('[')) {
+      try {
+        const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item: any) => {
+              addUnique(
+                item.pin || item.token || item.code,
+                item.serial_number || item.serial || item.serial_no || item.serialNo
+              );
+            });
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            addUnique(
+              parsed.pin || parsed.token || parsed.code,
+              parsed.serial_number || parsed.serial || parsed.serial_no || parsed.serialNo
+            );
+          }
+        }
+      } catch {}
+    }
+
+    if (cards.length === 0) {
+      // Regex parsing for Serial Numbers and PINs
+      const serialMatches = Array.from(
+        text.matchAll(/(?:serial(?:\s*no|\s*number)?|s\/n|sn)[:\s\-]+([a-zA-Z0-9\-]+)/gi)
+      ).map((m) => m[1]);
+      const pinMatches = Array.from(
+        text.matchAll(/(?:pin(?:\s*code|\s*token|\s*number)?|token(?:\s*pin)?|\bpin\b)[:\s\-]+([a-zA-Z0-9\-]+)/gi)
+      ).map((m) => m[1]);
+
+      const maxLen = Math.max(serialMatches.length, pinMatches.length);
+      for (let i = 0; i < maxLen; i++) {
+        addUnique(pinMatches[i], serialMatches[i]);
+      }
+    }
+  }
+
+  // 4. Fallback for Exam Token if phoneOrMeter is a pin
+  if (cards.length === 0 && tx.type === 'Exam Token') {
+    if (
+      tx.phoneOrMeter &&
+      tx.phoneOrMeter !== tx.reference &&
+      !/^0[789][01]\d{8}$/.test(tx.phoneOrMeter)
+    ) {
+      addUnique(tx.phoneOrMeter, undefined);
+    }
+  }
+
+  // Add labels only if multiple distinct cards exist
+  if (cards.length > 1) {
+    cards.forEach((c, idx) => {
+      c.label = `Card ${idx + 1}`;
+    });
+  }
+
+  return cards;
+}
+
+// Memoized row for smooth list scrolling
 interface TransactionRowProps {
   tx: Transaction;
   onOpen: (tx: Transaction) => void;
@@ -72,19 +190,21 @@ const TransactionRow = React.memo(function TransactionRow({ tx, onOpen }: Transa
 
 export default function TransactionHistory({ transactions, onBack, onNavigate }: TransactionHistoryProps) {
   const toast = useToast();
+  const { theme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Stable handler passed to memoized rows so their `onOpen` prop is
-  // reference-identical across renders — otherwise React.memo can never
-  // short-circuit.
   const handleOpenReceipt = useCallback((tx: Transaction) => setActiveReceipt(tx), []);
 
   const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'Funding', 'A2C'];
 
   const filteredTransactions = transactions.filter((tx) => {
-    const matchesCategory = categoryFilter === 'All' || tx.type === categoryFilter || (categoryFilter === 'Funding' && tx.type === 'Wallet Funding');
+    const matchesCategory =
+      categoryFilter === 'All' ||
+      tx.type === categoryFilter ||
+      (categoryFilter === 'Funding' && tx.type === 'Wallet Funding');
     const matchesSearch =
       (tx.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (tx.reference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,18 +212,18 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     return matchesCategory && matchesSearch;
   });
 
-  const handleCopyReference = (ref: string) => {
-    navigator.clipboard.writeText(ref);
-    toast.success('Transaction reference copied to clipboard!');
+  const handleCopyText = (text: string, label: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success(`${label} copied!`);
+    setTimeout(() => {
+      setCopiedKey((curr) => (curr === key ? null : curr));
+    }, 2000);
   };
 
   const handleReportIssue = async (tx: Transaction) => {
     const refCode = tx.reference || tx.id;
     const msg = `Hello eData Support, I need assistance with transaction Ref: ${refCode}\nService: ${tx.productName || tx.type}\nTarget Number: ${tx.phoneOrMeter || 'N/A'}\nAmount: ${formatMoney(tx.amount)}\nDate: ${tx.date || 'Recent'}\nStatus: ${tx.status}`;
-    // Try the live admin-configured number first, but fall back to the
-    // last cached value on slow/no network. No baked-in number — if the
-    // admin has never configured one and we have no cache, we tell the
-    // user to open Help & Support rather than dial a wrong number.
     const info = await fetchSupportInfo();
     const whatsappNum = info.whatsapp || readCachedSupportInfo().whatsapp;
     if (!whatsappNum) {
@@ -126,17 +246,18 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
       onNavigate('cable');
     } else if (typeLower.includes('electricity')) {
       onNavigate('electricity');
+    } else if (typeLower.includes('exam')) {
+      onNavigate('exams');
     } else {
       onNavigate('dashboard');
     }
   };
 
   const downloadPDFReceipt = async (tx: Transaction) => {
-    // Dynamic import — jsPDF only loads when the user actually taps download.
     const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ unit: 'mm', format: [80, 130] });
+    const doc = new jsPDF({ unit: 'mm', format: [80, 135] });
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 80, 130, 'F');
+    doc.rect(0, 0, 80, 135, 'F');
 
     doc.setTextColor(56, 189, 248);
     doc.setFontSize(14);
@@ -156,7 +277,11 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     doc.text(formatMoney(tx.amount, { useCode: true }), 40, 32, { align: 'center' });
 
     doc.setFontSize(9);
-    doc.setTextColor(tx.status === 'Completed' ? 52 : tx.status === 'Failed' ? 244 : 245, tx.status === 'Completed' ? 211 : tx.status === 'Failed' ? 63 : 158, tx.status === 'Completed' ? 153 : tx.status === 'Failed' ? 94 : 11);
+    doc.setTextColor(
+      tx.status === 'Completed' ? 52 : tx.status === 'Failed' ? 244 : 245,
+      tx.status === 'Completed' ? 211 : tx.status === 'Failed' ? 63 : 158,
+      tx.status === 'Completed' ? 153 : tx.status === 'Failed' ? 94 : 11
+    );
     doc.text(`Status: ${tx.status}`, 40, 38, { align: 'center' });
 
     doc.setFontSize(8);
@@ -172,13 +297,34 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
     };
 
     addRow('Service:', tx.type || 'VTU');
-    addRow('Product:', tx.productName || 'Purchase');
-    addRow('Target:', tx.phoneOrMeter || 'N/A');
+    addRow('Product:', (tx.productName || 'Purchase').substring(0, 24));
+
+    // Add serial number & pin if available in PDF
+    const cards = extractExamCards(tx);
+    if (cards.length > 0) {
+      cards.forEach((c, idx) => {
+        const prefix = cards.length > 1 ? `[${idx + 1}] ` : '';
+        if (c.serial) addRow(`${prefix}Serial:`, c.serial);
+        if (c.pin) addRow(`${prefix}PIN:`, c.pin);
+      });
+    }
+
+    if (tx.elecToken) {
+      addRow('Token:', tx.elecToken);
+    }
+
+    if (tx.phoneOrMeter && tx.phoneOrMeter !== tx.reference) {
+      addRow('Target:', tx.phoneOrMeter);
+    }
+
     addRow('Reference:', tx.reference || tx.id);
     addRow('Date:', tx.date || 'Today');
 
     doc.save(`eData_Receipt_${tx.reference || tx.id}.pdf`);
   };
+
+  // Extracted cards for active receipt
+  const activeCards = activeReceipt ? extractExamCards(activeReceipt) : [];
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-20">
@@ -246,129 +392,415 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
         )}
       </main>
 
-      {/* Receipt Modal */}
+      {/* ── Modern, Simple & Better Transaction Details Modal ── */}
       {activeReceipt && (
         <BottomSheet
           open={!!activeReceipt}
           onClose={() => setActiveReceipt(null)}
           title="Transaction Details"
         >
-          <div className="space-y-4 py-2">
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
-              <div className="text-center">
-                <span className="text-[10px] uppercase text-sky-400 font-semibold tracking-wider">Amount Paid</span>
-                <h3 className="text-2xl font-extrabold text-white mt-0.5">{formatMoney(activeReceipt.amount)}</h3>
-                <span className={`inline-block px-3 py-1 mt-1 rounded-full text-[11px] font-bold border ${
-                  activeReceipt.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                  activeReceipt.status === 'Failed' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
-                  'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                }`}>
-                  {activeReceipt.status}
-                </span>
+          <div className="space-y-4 py-1">
+            {/* 1. Hero Amount & Status Card */}
+            <div
+              className={`p-4 rounded-2xl border text-center transition-colors ${
+                theme === 'light'
+                  ? 'bg-slate-50 border-slate-200/90 text-slate-900'
+                  : 'bg-slate-900/90 border-slate-800 text-white'
+              }`}
+            >
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-500">
+                Amount Paid
+              </span>
+              <h3 className="text-2xl font-black mt-0.5 tracking-tight">
+                {formatMoney(activeReceipt.amount)}
+              </h3>
+
+              {/* Status Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full text-xs font-bold border">
+                {activeReceipt.status === 'Completed' ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-500">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Completed</span>
+                  </span>
+                ) : activeReceipt.status === 'Failed' ? (
+                  <span className="inline-flex items-center gap-1.5 text-rose-500">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Failed</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-amber-500">
+                    <Clock className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                    <span>Pending</span>
+                  </span>
+                )}
               </div>
 
-              {/* Status explanation alert */}
+              {/* Status Alert Explanations */}
               {activeReceipt.status === 'Pending' && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 font-medium flex items-center gap-2">
-                  <Clock className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>This transaction is currently processing with the carrier provider. If value is not received, report the issue to support below.</span>
+                <div
+                  className={`mt-3 p-2.5 rounded-xl text-xs flex items-center gap-2 text-left ${
+                    theme === 'light'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+                  }`}
+                >
+                  <Clock className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span className="text-[11px] leading-tight">
+                    Transaction is currently processing. If recipient hasn't received value, tap Report Issue below.
+                  </span>
                 </div>
               )}
               {activeReceipt.status === 'Failed' && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>This transaction failed to complete. Your wallet was not charged or has been automatically refunded.</span>
+                <div
+                  className={`mt-3 p-2.5 rounded-xl text-xs flex items-center gap-2 text-left ${
+                    theme === 'light'
+                      ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                      : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span className="text-[11px] leading-tight">
+                    Transaction could not be completed. Your wallet balance has not been deducted or was refunded.
+                  </span>
                 </div>
               )}
-              {activeReceipt.status === 'Completed' && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 font-medium flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span>Transaction completed. If the recipient hasn't received value, tap Report Issue below to contact support immediately.</span>
-                </div>
-              )}
+            </div>
 
-              <div className="pt-3 border-t border-slate-800 text-xs space-y-2.5">
-                <div className="flex justify-between items-center"><span className="text-slate-400">Service</span><span className="text-white font-medium">{activeReceipt.type}</span></div>
-                <div className="flex justify-between items-center"><span className="text-slate-400">Description</span><span className="text-white font-medium text-right max-w-[60%]">{activeReceipt.productName}</span></div>
-                {activeReceipt.phoneOrMeter && activeReceipt.phoneOrMeter !== activeReceipt.reference && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">
-                      {activeReceipt.type === 'Electricity' ? 'Meter No.' :
-                       activeReceipt.type === 'Cable TV' ? 'Smartcard' :
-                       activeReceipt.type === 'Exam Token' ? 'PIN' :
-                       'Phone/Target'}
+            {/* 2. Highlight Card: Exam Cards / PINs & Serial Numbers */}
+            {activeCards.length > 0 && (
+              <div className="space-y-2.5">
+                {activeCards.map((card, idx) => {
+                  const pinKey = `card-pin-${idx}`;
+                  const serialKey = `card-serial-${idx}`;
+                  const isPinCopied = copiedKey === pinKey;
+                  const isSerialCopied = copiedKey === serialKey;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
+                        theme === 'light'
+                          ? 'bg-white border-slate-200 shadow-xs text-slate-900'
+                          : 'bg-slate-800/70 border-slate-700/80 text-white'
+                      }`}
+                    >
+                      {card.label && (
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-700/60">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            {card.label}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Serial Number Row with Rounded Border */}
+                      {card.serial && (
+                        <div
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                            theme === 'light'
+                              ? 'bg-slate-50/80 border-slate-200'
+                              : 'bg-slate-900/60 border-slate-700/60'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                              Serial Number
+                            </span>
+                            <span className="font-mono font-bold text-sm tracking-wider text-sky-600 dark:text-sky-300 break-all select-all">
+                              {card.serial}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyText(card.serial!, 'Serial Number', serialKey)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                              isSerialCopied
+                                ? 'bg-emerald-500 text-white'
+                                : theme === 'light'
+                                ? 'bg-slate-200/80 hover:bg-slate-300 text-slate-800'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                            }`}
+                          >
+                            {isSerialCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" /> Copy Serial
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* PIN Row with Rounded Border */}
+                      {card.pin && (
+                        <div
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                            theme === 'light'
+                              ? 'bg-emerald-50/50 border-emerald-200/80'
+                              : 'bg-emerald-950/20 border-emerald-500/30'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                              PIN Code
+                            </span>
+                            <span className="font-mono font-black text-base tracking-widest text-emerald-600 dark:text-emerald-400 break-all select-all">
+                              {card.pin}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyText(card.pin!, 'PIN Code', pinKey)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm ${
+                              isPinCopied
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20'
+                            }`}
+                          >
+                            {isPinCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" /> Copy PIN
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. Highlight Card: Electricity Token (if Electricity) */}
+            {activeReceipt.elecToken && (
+              <div
+                className={`p-3.5 rounded-2xl border space-y-2.5 transition-colors ${
+                  theme === 'light'
+                    ? 'bg-white border-amber-200/80 shadow-xs text-slate-900'
+                    : 'bg-slate-800/70 border-amber-500/30 text-white'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    Electricity Token
+                  </span>
+                </div>
+                <div
+                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                    theme === 'light'
+                      ? 'bg-amber-50/50 border-amber-200'
+                      : 'bg-slate-900/60 border-slate-700/60'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                      Token (Meter Token)
+                    </span>
+                    <span className="font-mono font-black text-sm md:text-base tracking-widest text-emerald-600 dark:text-emerald-400 break-all select-all">
+                      {activeReceipt.elecToken}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(activeReceipt.elecToken!, 'Token', 'elec-token')}
+                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                      copiedKey === 'elec-token'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    {copiedKey === 'elec-token' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> Copy Token
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. Key-Value Transaction Info Table */}
+            <div
+              className={`p-4 rounded-2xl border text-xs space-y-2.5 transition-colors ${
+                theme === 'light'
+                  ? 'bg-white border-slate-200/90 text-slate-800 shadow-sm'
+                  : 'bg-slate-900/90 border-slate-800 text-slate-200'
+              }`}
+            >
+              {/* Service */}
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                <span className="text-slate-400 font-medium">Service</span>
+                <span className="font-bold text-slate-900 dark:text-white">{activeReceipt.type}</span>
+              </div>
+
+              {/* Description / Product Name */}
+              <div className="flex justify-between items-start py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                <span className="text-slate-400 font-medium shrink-0">Description</span>
+                <span className="font-semibold text-right max-w-[65%] text-slate-800 dark:text-slate-100">
+                  {activeReceipt.productName}
+                </span>
+              </div>
+
+              {/* Target / Recipient / Phone (if applicable) */}
+              {activeReceipt.phoneOrMeter &&
+                activeReceipt.phoneOrMeter !== activeReceipt.reference &&
+                activeCards.length === 0 && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-slate-400 font-medium">
+                      {activeReceipt.type === 'Electricity'
+                        ? 'Meter No.'
+                        : activeReceipt.type === 'Cable TV'
+                        ? 'Smartcard'
+                        : activeReceipt.type === 'Exam Token'
+                        ? 'Recipient'
+                        : 'Phone / Target'}
                     </span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-white font-medium font-mono">{activeReceipt.phoneOrMeter}</span>
+                      <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                        {activeReceipt.phoneOrMeter}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => { navigator.clipboard.writeText(activeReceipt.phoneOrMeter); toast.success('Copied!'); }}
-                        className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        onClick={() =>
+                          handleCopyText(activeReceipt.phoneOrMeter, 'Target Number', 'target-num')
+                        }
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          copiedKey === 'target-num'
+                            ? 'text-emerald-500 bg-emerald-500/10'
+                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-white bg-slate-100 dark:bg-slate-800'
+                        }`}
                         title="Copy"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        {copiedKey === 'target-num' ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                   </div>
                 )}
-                {activeReceipt.elecToken && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Token</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-emerald-400 font-mono font-bold">{activeReceipt.elecToken}</span>
-                      <button
-                        type="button"
-                        onClick={() => { navigator.clipboard.writeText(activeReceipt.elecToken!); toast.success('Token copied!'); }}
-                        className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
-                        title="Copy Token"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Reference</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sky-400 font-mono font-bold">{activeReceipt.reference || activeReceipt.id}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyReference(activeReceipt.reference || activeReceipt.id)}
-                      className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
-                      title="Copy Reference"
-                    >
+
+              {/* Reference */}
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                <span className="text-slate-400 font-medium">Reference</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400">
+                    {activeReceipt.reference || activeReceipt.id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopyText(
+                        activeReceipt.reference || activeReceipt.id,
+                        'Reference',
+                        'ref-code'
+                      )
+                    }
+                    className={`p-1 rounded-md transition-colors cursor-pointer ${
+                      copiedKey === 'ref-code'
+                        ? 'text-emerald-500 bg-emerald-500/10'
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-white bg-slate-100 dark:bg-slate-800'
+                    }`}
+                    title="Copy Reference"
+                  >
+                    {copiedKey === 'ref-code' ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
                       <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                    )}
+                  </button>
                 </div>
-                <div className="flex justify-between items-center"><span className="text-slate-400">Date</span><span className="text-white font-medium">{activeReceipt.date}</span></div>
+              </div>
+
+              {/* Date */}
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-400 font-medium">Date & Time</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {activeReceipt.date || 'Recent'}
+                </span>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="space-y-2">
+            {/* 5. Clean Action Buttons */}
+            <div className="space-y-2 pt-1">
               <button
+                type="button"
                 onClick={() => handleReportIssue(activeReceipt)}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-900/20"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-900/20 active:scale-98"
               >
                 <MessageCircle className="w-4 h-4" /> Report Issue / Contact Support
               </button>
 
-              {(activeReceipt.status === 'Failed' || activeReceipt.status === 'Pending') && onNavigate && (
-                <button
-                  onClick={() => handleRetryTransaction(activeReceipt)}
-                  className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-900/20"
-                >
-                  <RotateCcw className="w-4 h-4" /> Retry Transaction
-                </button>
-              )}
+              {(activeReceipt.status === 'Failed' || activeReceipt.status === 'Pending') &&
+                onNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => handleRetryTransaction(activeReceipt)}
+                    className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-900/20 active:scale-98"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Retry Transaction
+                  </button>
+                )}
 
-              <button
-                onClick={() => downloadPDFReceipt(activeReceipt)}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-700"
-              >
-                <Download className="w-4 h-4" /> Download PDF Receipt
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadPDFReceipt(activeReceipt)}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border active:scale-98 ${
+                    theme === 'light'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                >
+                  <Download className="w-3.5 h-3.5 text-sky-400" /> PDF Receipt
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cardsInfo = activeCards
+                      .map(
+                        (c, i) =>
+                          `${c.label || `Card ${i + 1}`}:${c.serial ? `\nSerial: ${c.serial}` : ''}${
+                            c.pin ? `\nPIN: ${c.pin}` : ''
+                          }`
+                      )
+                      .join('\n\n');
+                    const text = `eData Transaction Receipt\nService: ${activeReceipt.type}\nAmount: ${formatMoney(
+                      activeReceipt.amount
+                    )}\nStatus: ${activeReceipt.status}\nRef: ${
+                      activeReceipt.reference || activeReceipt.id
+                    }\nDate: ${activeReceipt.date}${cardsInfo ? `\n\n${cardsInfo}` : ''}${
+                      activeReceipt.elecToken ? `\nToken: ${activeReceipt.elecToken}` : ''
+                    }`;
+                    if (navigator.share) {
+                      navigator.share({ title: 'Transaction Receipt', text }).catch(() => {});
+                    } else {
+                      navigator.clipboard.writeText(text);
+                      toast.success('Receipt details copied to clipboard!');
+                    }
+                  }}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border active:scale-98 ${
+                    theme === 'light'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                >
+                  <Share2 className="w-3.5 h-3.5 text-emerald-400" /> Share Receipt
+                </button>
+              </div>
             </div>
           </div>
         </BottomSheet>
