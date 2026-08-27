@@ -620,6 +620,8 @@ function MainApp() {
 
     const handleAuthExpired = () => {
       setAuthToken(null);
+      setPinScreenMode(null);
+      setActiveQuickAction(null);
       setCurrentScreen('auth');
       setActiveView('dashboard');
       setViewHistory(['dashboard']);

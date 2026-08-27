@@ -254,6 +254,13 @@ export default function PinScreen({
         await onSubmitPurchase(completedValue, requiresRecipient ? recipientPhone.trim() : undefined, appliedPromoCode || undefined);
         onSuccess();
       } catch (err: any) {
+        const msg = (err?.message || '').toLowerCase();
+        if ((msg.includes('token') && msg.includes('invalid')) || msg.includes('unauthorized') || msg.includes('invalid credential') || msg.includes('session expired') || msg.includes('401')) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('edata-auth-expired'));
+          }
+          return;
+        }
         setHasError(true);
         setErrorMessage(err?.message || 'Transaction failed. Please check your PIN and try again.');
         setPin('');
@@ -267,6 +274,13 @@ export default function PinScreen({
         toast.success(res?.message || 'Upgraded to Premium Reseller successfully!');
         onSuccess(res);
       } catch (err: any) {
+        const msg = (err?.message || '').toLowerCase();
+        if ((msg.includes('token') && msg.includes('invalid')) || msg.includes('unauthorized') || msg.includes('invalid credential') || msg.includes('session expired') || msg.includes('401')) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('edata-auth-expired'));
+          }
+          return;
+        }
         setHasError(true);
         setErrorMessage(err?.message || 'Upgrade failed. Please verify your PIN.');
         setPin('');
