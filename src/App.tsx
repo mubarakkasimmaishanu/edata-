@@ -419,6 +419,15 @@ function MainApp() {
     const user = profileRes?.data?.user || profileRes?.data || profileRes?.user || profileRes || {};
     const walletSucceeded = walletRes?.success !== false;
     const profileSucceeded = profileRes?.success !== false;
+
+    if (!walletSucceeded && !profileSucceeded) {
+      const errStr = `${walletRes?.error || ''} ${profileRes?.error || ''}`.toLowerCase();
+      if (errStr.includes('invalid credential') || errStr.includes('unauthorized') || errStr.includes('unauthenticated') || walletRes?.code === 401 || profileRes?.code === 401) {
+        setAuthToken(null);
+        setCurrentScreen('auth');
+        return;
+      }
+    }
     const walletData = walletSucceeded ? (walletRes?.data?.wallet || walletRes?.data || walletRes?.wallet || {}) : {};
 
     let extractedBalance: number | null = null;
@@ -609,6 +618,15 @@ function MainApp() {
       }
     };
 
+    const handleAuthExpired = () => {
+      setAuthToken(null);
+      setCurrentScreen('auth');
+      setActiveView('dashboard');
+      setViewHistory(['dashboard']);
+      toast.info('Session expired. Please log in again to sync your account.');
+    };
+    window.addEventListener('edata-auth-expired', handleAuthExpired);
+
     const token = getAuthToken();
     if (token) {
       // Token exists — try to load data; fetchAllData will redirect to auth if token is invalid
@@ -628,15 +646,26 @@ function MainApp() {
       setCurrentScreen('auth');
       checkConnectionOnLoad();
     }
+    return () => {
+      window.removeEventListener('edata-auth-expired', handleAuthExpired);
+    };
   }, []);
 
   // ── Rapid Lightweight Wallet Synchronizer (<100ms response) ──
   // Polls /api/wallet every 2.5s to detect credits AND debits (website
   // purchases, admin adjustments, etc.) and keeps the mobile UI in sync.
   const fetchWalletFast = async (silent = true) => {
-    if (!getAuthToken()) return;
+    if (!getAuthToken()) {
+      setCurrentScreen('auth');
+      return;
+    }
     try {
       const walletRes = await api.walletCheck(silent);
+      if (walletRes && (walletRes.code === 401 || walletRes.status === 401 || (typeof walletRes.error === 'string' && (walletRes.error.toLowerCase().includes('invalid credential') || walletRes.error.toLowerCase().includes('unauthorized'))))) {
+        setAuthToken(null);
+        setCurrentScreen('auth');
+        return;
+      }
       if (walletRes && walletRes.success !== false) {
         const walletData = walletRes.data || walletRes;
         const mainW = parseFloat(walletData?.main_wallet ?? walletData?.balance ?? 0);
