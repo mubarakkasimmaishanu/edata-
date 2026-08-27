@@ -153,6 +153,10 @@ export const api = {
     return request('/wallet', {}, silent);
   },
 
+  async walletCheck(silent = true) {
+    return request('/wallet-check', {}, silent);
+  },
+
   async initKatpay(amount: number) {
     return request('/katpay-init', {
       method: 'POST',

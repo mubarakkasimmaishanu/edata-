@@ -36,10 +36,14 @@ const TransactionRow = React.memo(function TransactionRow({ tx, onOpen }: Transa
     tx.status === 'Failed' ? 'text-rose-400' :
     'text-amber-400';
   const emoji =
-    tx.type === 'Airtime' ? '📞' :
-    tx.type === 'Data' ? '📡' :
+    tx.type === 'Airtime' ? '📱' :
+    tx.type === 'Data' ? '📶' :
     tx.type === 'Cable TV' ? '📺' :
-    '⚡';
+    tx.type === 'Electricity' ? '⚡' :
+    tx.type === 'Exam Token' ? '📝' :
+    tx.type === 'Wallet Funding' ? '💰' :
+    tx.type === 'A2C' ? '🔄' :
+    '💳';
 
   return (
     <div
@@ -77,10 +81,10 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
   // short-circuit.
   const handleOpenReceipt = useCallback((tx: Transaction) => setActiveReceipt(tx), []);
 
-  const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'A2C'];
+  const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'Funding', 'A2C'];
 
   const filteredTransactions = transactions.filter((tx) => {
-    const matchesCategory = categoryFilter === 'All' || tx.type === categoryFilter;
+    const matchesCategory = categoryFilter === 'All' || tx.type === categoryFilter || (categoryFilter === 'Funding' && tx.type === 'Wallet Funding');
     const matchesSearch =
       (tx.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (tx.reference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -285,8 +289,44 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
 
               <div className="pt-3 border-t border-slate-800 text-xs space-y-2.5">
                 <div className="flex justify-between items-center"><span className="text-slate-400">Service</span><span className="text-white font-medium">{activeReceipt.type}</span></div>
-                <div className="flex justify-between items-center"><span className="text-slate-400">Description</span><span className="text-white font-medium">{activeReceipt.productName}</span></div>
-                <div className="flex justify-between items-center"><span className="text-slate-400">Target</span><span className="text-white font-medium">{activeReceipt.phoneOrMeter}</span></div>
+                <div className="flex justify-between items-center"><span className="text-slate-400">Description</span><span className="text-white font-medium text-right max-w-[60%]">{activeReceipt.productName}</span></div>
+                {activeReceipt.phoneOrMeter && activeReceipt.phoneOrMeter !== activeReceipt.reference && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">
+                      {activeReceipt.type === 'Electricity' ? 'Meter No.' :
+                       activeReceipt.type === 'Cable TV' ? 'Smartcard' :
+                       activeReceipt.type === 'Exam Token' ? 'PIN' :
+                       'Phone/Target'}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white font-medium font-mono">{activeReceipt.phoneOrMeter}</span>
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(activeReceipt.phoneOrMeter); toast.success('Copied!'); }}
+                        className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        title="Copy"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {activeReceipt.elecToken && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Token</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-emerald-400 font-mono font-bold">{activeReceipt.elecToken}</span>
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(activeReceipt.elecToken!); toast.success('Token copied!'); }}
+                        className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        title="Copy Token"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Reference</span>
                   <div className="flex items-center gap-1.5">
