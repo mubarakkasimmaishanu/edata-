@@ -118,11 +118,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const addToast = useCallback((message: string, variant: ToastVariant = 'info', duration: number = 3000) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setToasts(prev => {
-      const updated = [...prev, { id, message, variant, duration }];
-      // Max 3 visible toasts
-      return updated.slice(-3);
-    });
+    setTimeout(() => {
+      setToasts(prev => {
+        const updated = [...prev, { id, message, variant, duration }];
+        // Max 3 visible toasts
+        return updated.slice(-3);
+      });
+    }, 0);
   }, []);
 
   const value: ToastContextValue = {

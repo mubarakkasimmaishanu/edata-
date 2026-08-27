@@ -46,6 +46,10 @@ export interface Transaction {
   riskScore?: number; // 0 - 100
   riskAnalysis?: string;
   elecToken?: string | null;
+  serialNumber?: string | null;
+  pin?: string | null;
+  pins?: any;
+  rawDescription?: string | null;
   categoryId?: number | null;
   serviceName?: string | null;
   a2cPayable?: number | null;
