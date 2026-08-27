@@ -77,12 +77,7 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
 
     const isAuthError =
       response.status === 401 ||
-      (data && (
-        data.status === 401 ||
-        data.code === 401 ||
-        (typeof data.error === 'string' && (data.error.toLowerCase().includes('invalid credential') || data.error.toLowerCase().includes('unauthorized') || data.error.toLowerCase().includes('unauthenticated'))) ||
-        (typeof data.message === 'string' && (data.message.toLowerCase().includes('invalid credential') || data.message.toLowerCase().includes('unauthorized') || data.message.toLowerCase().includes('unauthenticated')))
-      ));
+      (data && (data.status === 401 || data.code === 401));
 
     if (isAuthError && !isPublic) {
       setAuthToken(null);
