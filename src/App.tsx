@@ -145,6 +145,10 @@ function MainApp() {
   const [lastSynced, setLastSynced] = useState<string>('Never');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // Tracks the last time a wallet change toast was shown to prevent duplicate
+  // toasts from fetchWalletFast and syncProfileAndWallet firing simultaneously.
+  const lastWalletToastRef = useRef<number>(0);
   const [currentScreen, setCurrentScreen] = useState<'auth' | 'app'>(() => {
     return getAuthToken() ? 'app' : 'auth';
   });
@@ -450,9 +454,22 @@ function MainApp() {
       ? extractedBalance
       : currentUser.walletBalance;
 
-    if (silent && currentUser.walletBalance > 0 && parsedBalance > currentUser.walletBalance) {
-      const diff = parsedBalance - currentUser.walletBalance;
-      toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+    if (extractedBalance === null) {
+      console.warn('[eData Wallet Sync] Could not extract balance from /api/wallet or /api/profile — using stale cached balance. walletRes:', walletRes, 'profileRes:', profileRes);
+    }
+
+    if (silent && currentUser.walletBalance > 0) {
+      const now = Date.now();
+      const canToast = now - lastWalletToastRef.current > 5000;
+      if (parsedBalance > currentUser.walletBalance && canToast) {
+        const diff = parsedBalance - currentUser.walletBalance;
+        lastWalletToastRef.current = now;
+        toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+      } else if (parsedBalance < currentUser.walletBalance && canToast) {
+        // Balance decreased — website purchase, admin deduction, or external transaction
+        lastWalletToastRef.current = now;
+        toast.info(`💳 Balance Updated: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`);
+      }
     }
 
     const firstName = user.firstname || user.first_name || '';
@@ -607,6 +624,8 @@ function MainApp() {
   }, []);
 
   // ── Rapid Lightweight Wallet Synchronizer (<100ms response) ──
+  // Polls /api/wallet every 2.5s to detect credits AND debits (website
+  // purchases, admin adjustments, etc.) and keeps the mobile UI in sync.
   const fetchWalletFast = async (silent = true) => {
     if (!getAuthToken()) return;
     try {
@@ -622,9 +641,19 @@ function MainApp() {
 
         if (newBalance !== undefined && !isNaN(newBalance)) {
           setCurrentUser(prev => {
-            if (prev.walletBalance > 0 && newBalance > prev.walletBalance) {
+            const now = Date.now();
+            const canToast = now - lastWalletToastRef.current > 5000; // Prevent duplicate toasts within 5s
+
+            if (prev.walletBalance > 0 && newBalance > prev.walletBalance && canToast) {
               const diff = newBalance - prev.walletBalance;
+              lastWalletToastRef.current = now;
               toast.success(`⚡ Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+            } else if (prev.walletBalance > 0 && newBalance < prev.walletBalance && canToast) {
+              // Debit detected — likely a website purchase, admin deduction, or
+              // external transaction. Notify the user so they know the mobile
+              // app is fully synced with the server.
+              lastWalletToastRef.current = now;
+              toast.info(`💳 Balance Updated: ₦${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`);
             }
             const updated: UserProfile = {
               ...prev,
@@ -641,9 +670,12 @@ function MainApp() {
             return updated;
           });
         }
+      } else {
+        console.warn('[eData Wallet Sync] /api/wallet returned failure:', walletRes);
       }
-    } catch {
-      // silent background check
+    } catch (err) {
+      // Log wallet sync errors so they can be debugged — previously silent.
+      console.warn('[eData Wallet Sync] fetchWalletFast error:', err);
     }
   };
 
