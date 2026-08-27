@@ -75,11 +75,29 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
       }
     }
 
+    const isAuthError =
+      response.status === 401 ||
+      (data && (
+        data.status === 401 ||
+        data.code === 401 ||
+        (typeof data.error === 'string' && (data.error.toLowerCase().includes('invalid credential') || data.error.toLowerCase().includes('unauthorized') || data.error.toLowerCase().includes('unauthenticated'))) ||
+        (typeof data.message === 'string' && (data.message.toLowerCase().includes('invalid credential') || data.message.toLowerCase().includes('unauthorized') || data.message.toLowerCase().includes('unauthenticated')))
+      ));
+
+    if (isAuthError && !isPublic) {
+      setAuthToken(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('edata-auth-expired'));
+      }
+    }
+
     if (!response.ok || (data && data.success === false)) {
-      if (silent) return data || { success: false };
+      if (silent) return data || { success: false, code: response.status, status: response.status };
       let msg = data?.error || data?.message;
       if (!msg) {
-        if (response.status === 404 || response.status === 405) {
+        if (response.status === 401) {
+          msg = 'Session expired. Please log in again.';
+        } else if (response.status === 404 || response.status === 405) {
           msg = 'Service endpoint currently unavailable. Please try again.';
         } else if (response.status >= 500) {
           msg = 'Server encountered an issue. Please try again shortly.';
