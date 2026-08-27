@@ -45,6 +45,11 @@ export interface Transaction {
   disputeNotes?: string;
   riskScore?: number; // 0 - 100
   riskAnalysis?: string;
+  elecToken?: string | null;
+  categoryId?: number | null;
+  serviceName?: string | null;
+  a2cPayable?: number | null;
+  a2cBank?: string | null;
 }
 
 export interface ProductItem {

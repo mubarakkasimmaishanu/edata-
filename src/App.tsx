@@ -532,14 +532,21 @@ function MainApp() {
       const txRes = await api.getTransactions(silent);
       const mappedTx: Transaction[] = ((txRes && txRes.data) || txRes || []).map((t: any) => ({
         id: t.reference,
-        type: t.type === 'Exam Card' ? 'Exam Token' : (t.type === 'Cable TV' || t.type === 'Cable' ? 'Cable TV' : t.type),
+        type: t.type === 'Exam Card' ? 'Exam Token' :
+              t.type === 'Funding' ? 'Wallet Funding' :
+              (t.type === 'Cable TV' || t.type === 'Cable' ? 'Cable TV' : t.type),
         productName: t.description,
         amount: parseFloat(t.amount),
-        phoneOrMeter: t.phone_or_meter || t.reference,
+        phoneOrMeter: t.phone_or_meter || t.target || t.reference,
         reference: t.reference,
         status: t.status === 'Completed' ? 'Completed' : t.status === 'Failed' ? 'Failed' : 'Pending',
         date: t.date,
         disputeRaised: false,
+        elecToken: t.elec_token || null,
+        categoryId: t.category_id || null,
+        serviceName: t.service_name || null,
+        a2cPayable: t.a2c_payable || null,
+        a2cBank: t.a2c_bank || null,
       }));
       setTransactions(mappedTx);
       try { localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx)); } catch { }
@@ -629,7 +636,7 @@ function MainApp() {
   const fetchWalletFast = async (silent = true) => {
     if (!getAuthToken()) return;
     try {
-      const walletRes = await api.getWallet(silent);
+      const walletRes = await api.walletCheck(silent);
       if (walletRes && walletRes.success !== false) {
         const walletData = walletRes.data || walletRes;
         const mainW = parseFloat(walletData?.main_wallet ?? walletData?.balance ?? 0);
