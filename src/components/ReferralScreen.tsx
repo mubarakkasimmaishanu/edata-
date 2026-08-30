@@ -142,57 +142,57 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4">
-        {/* ── Hero Banner (eData Unique Brand Palette: Sky to Indigo Gradient) ── */}
-        <div className="hero-referral bg-gradient-to-br from-sky-700 via-sky-800 to-indigo-950 text-white rounded-3xl p-5 border border-sky-400/30 shadow-2xl space-y-4 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-36 h-36 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
-
+        {/* ── Native Hero Card ── */}
+        <div className={`rounded-3xl p-5 border space-y-4 shadow-sm ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'}`}>
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md border border-white/25 text-white text-[10px] font-black rounded-full uppercase tracking-widest">
-              <Sparkles className="w-3 h-3 text-amber-300" /> UNLIMITED COMMISSIONS
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
+              <Sparkles className="w-3 h-3 text-primary" /> Referral Rewards
             </span>
 
             {referralConfig && (
-              <span className="text-[11px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
+              <span className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full ${isLight ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
                 Wallet: {formatMoney(referralConfig.commission_wallet_balance || currentUser.commissionWallet || 0)}
               </span>
             )}
           </div>
 
-          <h2 className="text-xl font-black text-white leading-tight drop-shadow-sm">
-            {referralConfig?.banner_title || 'Earn Unlimited Referral Commissions'}
-          </h2>
-          <p className="text-xs text-sky-100/90 leading-relaxed font-medium">
-            {referralConfig?.banner_subtitle || 'Get instant price difference commission on downline\'s first 5 orders + up to ₦2,500 on Reseller upgrades!'}
-          </p>
+          <div>
+            <h2 className={`text-lg font-black leading-snug m-0 font-display ${headingText}`}>
+              {referralConfig?.banner_title || 'Earn Unlimited Referral Commissions'}
+            </h2>
+            <p className={`text-xs mt-1 leading-relaxed font-medium ${mutedText}`}>
+              {referralConfig?.banner_subtitle || 'Get instant price difference commission on downline\'s first 5 orders + up to ₦2,500 on Reseller upgrades!'}
+            </p>
+          </div>
 
           {/* Dynamic 3 Case Cards */}
           <div className="grid grid-cols-3 gap-2 pt-1">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/15 text-center flex flex-col justify-center">
-              <span className="text-[8.5px] text-sky-200 font-black uppercase tracking-wider block font-display">CASE 1</span>
-              <span className="text-xs font-black text-emerald-300 font-mono block mt-0.5 truncate">{case1Label}</span>
-              <span className="text-[8px] text-white/70 block font-medium leading-tight mt-0.5 truncate">{case1Desc}</span>
+            <div className={`rounded-2xl p-2.5 border text-center flex flex-col justify-center ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800'}`}>
+              <span className={`text-[8.5px] font-black uppercase tracking-wider block font-display ${mutedText}`}>CASE 1</span>
+              <span className={`text-xs font-black font-mono block mt-0.5 truncate ${headingText}`}>{case1Label}</span>
+              <span className={`text-[8px] block font-medium leading-tight mt-0.5 truncate ${mutedText}`}>{case1Desc}</span>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/15 text-center flex flex-col justify-center">
-              <span className="text-[8.5px] text-amber-200 font-black uppercase tracking-wider block font-display">CASE 2</span>
-              <span className="text-xs font-black text-amber-300 font-mono block mt-0.5 truncate">{case2Label}</span>
-              <span className="text-[8px] text-white/70 block font-medium leading-tight mt-0.5 truncate">{case2Desc}</span>
+            <div className={`rounded-2xl p-2.5 border text-center flex flex-col justify-center ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800'}`}>
+              <span className={`text-[8.5px] font-black uppercase tracking-wider block font-display ${mutedText}`}>CASE 2</span>
+              <span className={`text-xs font-black font-mono block mt-0.5 truncate ${headingText}`}>{case2Label}</span>
+              <span className={`text-[8px] block font-medium leading-tight mt-0.5 truncate ${mutedText}`}>{case2Desc}</span>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 border border-white/15 text-center flex flex-col justify-center">
-              <span className="text-[8.5px] text-sky-200 font-black uppercase tracking-wider block font-display">CASE 3</span>
-              <span className="text-xs font-black text-sky-200 font-mono block mt-0.5 truncate">{case3Label}</span>
-              <span className="text-[8px] text-white/70 block font-medium leading-tight mt-0.5 truncate">{case3Desc}</span>
+            <div className={`rounded-2xl p-2.5 border text-center flex flex-col justify-center ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800'}`}>
+              <span className={`text-[8.5px] font-black uppercase tracking-wider block font-display ${mutedText}`}>CASE 3</span>
+              <span className={`text-xs font-black font-mono block mt-0.5 truncate ${headingText}`}>{case3Label}</span>
+              <span className={`text-[8px] block font-medium leading-tight mt-0.5 truncate ${mutedText}`}>{case3Desc}</span>
             </div>
           </div>
         </div>
 
         {/* ── Your Referral Links & Code ── */}
-        <section className={`rounded-3xl p-5 space-y-4 shadow-xl border ${cardBg}`}>
+        <section className={`rounded-3xl p-5 space-y-4 shadow-sm border ${cardBg}`}>
           <div className="flex items-center justify-between">
             <h3 className={`text-xs font-black uppercase tracking-wider ${mutedText}`}>Your Referral Details</h3>
             {referralConfig && (
-              <span className="text-[11px] font-bold text-sky-500 flex items-center gap-1 font-mono">
+              <span className={`text-[11px] font-bold flex items-center gap-1 font-mono ${codeText}`}>
                 <Users className="w-3.5 h-3.5" /> {referralConfig.total_referrals_count} Downline{referralConfig.total_referrals_count === 1 ? '' : 's'}
               </span>
             )}
@@ -207,7 +207,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
               </div>
               <button
                 onClick={handleCopyCode}
-                className="bg-sky-600 hover:bg-sky-700 text-white p-3 rounded-2xl transition-transform active:scale-95 cursor-pointer flex items-center justify-center shadow-md shrink-0"
+                className="bg-primary hover:bg-emerald-800 text-white p-3 rounded-2xl transition-transform active:scale-95 cursor-pointer flex items-center justify-center shadow-sm shrink-0"
                 title={copiedCode ? 'Copied' : 'Copy referral code'}
               >
                 {copiedCode ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
@@ -224,7 +224,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
               </div>
               <button
                 onClick={handleCopyLink}
-                className={`p-3 rounded-2xl font-black text-xs transition-transform active:scale-95 cursor-pointer flex items-center justify-center shadow-md shrink-0 border ${isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-slate-800 text-slate-100 border-slate-700'}`}
+                className={`p-3 rounded-2xl font-black text-xs transition-transform active:scale-95 cursor-pointer flex items-center justify-center shadow-sm shrink-0 border ${isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-slate-800 text-slate-100 border-slate-700'}`}
                 title={copiedLink ? 'Copied' : 'Copy referral link'}
               >
                 {copiedLink ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -235,7 +235,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
           {/* Share CTA */}
           <button
             onClick={handleShare}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs py-3.5 rounded-2xl shadow-lg transition-spring active:scale-95 cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider"
+            className="w-full bg-primary hover:bg-emerald-800 text-white font-black text-xs py-3.5 rounded-2xl shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider font-display"
           >
             <Share2 className="w-4 h-4" /> Share via WhatsApp / Socials
           </button>
