@@ -102,6 +102,7 @@ export default function PinScreen({
   // OTP sending state for forgot_pin
   const [otpSent, setOtpSent] = useState(false);
   const [otpSending, setOtpSending] = useState(false);
+  const [pinResetSent, setPinResetSent] = useState(false);
 
   // Promo code state
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -377,11 +378,11 @@ export default function PinScreen({
     setOtpSending(true);
     try {
       const res = await api.forgotPinRequest();
-      toast.success(res?.message || 'OTP reset code sent to your registered email/phone.');
+      toast.success(res?.message || 'A secure PIN reset link has been sent to your registered email.');
       setOtpSent(true);
-      setStep(2);
+      setPinResetSent(true);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to send OTP code.');
+      toast.error(err?.message || 'Failed to send PIN reset link.');
     } finally {
       setOtpSending(false);
     }
@@ -742,55 +743,78 @@ export default function PinScreen({
             </div>
           )}
 
-          {/* ── Forgot PIN Request & Verification ── */}
+                    {/* ────── Forgot PIN Browser Reset Link Flow ────── */}
           {mode === 'forgot_pin' && (
-            <div className="text-center space-y-3 py-2">
-              <div className="w-16 h-16 rounded-3xl bg-sky-500/10 border border-sky-500/20 mx-auto flex items-center justify-center mb-1">
-                <Mail className="w-8 h-8 text-sky-400" />
-              </div>
-              <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Reset Transaction PIN</h2>
-
-              {step === 1 && (
-                <div className="space-y-4 pt-2">
+            <div className="text-center space-y-4 py-2">
+              {!pinResetSent ? (
+                <>
+                  <div className="w-16 h-16 rounded-3xl bg-sky-500/10 border border-sky-500/20 mx-auto flex items-center justify-center mb-1">
+                    <Mail className="w-8 h-8 text-sky-400" />
+                  </div>
+                  <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                    Reset Transaction PIN
+                  </h2>
+                  <div className="space-y-4 pt-1">
+                    <p className={`text-xs leading-relaxed max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
+                      A secure reset link will be sent to your registered email address. You will be able to choose your new 4-digit PIN in your web browser (expires in 20 minutes) without keeping this app open.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleRequestOtp}
+                      disabled={otpSending}
+                      className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-sky-500/20 btn-sheen uppercase tracking-wider"
+                    >
+                      {otpSending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Sending Reset Link...
+                        </>
+                      ) : (
+                        'Send PIN Reset Link'
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4 py-1">
+                  <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 mx-auto flex items-center justify-center mb-1">
+                    <ShieldCheck className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <h2 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                    Reset Link Sent! ✉️
+                  </h2>
                   <p className={`text-xs leading-relaxed max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
-                    A 6-digit verification code will be sent to your registered email address.
+                    A secure PIN reset link has been dispatched to your email address.
                   </p>
+                  <div className={`border rounded-2xl p-4 text-left space-y-2 text-[11.5px] ${
+                    theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950/60 border-slate-800 text-slate-400'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <span className="text-sky-400 font-bold">1.</span>
+                      <span>Check your email inbox or spam folder.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-sky-400 font-bold">2.</span>
+                      <span>Tap the link in your email to choose your new 4-digit PIN in your browser (expires in 20 minutes).</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-sky-400 font-bold">3.</span>
+                      <span>Once completed, your new PIN works immediately for all transactions.</span>
+                    </div>
+                  </div>
                   <button
-                    onClick={handleRequestOtp}
-                    disabled={otpSending}
-                    className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-sky-500/20 btn-sheen uppercase tracking-wider"
+                    type="button"
+                    onClick={onBack}
+                    className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-sky-500/20 uppercase tracking-wider"
                   >
-                    {otpSending ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Sending OTP Code...
-                      </>
-                    ) : (
-                      'Send Reset OTP Code'
-                    )}
+                    Done / Back to App
                   </button>
                 </div>
-              )}
-
-              {step === 2 && (
-                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
-                  Enter the 6-digit OTP code sent to your email.
-                </p>
-              )}
-              {step === 3 && (
-                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
-                  Enter your new 4-digit Transaction PIN.
-                </p>
-              )}
-              {step === 4 && (
-                <p className={`text-xs max-w-xs mx-auto ${theme === 'light' ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
-                  Re-enter your new 4-digit PIN to confirm.
-                </p>
               )}
             </div>
           )}
 
-          {/* ── Primary PIN Input Section (When not on forgot_pin Step 1) ── */}
-          {(mode !== 'forgot_pin' || step > 1) && (
+          {/* ────── Primary PIN Input Section (When not on forgot_pin Step 1) ── */}
+          {mode !== 'forgot_pin' && (
             <div className={mode === 'purchase' ? 'space-y-2' : 'space-y-4 pt-2'}>
               {mode === 'purchase' ? (
                 /* Compact single-row: label + Show/Hide toggle side-by-side */
@@ -827,8 +851,6 @@ export default function PinScreen({
                   }`}>
                     {mode === 'upgrade_pin'
                       ? 'Enter 4-Digit Transaction PIN'
-                      : mode === 'forgot_pin' && step === 2
-                      ? 'Enter 6-Digit OTP Code'
                       : 'Enter 4 Digits'}
                   </p>
 

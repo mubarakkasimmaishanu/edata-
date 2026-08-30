@@ -406,7 +406,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                   </div>
                   <div>
                     <span className="text-xs font-black text-white block font-display">Forgot Transaction PIN?</span>
-                    <span className="text-[10.5px] text-slate-400 font-medium">Reset via 6-digit OTP sent to your email</span>
+                    <span className="text-[10.5px] text-slate-400 font-medium">Reset via secure link sent to your email</span>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-rose-300 bg-rose-500/15 px-3 py-1.5 rounded-xl border border-rose-500/30 flex items-center gap-1 group-hover:bg-rose-500/25 transition-all">
