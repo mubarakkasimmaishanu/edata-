@@ -256,7 +256,13 @@ export default function PinScreen({
         onSuccess();
       } catch (err: any) {
         setHasError(true);
-        setErrorMessage(err?.message || 'Transaction failed. Please check your PIN and try again.');
+        const errMsg = err?.message || 'Transaction failed. Please check your PIN and try again.';
+        if (errMsg.toLowerCase().includes('pin') && isBiometricsEnabled()) {
+          disableBiometrics();
+          setBioStatus(prev => prev ? ({ ...prev, isEnabled: false }) : null);
+          toast.info('Biometric link refreshed. Please type your 4-digit PIN.');
+        }
+        setErrorMessage(errMsg);
         setPin('');
       } finally {
         setIsSubmitting(false);
