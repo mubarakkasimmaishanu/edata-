@@ -673,6 +673,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                         setSelectedCategory('Exam');
                         if (exam.product) {
                           setSelectedProduct(exam.product);
+                          setTargetNumber(examQuantity.toString());
                           const unitPrice = getDynamicPrice(exam.product);
                           setCheckoutAmount((unitPrice * examQuantity).toString());
                         }
@@ -730,6 +731,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   onClick={() => {
                     const newQty = Math.max(1, examQuantity - 1);
                     setExamQuantity(newQty);
+                    setTargetNumber(newQty.toString());
                     const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
                     setCheckoutAmount((unitPrice * newQty).toString());
                   }}
@@ -753,6 +755,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   onClick={() => {
                     const newQty = Math.min(10, examQuantity + 1);
                     setExamQuantity(newQty);
+                    setTargetNumber(newQty.toString());
                     const unitPrice = selectedProduct ? getDynamicPrice(selectedProduct) : 0;
                     setCheckoutAmount((unitPrice * newQty).toString());
                   }}

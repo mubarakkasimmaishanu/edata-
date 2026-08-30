@@ -301,14 +301,24 @@ function MainApp() {
         if (serviceIdsWithPlans.has(String(srv.id))) return;
 
         const slugLower = String(srv.slug || srv.name || '').toLowerCase();
-        const opName = slugLower.includes('mtn') ? 'MTN'
-          : slugLower.includes('glo') ? 'Glo'
-            : slugLower.includes('airtel') ? 'Airtel'
-              : slugLower.includes('9mobile') || slugLower.includes('etisalat') ? '9mobile'
-                : (srv.slug || srv.name || 'MTN').toUpperCase();
+        let opName = 'MTN';
+        if (srv.category_id === 3) {
+          if (slugLower.includes('waec')) opName = 'WAEC';
+          else if (slugLower.includes('neco')) opName = 'NECO';
+          else if (slugLower.includes('nabteb')) opName = 'NABTEB';
+          else if (slugLower.includes('nbais')) opName = 'NBAIS';
+          else opName = (srv.slug || srv.name || 'WAEC').toUpperCase();
+        } else {
+          opName = slugLower.includes('mtn') ? 'MTN'
+            : slugLower.includes('glo') ? 'Glo'
+              : slugLower.includes('airtel') ? 'Airtel'
+                : slugLower.includes('9mobile') || slugLower.includes('etisalat') ? '9mobile'
+                  : (srv.slug || srv.name || 'MTN').toUpperCase();
+        }
 
         mappedProducts.push({
           id: String(srv.id),
+          serviceTypeId: srv.id,
           category: category,
           name: srv.name,
           operator: opName,
@@ -1142,7 +1152,11 @@ function MainApp() {
         return false;
       });
       const byOperator = netUpper
-        ? matches.find(p => (p.operator || '').toUpperCase() === netUpper)
+        ? matches.find(p => 
+            (p.operator || '').toUpperCase() === netUpper || 
+            (p.operator || '').toUpperCase().includes(netUpper) ||
+            (p.name || '').toUpperCase().includes(netUpper)
+          )
         : undefined;
       const chosen = byOperator || matches[0];
       if (chosen && /^\d+$/.test(String(chosen.id))) {
