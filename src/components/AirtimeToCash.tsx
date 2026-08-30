@@ -51,8 +51,11 @@ export default function AirtimeToCash({ currentUser, products, onBack, onSuccess
   };
 
   const handleConfirmPurchase = async (pinInput: string) => {
+    const a2cProduct = products.find(p => p.category === 'A2C' || (p.name && p.name.toLowerCase().includes('cash')));
+    const serviceId = a2cProduct ? parseInt(a2cProduct.id, 10) : 38;
+
     const res = await api.purchase({
-      service_id: 6, // A2C
+      service_id: serviceId,
       amount: parseFloat(checkoutAmount),
       target_number: targetNumber,
       transaction_pin: pinInput,

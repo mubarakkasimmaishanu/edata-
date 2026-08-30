@@ -96,7 +96,14 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
 
   const handleConfirmPurchase = async (pinInput: string) => {
     const networkMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
-    const netId = networkMap[detectedOperator.toUpperCase()] || 23;
+    const dynamicAirtimeProd = products.find(p =>
+      p.category === 'Airtime' &&
+      (p.operator?.toLowerCase() === detectedOperator.toLowerCase() ||
+       p.name?.toLowerCase().includes(detectedOperator.toLowerCase()))
+    );
+    const netId = dynamicAirtimeProd
+      ? parseInt(dynamicAirtimeProd.id, 10)
+      : (networkMap[detectedOperator.toUpperCase()] || 23);
     const selectedTypeObj = airtimeTypes.find(t => t.name.toLowerCase() === selectedAirtimeType.toLowerCase());
 
     const res = await api.purchase({

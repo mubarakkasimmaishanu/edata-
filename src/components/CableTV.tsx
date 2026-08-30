@@ -148,7 +148,14 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
   const handleConfirmPurchase = async (pinInput: string) => {
     if (!selectedProduct) return;
     const provObj = getSelectedProviderObj();
-    const serviceIdentifier = provObj ? provObj.id : (selectedProduct.service_type_id || 4);
+    const matchingCableProd = products.find(p =>
+      ((p.category as string) === 'Cable' || p.category === 'Cable TV') &&
+      (p.operator?.toLowerCase() === detectedOperator.toLowerCase() ||
+       p.name?.toLowerCase().includes(detectedOperator.toLowerCase()))
+    );
+    const serviceIdentifier = provObj 
+      ? provObj.id 
+      : (selectedProduct?.serviceTypeId || (matchingCableProd ? parseInt(matchingCableProd.id, 10) : 31));
     const finalPrice = getDynamicPrice(selectedProduct);
 
     const res = await api.purchase({

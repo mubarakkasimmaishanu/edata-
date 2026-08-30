@@ -76,7 +76,14 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     (d.name && d.name.toLowerCase().includes(detectedOperator.toLowerCase()))
   ) || dynamicDiscos[0];
 
-  const currentServiceId = currentDiscoObj ? currentDiscoObj.id : (selectedProduct ? selectedProduct.id : 5);
+  const matchingElecProd = products.find(p =>
+    (p.category as string) === 'Electricity' &&
+    (p.operator?.toLowerCase() === detectedOperator.toLowerCase() ||
+     p.name?.toLowerCase().includes(detectedOperator.toLowerCase()))
+  );
+  const currentServiceId = currentDiscoObj 
+    ? currentDiscoObj.id 
+    : (matchingElecProd ? parseInt(matchingElecProd.id, 10) : (selectedProduct ? parseInt(selectedProduct.id, 10) : 34));
   const minPurchaseAmount = (currentDiscoObj && currentDiscoObj.min_amount) ? currentDiscoObj.min_amount : 500;
 
   const handleValidateMeter = async () => {
