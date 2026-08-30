@@ -274,6 +274,13 @@ export const api = {
     });
   },
 
+  async validatePin(pin: string) {
+    return request('/validate-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  },
+
   async forgotPassword(email: string) {
     return request('/forgot-password', {
       method: 'POST',

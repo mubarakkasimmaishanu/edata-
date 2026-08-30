@@ -94,13 +94,22 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
     }
     setEnrollingBio(true);
     try {
+      // 1. Strictly verify that the entered PIN is correct on the server first
+      const verifyRes = await api.validatePin(enteredPin);
+      if (verifyRes && verifyRes.success === false) {
+        toast.error(verifyRes.error || 'Incorrect Transaction PIN. Please enter your real 4-digit PIN.');
+        setBioPinInput('');
+        return;
+      }
+
+      // 2. Only after server verification succeeds, link with fingerprint sensor
       await enableBiometrics(enteredPin);
       setBiometricEnabled(true);
       setBioStatus(prev => prev ? ({ ...prev, isEnabled: true }) : null);
       setShowPinPromptForBio(false);
       toast.success(`${bioStatus?.typeName || 'Fingerprint'} authorization activated! 🚀`);
     } catch (err: any) {
-      toast.error(err?.message || 'Biometric authorization failed or was cancelled.');
+      toast.error(err?.message || 'Incorrect PIN or biometric authorization cancelled.');
     } finally {
       setEnrollingBio(false);
     }
