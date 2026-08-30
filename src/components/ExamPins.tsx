@@ -109,15 +109,23 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
 
   const handleConfirmPurchase = async (pinInput: string) => {
     // Robust exam service resolution
-    let targetServiceId = selectedProduct?.serviceTypeId || selectedProduct?.id;
-    if (!targetServiceId || targetServiceId === '3' || targetServiceId === 3) {
-      const match = examProducts.find(p =>
-        (p.operator && p.operator.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
-        (p.name && p.name.toLowerCase().includes((detectedOperator || '').toLowerCase()))
-      );
+    let targetServiceId: any = selectedProduct?.serviceTypeId;
+    if (!targetServiceId && selectedProduct?.id) {
+      const match = String(selectedProduct.id).match(/^plan-\d+-(\d+)$/);
       if (match) {
-        targetServiceId = match.serviceTypeId || match.id;
+        targetServiceId = parseInt(match[1], 10);
+      } else if (!isNaN(Number(selectedProduct.id))) {
+        targetServiceId = Number(selectedProduct.id);
       }
+    }
+
+    if (!targetServiceId || targetServiceId === '3' || targetServiceId === 3) {
+      const opLower = (detectedOperator || selectedProduct?.operator || selectedProduct?.name || '').toLowerCase();
+      if (opLower.includes('waec')) targetServiceId = 13;
+      else if (opLower.includes('neco')) targetServiceId = 14;
+      else if (opLower.includes('nabteb')) targetServiceId = 15;
+      else if (opLower.includes('nbais')) targetServiceId = 16;
+      else targetServiceId = 13;
     }
 
     if (!targetServiceId) {

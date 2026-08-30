@@ -358,6 +358,8 @@ function MainApp() {
 
         mappedProducts.push({
           id: `plan-${plan.id}-${plan.service_type_id || '0'}`,
+          serviceTypeId: plan.service_type_id ? Number(plan.service_type_id) : undefined,
+          planId: Number(plan.id),
           category: planCat,
           name: plan.name || plan.plan_name || '',
           operator: operatorName,
