@@ -1006,15 +1006,6 @@ export default function ServiceForm(props: ServiceFormProps) {
                 {detectedOperator}
               </span>
             )}
-            {showContactPicker && !detectedOperator && (
-              <button
-                type="button"
-                onClick={handleOpenContactsClick}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sky-400 font-bold hover:text-sky-300 flex items-center gap-1 transition-all active:scale-95 cursor-pointer bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-xl"
-              >
-                <Phone className="w-3.5 h-3.5" /> Contacts
-              </button>
-            )}
           </div>
 
           {/* Verify Button (Electricity/Cable) */}
@@ -1405,30 +1396,6 @@ export default function ServiceForm(props: ServiceFormProps) {
               </div>
             );
           })()}
-
-          {/* Selected Data Plan Detail Preview Card */}
-          {serviceType === 'data' && selectedProduct && (
-            <div className="p-3.5 bg-gradient-to-r from-sky-950/80 to-slate-800 border border-sky-500/40 rounded-2xl flex items-center justify-between shadow-md mt-2">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-black text-white font-display">{selectedProduct.name}</span>
-                  {selectedProduct.planTypeName && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500 text-white tracking-wider">
-                      {selectedProduct.planTypeName}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10.5px] font-medium text-slate-300 block">
-                  Full Duration & Speed Included
-                </span>
-              </div>
-              <div className="text-right shrink-0 ml-2">
-                <span className="text-base font-black text-sky-400 font-mono">
-                  ₦{getDynamicPrice(selectedProduct).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
