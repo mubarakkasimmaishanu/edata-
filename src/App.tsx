@@ -868,7 +868,7 @@ function MainApp() {
     });
 
     if (next) setActivePopup(next);
-  }, [popups, activePopup]);
+  }, [popups, activePopup, activeView, currentScreen]);
 
   const persistDismissedPopups = () => {
     try {
@@ -954,13 +954,12 @@ function MainApp() {
   useEffect(() => {
     if (currentScreen !== 'app' && currentScreen !== 'auth') return;
 
-    // First fetch immediately (both on auth screen and logged-in state,
-    // so guest-targeted popups render on the login page too).
+    // Fetch popups on screen or view changes
     fetchPopups();
 
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') fetchPopups();
-    }, 60_000);
+    }, 30_000);
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') fetchPopups();
@@ -971,7 +970,7 @@ function MainApp() {
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [currentScreen]);
+  }, [currentScreen, activeView]);
 
   const handleLoginSuccess = (token: string) => {
     setAuthToken(token);
@@ -979,6 +978,9 @@ function MainApp() {
     setActiveView('dashboard');
     setViewHistory(['dashboard']);
     fetchAllData();
+    // Re-fetch popups immediately with the authenticated bearer token
+    sessionDismissedPopupsRef.current.clear();
+    fetchPopups();
     initPushNotifications((targetView) => {
       if (targetView) navigateTo(targetView);
     }, toast);
