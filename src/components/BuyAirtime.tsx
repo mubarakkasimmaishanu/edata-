@@ -77,17 +77,26 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
     }
   };
 
+  // Dynamic Airtime Type & Discount Resolution
+  const selectedTypeObj = airtimeTypes.find(t => t.name.toLowerCase() === selectedAirtimeType.toLowerCase()) || airtimeTypes[0];
+  const airtimeDiscountPercent = (selectedTypeObj && selectedTypeObj.discount_percent !== undefined && selectedTypeObj.discount_percent !== null && Number(selectedTypeObj.discount_percent) > 0)
+    ? Number(selectedTypeObj.discount_percent)
+    : 0;
+
+  const faceAmount = parseFloat(checkoutAmount || '0');
+  const discountAmount = airtimeDiscountPercent > 0 ? Math.round(faceAmount * (airtimeDiscountPercent / 100) * 100) / 100 : 0;
+  const payableAmount = Math.max(0, faceAmount - discountAmount - promoDiscount);
+
   const handleCheckoutInitiate = () => {
-    const amountNum = parseFloat(checkoutAmount);
     if (!targetNumber || !isValidPhoneNumber(targetNumber)) {
       toast.warning('Please enter a valid 11-digit phone number.');
       return;
     }
-    if (isNaN(amountNum) || amountNum < 50) {
+    if (isNaN(faceAmount) || faceAmount < 50) {
       toast.warning('Minimum airtime purchase is ₦50.');
       return;
     }
-    if (amountNum > currentUser.walletBalance) {
+    if (payableAmount > currentUser.walletBalance) {
       toast.error('Insufficient wallet balance.');
       return;
     }
@@ -104,11 +113,10 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
     const netId = dynamicAirtimeProd
       ? parseInt(dynamicAirtimeProd.id, 10)
       : (networkMap[detectedOperator.toUpperCase()] || 23);
-    const selectedTypeObj = airtimeTypes.find(t => t.name.toLowerCase() === selectedAirtimeType.toLowerCase());
 
     const res = await api.purchase({
       service_id: netId,
-      amount: parseFloat(checkoutAmount),
+      amount: faceAmount,
       target_number: targetNumber,
       transaction_pin: pinInput,
       airtime_type: selectedAirtimeType,
@@ -125,11 +133,21 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
         mode="purchase"
         summary={{
           title: `${detectedOperator || 'Mobile'} Airtime Top-Up`,
-          subtitle: `Instant Delivery • ${selectedAirtimeType}`,
-          amount: parseFloat(checkoutAmount) - promoDiscount,
+          subtitle: airtimeDiscountPercent > 0
+            ? `Get ₦${faceAmount.toLocaleString()} Airtime (${airtimeDiscountPercent}% OFF)`
+            : `Instant Delivery • ${selectedAirtimeType}`,
+          amount: payableAmount,
           recipient: targetNumber,
           provider: detectedOperator,
           iconType: 'airtime',
+          details: airtimeDiscountPercent > 0 ? [
+            { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'Discount Rate', value: `${airtimeDiscountPercent}% OFF (-₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})` },
+            { label: 'To Deduct', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+          ] : [
+            { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'To Deduct', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+          ],
         }}
         onBack={() => setShowPinScreen(false)}
         onSuccess={() => setShowPinScreen(false)}

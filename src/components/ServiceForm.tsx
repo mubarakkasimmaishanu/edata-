@@ -451,7 +451,27 @@ export default function ServiceForm(props: ServiceFormProps) {
 
   const productCategoryFilter = serviceType === 'cable' ? 'Cable' : serviceType === 'exam' ? 'Exam' : cat;
 
-  const basePrice = parseFloat(checkoutAmount || '0');
+  // ── Dynamic Airtime Type & Admin-Configured Discount Resolution ──
+  const currentAirtimeType = React.useMemo(() => {
+    if (serviceType !== 'airtime') return null;
+    const list = (airtimeTypes && airtimeTypes.length > 0) ? airtimeTypes : DEFAULT_AIRTIME_TYPES;
+    return list.find(t => t.name.toLowerCase() === (selectedAirtimeType || '').toLowerCase()) || list[0] || null;
+  }, [serviceType, airtimeTypes, selectedAirtimeType]);
+
+  const airtimeDiscountPercent = React.useMemo(() => {
+    if (serviceType !== 'airtime' || !currentAirtimeType) return 0;
+    const rate = currentAirtimeType.discount_percent;
+    return (rate !== undefined && rate !== null && Number(rate) > 0) ? Number(rate) : 0;
+  }, [serviceType, currentAirtimeType]);
+
+  const airtimeFaceValue = serviceType === 'airtime' ? parseFloat(checkoutAmount || '0') : 0;
+  const airtimeDiscountAmount = (serviceType === 'airtime' && airtimeDiscountPercent > 0)
+    ? Math.round(airtimeFaceValue * (airtimeDiscountPercent / 100) * 100) / 100
+    : 0;
+  const airtimePayableAmount = Math.max(0, airtimeFaceValue - airtimeDiscountAmount);
+
+  // For airtime, basePrice represents the actual payable amount deducted from balance
+  const basePrice = serviceType === 'airtime' ? airtimePayableAmount : parseFloat(checkoutAmount || '0');
   const finalPrice = Math.max(0, basePrice - promoDiscount);
 
   const handleSubmit = () => {
@@ -1416,6 +1436,11 @@ export default function ServiceForm(props: ServiceFormProps) {
             <div className="grid grid-cols-3 gap-2.5">
               {dynamicAirtimeAmounts.map((amt) => {
                 const isSelected = checkoutAmount === amt.toString();
+                const pillFace = amt;
+                const pillDiscounted = airtimeDiscountPercent > 0
+                  ? Math.round(pillFace * (1 - airtimeDiscountPercent / 100) * 100) / 100
+                  : pillFace;
+
                 return (
                   <button
                     key={amt}
@@ -1424,7 +1449,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       setSelectedCategory(cat);
                       setCheckoutAmount(amt.toString());
                     }}
-                    className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all relative cursor-pointer active:scale-95 ${
+                    className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
                       isSelected
                         ? `${activeNetworkTheme.accentBorder} ${activeNetworkTheme.accentLightBg} text-white ring-2 ${activeNetworkTheme.inputRing} shadow-md scale-[1.02]`
                         : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
@@ -1436,8 +1461,17 @@ export default function ServiceForm(props: ServiceFormProps) {
                       </div>
                     )}
                     <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
-                      ₦{amt.toLocaleString('en-NG')}
+                      ₦{pillFace.toLocaleString('en-NG')}
                     </span>
+                    {airtimeDiscountPercent > 0 && (
+                      <span className={`text-[9.5px] font-extrabold font-mono tracking-tight px-1.5 py-0.5 rounded-md ${
+                        isSelected 
+                          ? (isLight ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-emerald-500 text-slate-950 font-black')
+                          : (isLight ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30')
+                      }`}>
+                        Pay ₦{pillDiscounted.toLocaleString('en-NG')}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1523,8 +1557,8 @@ export default function ServiceForm(props: ServiceFormProps) {
         </>
       )}
 
-      {/* ─── Minimal Order Summary ─── */}
-      {!isA2C && basePrice > 0 && (
+      {/* ─── Dynamic Order Summary ─── */}
+      {!isA2C && (basePrice > 0 || airtimeFaceValue > 0) && (
         <div className={`border rounded-2xl p-4 space-y-2.5 ${isLight ? 'bg-white border-slate-200 shadow-sm text-slate-800' : 'bg-slate-800/90 border-slate-700/80 shadow-md text-slate-300'}`}>
           {/* Current Wallet Balance */}
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
@@ -1534,12 +1568,52 @@ export default function ServiceForm(props: ServiceFormProps) {
             </span>
           </div>
 
-          {/* Total Amount */}
+          {/* Airtime Specific Breakdown when Discounted */}
+          {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+            <>
+              <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
+                <span>Airtime Value</span>
+                <span className={`font-bold font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  ₦{airtimeFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
+                <span>Airtime Discount ({airtimeDiscountPercent}% OFF)</span>
+                <span className="font-bold font-mono">
+                  -₦{airtimeDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Promo Code Discount if applied */}
+          {promoDiscount > 0 && (
+            <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
+              <span>Promo Discount ({appliedPromo})</span>
+              <span className="font-bold font-mono">
+                -₦{promoDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+
+          {/* Total Amount to Deduct */}
           <div className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-700/80'} pt-2.5 flex justify-between items-center`}>
-            <span className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display`}>Total Amount</span>
-            <span className="text-base font-black font-mono text-rose-400 tabular-nums">
-              -₦{basePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
+            <div>
+              <span className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display block`}>Total Amount</span>
+              {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+                <span className="text-[10.5px] text-slate-400 font-medium">To deduct from wallet</span>
+              )}
+            </div>
+            <div className="text-right flex items-center gap-2">
+              {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+                <span className="text-xs font-bold font-mono text-slate-400 line-through">
+                  ₦{airtimeFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              )}
+              <span className={`text-base font-black font-mono tabular-nums ${serviceType === 'airtime' && airtimeDiscountPercent > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                -₦{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -1552,8 +1626,12 @@ export default function ServiceForm(props: ServiceFormProps) {
       >
         {isPurchasing ? (
           <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
+        ) : isA2C ? (
+          <>Convert Airtime to Cash <ArrowRight className="w-4 h-4" /></>
+        ) : (serviceType === 'airtime' && airtimeDiscountPercent > 0) ? (
+          <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Get ₦{airtimeFaceValue.toLocaleString('en-NG')} Airtime) <ArrowRight className="w-4 h-4" /></>
         ) : (
-          <>{isA2C ? 'Convert Airtime to Cash' : `Pay ₦${basePrice.toLocaleString()}`} <ArrowRight className="w-4 h-4" /></>
+          <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} <ArrowRight className="w-4 h-4" /></>
         )}
       </button>
 
