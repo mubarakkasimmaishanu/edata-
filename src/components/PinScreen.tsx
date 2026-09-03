@@ -317,7 +317,7 @@ export default function PinScreen({
           token: resData.token,
           pin: resData.pin,
           serial: resData.serial_number,
-          airtimeValue: summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
+          airtimeValue: resData.face_amount ? ('₦' + Number(resData.face_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })) : summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
           discountRate: summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
           rawResult: res,
         });
