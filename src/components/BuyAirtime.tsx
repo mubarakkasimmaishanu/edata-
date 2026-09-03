@@ -103,7 +103,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
     setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async (pinInput: string) => {
+  const handleConfirmPurchase = async (pinInput: string, customRecipient?: string, promoCode?: string) => {
     const networkMap: Record<string, number> = { MTN: 23, GLO: 25, AIRTEL: 24, '9MOBILE': 26 };
     const dynamicAirtimeProd = products.find(p =>
       p.category === 'Airtime' &&
@@ -114,17 +114,17 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
       ? parseInt(dynamicAirtimeProd.id, 10)
       : (networkMap[detectedOperator.toUpperCase()] || 23);
 
+    const target = customRecipient || targetNumber;
     const res = await api.purchase({
       service_id: netId,
       amount: faceAmount,
-      target_number: targetNumber,
+      target_number: target,
       transaction_pin: pinInput,
       airtime_type: selectedAirtimeType,
-      airtime_type_id: selectedTypeObj?.id
+      airtime_type_id: selectedTypeObj?.id,
+      promo_code: promoCode,
     });
-    toast.success(res.message || 'Airtime purchase successful!');
-    if (onSuccess) onSuccess();
-    onBack();
+    return res;
   };
 
   if (showPinScreen) {
@@ -150,7 +150,11 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           ],
         }}
         onBack={() => setShowPinScreen(false)}
-        onSuccess={() => setShowPinScreen(false)}
+        onSuccess={() => {
+          setShowPinScreen(false);
+          if (onSuccess) onSuccess();
+          onBack();
+        }}
         onSubmitPurchase={handleConfirmPurchase}
       />
     );

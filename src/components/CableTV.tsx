@@ -145,7 +145,7 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
     setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async (pinInput: string) => {
+  const handleConfirmPurchase = async (pinInput: string, customRecipient?: string) => {
     if (!selectedProduct) return;
     const provObj = getSelectedProviderObj();
     const matchingCableProd = products.find(p =>
@@ -157,17 +157,16 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
       ? provObj.id 
       : (selectedProduct?.serviceTypeId || (matchingCableProd ? parseInt(matchingCableProd.id, 10) : 31));
     const finalPrice = getDynamicPrice(selectedProduct);
+    const target = customRecipient || targetNumber;
 
     const res = await api.purchase({
       service_id: serviceIdentifier,
       amount: finalPrice,
-      target_number: targetNumber,
+      target_number: target,
       plan_id: selectedProduct.id,
       transaction_pin: pinInput
     });
-    toast.success(res.message || 'Cable TV subscription successful!');
-    if (onSuccess) onSuccess();
-    onBack();
+    return res;
   };
 
   if (showPinScreen && selectedProduct) {
@@ -185,7 +184,11 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
           details: customerName ? [{ label: 'Subscriber Name', value: customerName }] : undefined,
         }}
         onBack={() => setShowPinScreen(false)}
-        onSuccess={() => setShowPinScreen(false)}
+        onSuccess={() => {
+          setShowPinScreen(false);
+          if (onSuccess) onSuccess();
+          onBack();
+        }}
         onSubmitPurchase={handleConfirmPurchase}
       />
     );

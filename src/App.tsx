@@ -1188,10 +1188,7 @@ function MainApp() {
       promo_code: promoCode,
     });
 
-    toast.success(res.message || `${activeQuickAction.title} purchase successful!`);
-    setPinScreenMode(null);
-    setActiveQuickAction(null);
-    handleGlobalRefresh();
+    return res;
   };
 
   return (

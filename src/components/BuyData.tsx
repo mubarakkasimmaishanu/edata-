@@ -87,7 +87,7 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
     setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async (pinInput: string) => {
+  const handleConfirmPurchase = async (pinInput: string, customRecipient?: string, promoCode?: string) => {
     if (!selectedProduct) return;
 
     // The plan's admin-managed DB id and its parent service_type_id are
@@ -110,20 +110,19 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
     }
 
     if (!planId || !serviceId) {
-      toast.error('Selected plan is missing backend identifiers. Please refresh and try again.');
-      return;
+      throw new Error('Selected plan is missing backend identifiers. Please refresh and try again.');
     }
 
+    const target = customRecipient || targetNumber;
     const res = await api.purchase({
       service_id: serviceId,
       amount: getDynamicPrice(selectedProduct) - promoDiscount,
-      target_number: targetNumber,
+      target_number: target,
       plan_id: planId,
-      transaction_pin: pinInput
+      transaction_pin: pinInput,
+      promo_code: promoCode,
     });
-    toast.success(res.message || 'Data bundle purchase successful!');
-    if (onSuccess) onSuccess();
-    onBack();
+    return res;
   };
 
   if (showPinScreen && selectedProduct) {
@@ -140,7 +139,11 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
           iconType: 'data',
         }}
         onBack={() => setShowPinScreen(false)}
-        onSuccess={() => setShowPinScreen(false)}
+        onSuccess={() => {
+          setShowPinScreen(false);
+          if (onSuccess) onSuccess();
+          onBack();
+        }}
         onSubmitPurchase={handleConfirmPurchase}
       />
     );

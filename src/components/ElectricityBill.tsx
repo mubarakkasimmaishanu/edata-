@@ -129,17 +129,16 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     setShowPinScreen(true);
   };
 
-  const handleConfirmPurchase = async (pinInput: string) => {
+  const handleConfirmPurchase = async (pinInput: string, customRecipient?: string) => {
+    const target = customRecipient || targetNumber;
     const res = await api.purchase({
       service_id: currentServiceId,
       amount: parseFloat(checkoutAmount),
-      target_number: targetNumber,
+      target_number: target,
       meter_type: meterType,
       transaction_pin: pinInput
     });
-    toast.success(res.message || 'Electricity bill paid successfully!');
-    if (onSuccess) onSuccess();
-    onBack();
+    return res;
   };
 
   const discoDisplayName = currentDiscoObj ? (currentDiscoObj.fullName || currentDiscoObj.name) : detectedOperator;
@@ -162,7 +161,11 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
           ],
         }}
         onBack={() => setShowPinScreen(false)}
-        onSuccess={() => setShowPinScreen(false)}
+        onSuccess={() => {
+          setShowPinScreen(false);
+          if (onSuccess) onSuccess();
+          onBack();
+        }}
         onSubmitPurchase={handleConfirmPurchase}
       />
     );
