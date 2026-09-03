@@ -17,6 +17,10 @@ import {
   Mail,
   Tag,
   Fingerprint,
+  Clock,
+  Copy,
+  Check,
+  Share2,
 } from 'lucide-react';
 import PinInput from './PinInput';
 import { api } from '../services/api';
@@ -115,6 +119,49 @@ export default function PinScreen({
   const [bioPrompting, setBioPrompting] = useState(false);
   const [showBioEnrollModal, setShowBioEnrollModal] = useState(false);
   const [enrolledPin, setEnrolledPin] = useState('');
+
+  // Transaction Result Modal State (Success, Pending, Failure)
+  const [transactionResult, setTransactionResult] = useState<{
+    open: boolean;
+    status: 'success' | 'pending' | 'failed';
+    title: string;
+    message: string;
+    amount?: number | string;
+    reference?: string;
+    recipient?: string;
+    serviceName?: string;
+    token?: string;
+    pin?: string;
+    serial?: string;
+    airtimeValue?: string;
+    discountRate?: string;
+    rawResult?: any;
+  } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopyText = (text: string, label: string, key: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      toast.success(`${label} copied!`);
+      setTimeout(() => setCopiedKey(null), 2500);
+    }
+  };
+
+  const handleShareReceipt = async () => {
+    if (!transactionResult) return;
+    const formattedAmt = typeof transactionResult.amount === 'number'
+      ? `₦${transactionResult.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+      : String(transactionResult.amount || '—');
+    const text = `eData Transaction Receipt\n------------------------\nService: ${transactionResult.serviceName}\nStatus: ${transactionResult.status.toUpperCase()}\nRecipient: ${transactionResult.recipient || 'N/A'}\nAmount Paid: ${formattedAmt}${transactionResult.airtimeValue ? `\nAirtime Value: ${transactionResult.airtimeValue}` : ''}\nReference: ${transactionResult.reference || 'N/A'}${transactionResult.token ? `\nToken: ${transactionResult.token}` : ''}${transactionResult.pin ? `\nPIN: ${transactionResult.pin}` : ''}\nDate: ${new Date().toLocaleString('en-NG')}\n------------------------\nThank you for choosing eData!`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: 'eData Transaction Receipt', text });
+        return;
+      } catch { }
+    }
+    handleCopyText(text, 'Receipt', 'share-receipt');
+  };
 
   const loading = externalLoading || isSubmitting;
 
@@ -252,10 +299,30 @@ export default function PinScreen({
       }
       setIsSubmitting(true);
       try {
-        await onSubmitPurchase(completedValue, requiresRecipient ? recipientPhone.trim() : undefined, appliedPromoCode || undefined);
-        onSuccess();
+        const res: any = await onSubmitPurchase(completedValue, requiresRecipient ? recipientPhone.trim() : undefined, appliedPromoCode || undefined);
+        setIsSubmitting(false);
+
+        const resData = res?.data || {};
+        const isPending = resData.status === 'Pending' || res?.status === 'Pending' || res?.status === 'pending';
+
+        setTransactionResult({
+          open: true,
+          status: isPending ? 'pending' : 'success',
+          title: isPending ? 'Purchase Processing ⏳' : 'Purchase Successful! ✅',
+          message: res?.message || (isPending ? 'Your order is being processed by the network provider.' : 'Your transaction was completed successfully!'),
+          amount: resData.amount ?? (typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : summary?.amount),
+          reference: resData.reference || resData.ref || 'N/A',
+          recipient: resData.customer_phone || resData.meter_number || (requiresRecipient ? recipientPhone.trim() : summary?.recipient),
+          serviceName: resData.service_name || summary?.title || 'Purchase',
+          token: resData.token,
+          pin: resData.pin,
+          serial: resData.serial_number,
+          airtimeValue: summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
+          discountRate: summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
+          rawResult: res,
+        });
       } catch (err: any) {
-        setHasError(true);
+        setIsSubmitting(false);
         const errMsg = err?.message || 'Transaction failed. Please check your PIN and try again.';
         if (errMsg.toLowerCase().includes('pin') && isBiometricsEnabled()) {
           disableBiometrics();
@@ -264,8 +331,16 @@ export default function PinScreen({
         }
         setErrorMessage(errMsg);
         setPin('');
-      } finally {
-        setIsSubmitting(false);
+
+        setTransactionResult({
+          open: true,
+          status: 'failed',
+          title: 'Purchase Failed ❌',
+          message: errMsg,
+          amount: typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : summary?.amount,
+          recipient: requiresRecipient ? recipientPhone.trim() : summary?.recipient,
+          serviceName: summary?.title || 'Purchase',
+        });
       }
     } else if (mode === 'upgrade_pin') {
       setIsSubmitting(true);
@@ -1030,6 +1105,204 @@ export default function PinScreen({
               >
                 Maybe Later
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fintech Transaction Status Modal (Success / Pending / Failure) ── */}
+      {transactionResult?.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in safe-top safe-bottom">
+          <div className={`w-full max-w-sm rounded-[28px] p-6 border shadow-2xl animate-scale-up text-center flex flex-col items-center ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-xl' : 'bg-slate-900 border-slate-800 text-white shadow-2xl'
+          }`}>
+            {/* Status Icon */}
+            {transactionResult.status === 'success' && (
+              <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 border-2 border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/20 animate-bounce-subtle">
+                <CheckCircle2 className="w-9 h-9 stroke-[2.5]" />
+              </div>
+            )}
+            {transactionResult.status === 'pending' && (
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/15 border-2 border-amber-500/30 text-amber-400 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
+                <Clock className="w-9 h-9 stroke-[2.5] animate-spin" />
+              </div>
+            )}
+            {transactionResult.status === 'failed' && (
+              <div className="w-16 h-16 rounded-3xl bg-rose-500/15 border-2 border-rose-500/30 text-rose-400 flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20 animate-shake">
+                <AlertCircle className="w-9 h-9 stroke-[2.5]" />
+              </div>
+            )}
+
+            {/* Status Pill Badge */}
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-1.5 border ${
+              transactionResult.status === 'success'
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : transactionResult.status === 'pending'
+                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+            }`}>
+              {transactionResult.status === 'success' ? 'Successful' : (transactionResult.status === 'pending' ? 'Processing' : 'Failed')}
+            </span>
+
+            {/* Title */}
+            <h3 className="text-lg font-black font-display mb-1">{transactionResult.title}</h3>
+            <p className={`text-xs mb-3.5 leading-snug px-2 ${
+              theme === 'light' ? 'text-slate-600' : 'text-slate-400'
+            }`}>
+              {transactionResult.message}
+            </p>
+
+            {/* Structured Receipt Info Card (for Success & Pending) */}
+            {(transactionResult.status === 'success' || transactionResult.status === 'pending') && (
+              <div className={`w-full rounded-2xl p-3.5 mb-4 border text-xs space-y-2 text-left ${
+                theme === 'light' ? 'bg-slate-50 border-slate-200/90 text-slate-800' : 'bg-slate-950/70 border-slate-800/80 text-slate-200'
+              }`}>
+                {/* Service */}
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                  <span className="text-slate-400 font-medium">Service</span>
+                  <span className="font-bold text-slate-900 dark:text-white truncate max-w-[65%]">{transactionResult.serviceName}</span>
+                </div>
+
+                {/* Recipient */}
+                {transactionResult.recipient && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-slate-400 font-medium">Recipient</span>
+                    <span className="font-mono font-bold text-sky-400">{transactionResult.recipient}</span>
+                  </div>
+                )}
+
+                {/* Amount Paid */}
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                  <span className="text-slate-400 font-medium">Amount Paid</span>
+                  <span className="font-mono font-black text-emerald-400">
+                    {typeof transactionResult.amount === 'number'
+                      ? `₦${transactionResult.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                      : String(transactionResult.amount || '—')}
+                  </span>
+                </div>
+
+                {/* Airtime Value (if discounted) */}
+                {transactionResult.airtimeValue && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-slate-400 font-medium">Airtime Delivered</span>
+                    <span className="font-mono font-bold text-white">{transactionResult.airtimeValue}</span>
+                  </div>
+                )}
+
+                {/* Token (Electricity) */}
+                {transactionResult.token && (
+                  <div className="pt-1">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-amber-400 block">Meter Token</span>
+                        <span className="font-mono font-black text-sm text-amber-300 break-all select-all">{transactionResult.token}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(transactionResult.token!, 'Token', 'token-val')}
+                        className="shrink-0 ml-2 p-1.5 rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 cursor-pointer font-bold text-[10px]"
+                      >
+                        {copiedKey === 'token-val' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PIN (Exam Pins) */}
+                {transactionResult.pin && (
+                  <div className="pt-1">
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block">Card PIN</span>
+                        <span className="font-mono font-black text-sm text-emerald-300 break-all select-all">{transactionResult.pin}</span>
+                        {transactionResult.serial && (
+                          <span className="text-[10px] text-slate-400 block mt-0.5">Serial: {transactionResult.serial}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(transactionResult.pin!, 'PIN', 'pin-val')}
+                        className="shrink-0 ml-2 p-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-400 cursor-pointer font-bold text-[10px]"
+                      >
+                        {copiedKey === 'pin-val' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reference */}
+                <div className="flex justify-between items-center pt-0.5">
+                  <span className="text-slate-400 font-medium">Reference</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-[10px] text-slate-400 truncate max-w-[140px]">{transactionResult.reference}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(transactionResult.reference || '', 'Reference', 'ref-val')}
+                      className="text-sky-400 hover:text-sky-300 cursor-pointer"
+                    >
+                      {copiedKey === 'ref-val' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="w-full space-y-2">
+              {transactionResult.status === 'failed' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransactionResult(null);
+                      setPin('');
+                      setHasError(false);
+                      setErrorMessage('');
+                    }}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer font-display"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransactionResult(null);
+                      onBack();
+                    }}
+                    className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/80'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const raw = transactionResult.rawResult;
+                      setTransactionResult(null);
+                      onSuccess(raw);
+                    }}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all cursor-pointer font-display"
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareReceipt}
+                    className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                      theme === 'light'
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
+                        : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Share Receipt</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
