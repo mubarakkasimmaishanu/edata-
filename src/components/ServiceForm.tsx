@@ -458,13 +458,20 @@ export default function ServiceForm(props: ServiceFormProps) {
     return list.find(t => t.name.toLowerCase() === (selectedAirtimeType || '').toLowerCase()) || list[0] || null;
   }, [serviceType, airtimeTypes, selectedAirtimeType]);
 
-  const airtimeDiscountPercent = React.useMemo(() => {
-    if (serviceType !== 'airtime' || !currentAirtimeType) return 0;
-    const rate = currentAirtimeType.discount_percent;
-    return (rate !== undefined && rate !== null && Number(rate) > 0) ? Number(rate) : 0;
-  }, [serviceType, currentAirtimeType]);
+  // Helper to get specific discount percentage for any given airtime amount
+  const getAirtimeDiscountForAmount = React.useCallback((amt: number) => {
+    if (!currentAirtimeType) return 0;
+    const map = currentAirtimeType.amount_discounts || {};
+    const amtKey = String(amt);
+    if (map[amtKey] !== undefined && map[amtKey] !== null) {
+      return Number(map[amtKey]);
+    }
+    const defaultRate = currentAirtimeType.discount_percent;
+    return (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) ? Number(defaultRate) : 0;
+  }, [currentAirtimeType]);
 
   const airtimeFaceValue = serviceType === 'airtime' ? parseFloat(checkoutAmount || '0') : 0;
+  const airtimeDiscountPercent = serviceType === 'airtime' ? getAirtimeDiscountForAmount(airtimeFaceValue) : 0;
   const airtimeDiscountAmount = (serviceType === 'airtime' && airtimeDiscountPercent > 0)
     ? Math.round(airtimeFaceValue * (airtimeDiscountPercent / 100) * 100) / 100
     : 0;
@@ -1437,8 +1444,9 @@ export default function ServiceForm(props: ServiceFormProps) {
               {dynamicAirtimeAmounts.map((amt) => {
                 const isSelected = checkoutAmount === amt.toString();
                 const pillFace = amt;
-                const pillDiscounted = airtimeDiscountPercent > 0
-                  ? Math.round(pillFace * (1 - airtimeDiscountPercent / 100) * 100) / 100
+                const specificDiscount = getAirtimeDiscountForAmount(amt);
+                const pillDiscounted = specificDiscount > 0
+                  ? Math.round(pillFace * (1 - specificDiscount / 100) * 100) / 100
                   : pillFace;
 
                 return (
@@ -1463,7 +1471,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
                       ₦{pillFace.toLocaleString('en-NG')}
                     </span>
-                    {airtimeDiscountPercent > 0 && (
+                    {specificDiscount > 0 && (
                       <span className={`text-[9.5px] font-extrabold font-mono tracking-tight px-1.5 py-0.5 rounded-md ${
                         isSelected 
                           ? (isLight ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-emerald-500 text-slate-950 font-black')

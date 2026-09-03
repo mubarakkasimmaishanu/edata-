@@ -79,11 +79,24 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
 
   // Dynamic Airtime Type & Discount Resolution
   const selectedTypeObj = airtimeTypes.find(t => t.name.toLowerCase() === selectedAirtimeType.toLowerCase()) || airtimeTypes[0];
-  const airtimeDiscountPercent = (selectedTypeObj && selectedTypeObj.discount_percent !== undefined && selectedTypeObj.discount_percent !== null && Number(selectedTypeObj.discount_percent) > 0)
-    ? Number(selectedTypeObj.discount_percent)
-    : 0;
-
+  
   const faceAmount = parseFloat(checkoutAmount || '0');
+
+  // Resolves the exact discount percentage for the active face amount
+  const getDiscountForAmount = (amt: number) => {
+    if (!selectedTypeObj) return 0;
+    const map = selectedTypeObj.amount_discounts || {};
+    const amtKey = String(amt);
+    if (map[amtKey] !== undefined && map[amtKey] !== null) {
+      return Number(map[amtKey]);
+    }
+    if (selectedTypeObj.discount_percent !== undefined && selectedTypeObj.discount_percent !== null && Number(selectedTypeObj.discount_percent) > 0) {
+      return Number(selectedTypeObj.discount_percent);
+    }
+    return 0;
+  };
+
+  const airtimeDiscountPercent = getDiscountForAmount(faceAmount);
   const discountAmount = airtimeDiscountPercent > 0 ? Math.round(faceAmount * (airtimeDiscountPercent / 100) * 100) / 100 : 0;
   const payableAmount = Math.max(0, faceAmount - discountAmount - promoDiscount);
 
