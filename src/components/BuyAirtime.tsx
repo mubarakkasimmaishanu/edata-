@@ -82,22 +82,26 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
   
   const faceAmount = parseFloat(checkoutAmount || '0');
 
-  // Resolves the exact discount percentage for the active face amount
-  const getDiscountForAmount = (amt: number) => {
-    if (!selectedTypeObj) return 0;
-    const map = selectedTypeObj.amount_discounts || {};
+  // Resolves the exact discount amount (in Naira) and effective percentage for the active face amount
+  const getAirtimeDiscount = (amt: number) => {
+    if (!selectedTypeObj || amt <= 0) return { discountAmount: 0, discountPercent: 0 };
+    const fixedMap = selectedTypeObj.fixed_discounts || selectedTypeObj.amount_discounts || {};
     const amtKey = String(amt);
-    if (map[amtKey] !== undefined && map[amtKey] !== null) {
-      return Number(map[amtKey]);
+    if (fixedMap[amtKey] !== undefined && fixedMap[amtKey] !== null) {
+      const fixedDisc = Number(fixedMap[amtKey]);
+      const effPercent = amt > 0 ? (fixedDisc / amt) * 100 : 0;
+      return { discountAmount: fixedDisc, discountPercent: effPercent };
     }
-    if (selectedTypeObj.discount_percent !== undefined && selectedTypeObj.discount_percent !== null && Number(selectedTypeObj.discount_percent) > 0) {
-      return Number(selectedTypeObj.discount_percent);
+    const defaultRate = selectedTypeObj.discount_percent;
+    if (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) {
+      const rate = Number(defaultRate);
+      const discAmt = Math.round(amt * (rate / 100) * 100) / 100;
+      return { discountAmount: discAmt, discountPercent: rate };
     }
-    return 0;
+    return { discountAmount: 0, discountPercent: 0 };
   };
 
-  const airtimeDiscountPercent = getDiscountForAmount(faceAmount);
-  const discountAmount = airtimeDiscountPercent > 0 ? Math.round(faceAmount * (airtimeDiscountPercent / 100) * 100) / 100 : 0;
+  const { discountAmount, discountPercent: airtimeDiscountPercent } = getAirtimeDiscount(faceAmount);
   const payableAmount = Math.max(0, faceAmount - discountAmount - promoDiscount);
 
   const handleCheckoutInitiate = () => {
@@ -146,8 +150,8 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
         mode="purchase"
         summary={{
           title: `${detectedOperator || 'Mobile'} Airtime Top-Up`,
-          subtitle: airtimeDiscountPercent > 0
-            ? `Get ₦${faceAmount.toLocaleString()} Airtime (${airtimeDiscountPercent}% OFF)`
+          subtitle: discountAmount > 0
+            ? `Get ₦${faceAmount.toLocaleString()} Airtime (Save ₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`
             : `Instant Delivery • ${selectedAirtimeType}`,
           amount: payableAmount,
           recipient: targetNumber,
@@ -156,9 +160,9 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           bonusWallet: currentUser.bonusWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
           userCategory: currentUser.category,
-          details: airtimeDiscountPercent > 0 ? [
+          details: discountAmount > 0 ? [
             { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
-            { label: 'Discount Rate', value: `${airtimeDiscountPercent}% OFF (-₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})` },
+            { label: 'Airtime Discount', value: `-₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}${airtimeDiscountPercent > 0 ? ` (${airtimeDiscountPercent % 1 === 0 ? airtimeDiscountPercent.toFixed(0) : airtimeDiscountPercent.toFixed(1)}% OFF)` : ''}` },
             { label: 'Total To Pay', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
           ] : [
             { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },

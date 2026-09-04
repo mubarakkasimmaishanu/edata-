@@ -235,6 +235,8 @@ export interface AirtimeTypeItem {
   amounts?: number[];
   discount_percent?: number | null;
   amount_discounts?: Record<string, number> | null;
+  fixed_discounts?: Record<string, number> | null;
+  amount_discount_percents?: Record<string, number> | null;
   description?: string;
   status?: number;
 }
