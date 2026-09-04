@@ -460,23 +460,28 @@ export default function ServiceForm(props: ServiceFormProps) {
     return list.find(t => t.name.toLowerCase() === (selectedAirtimeType || '').toLowerCase()) || list[0] || null;
   }, [serviceType, airtimeTypes, selectedAirtimeType]);
 
-  // Helper to get specific discount percentage for any given airtime amount
-  const getAirtimeDiscountForAmount = React.useCallback((amt: number) => {
-    if (!currentAirtimeType) return 0;
-    const map = currentAirtimeType.amount_discounts || {};
+  // Helper to get specific fixed Naira discount and effective percentage for any given airtime amount
+  const getAirtimeDiscountDetails = React.useCallback((amt: number) => {
+    if (!currentAirtimeType || amt <= 0) return { discountAmount: 0, discountPercent: 0 };
+    const fixedMap = currentAirtimeType.fixed_discounts || currentAirtimeType.amount_discounts || {};
     const amtKey = String(amt);
-    if (map[amtKey] !== undefined && map[amtKey] !== null) {
-      return Number(map[amtKey]);
+    if (fixedMap[amtKey] !== undefined && fixedMap[amtKey] !== null) {
+      const fixedDisc = Number(fixedMap[amtKey]);
+      const effPercent = amt > 0 ? (fixedDisc / amt) * 100 : 0;
+      return { discountAmount: fixedDisc, discountPercent: effPercent };
     }
     const defaultRate = currentAirtimeType.discount_percent;
-    return (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) ? Number(defaultRate) : 0;
+    if (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) {
+      const rate = Number(defaultRate);
+      const discAmt = Math.round(amt * (rate / 100) * 100) / 100;
+      return { discountAmount: discAmt, discountPercent: rate };
+    }
+    return { discountAmount: 0, discountPercent: 0 };
   }, [currentAirtimeType]);
 
   const airtimeFaceValue = serviceType === 'airtime' ? parseFloat(checkoutAmount || '0') : 0;
-  const airtimeDiscountPercent = serviceType === 'airtime' ? getAirtimeDiscountForAmount(airtimeFaceValue) : 0;
-  const airtimeDiscountAmount = (serviceType === 'airtime' && airtimeDiscountPercent > 0)
-    ? Math.round(airtimeFaceValue * (airtimeDiscountPercent / 100) * 100) / 100
-    : 0;
+  const { discountAmount: airtimeDiscountAmount, discountPercent: airtimeDiscountPercent } =
+    serviceType === 'airtime' ? getAirtimeDiscountDetails(airtimeFaceValue) : { discountAmount: 0, discountPercent: 0 };
   const airtimePayableAmount = Math.max(0, airtimeFaceValue - airtimeDiscountAmount);
 
   // For airtime, basePrice represents the actual payable amount deducted from balance
@@ -504,6 +509,67 @@ export default function ServiceForm(props: ServiceFormProps) {
     handleCheckoutInitiate();
   };
 
+  // Filter active network providers dynamically based on products for current serviceType
+  const availableNetworks = React.useMemo(() => {
+    if (!products || products.length === 0) return NETWORK_PROVIDERS;
+    if (serviceType === 'data') {
+      const activeOps = new Set(
+        products
+          .filter(p => p.category === 'Data' && p.active !== false)
+          .map(p => (p.operator || '').toUpperCase())
+      );
+      if (activeOps.size > 0) {
+        const filtered = NETWORK_PROVIDERS.filter(n => activeOps.has(n.name.toUpperCase()));
+        return filtered.length > 0 ? filtered : NETWORK_PROVIDERS;
+      }
+    } else if (serviceType === 'airtime') {
+      const activeOps = new Set(
+        products
+          .filter(p => p.category === 'Airtime' && p.active !== false)
+          .map(p => (p.operator || '').toUpperCase())
+      );
+      if (activeOps.size > 0) {
+        const filtered = NETWORK_PROVIDERS.filter(n => activeOps.has(n.name.toUpperCase()));
+        return filtered.length > 0 ? filtered : NETWORK_PROVIDERS;
+      }
+    }
+    return NETWORK_PROVIDERS;
+  }, [products, serviceType]);
+
+  // Filter active cable providers dynamically
+  const availableCableProviders = React.useMemo(() => {
+    if (dynamicCableProviders && dynamicCableProviders.length > 0) {
+      const dynNames = new Set(dynamicCableProviders.map(c => c.name.toUpperCase()));
+      const filtered = CABLE_PROVIDERS.filter(c => dynNames.has(c.name.toUpperCase()));
+      if (filtered.length > 0) return filtered;
+    }
+    const cablePlans = products ? products.filter(p => ((p.category as string) === 'Cable' || p.category === 'Cable TV') && p.active !== false) : [];
+    if (cablePlans.length > 0) {
+      const activeCableOps = new Set(cablePlans.map(p => (p.operator || '').toUpperCase()));
+      const filtered = CABLE_PROVIDERS.filter(c => activeCableOps.has(c.name.toUpperCase()));
+      if (filtered.length > 0) return filtered;
+    }
+    return CABLE_PROVIDERS;
+  }, [dynamicCableProviders, products]);
+
+  React.useEffect(() => {
+    if (availableNetworks.length > 0 && detectedOperator && showNetworkSelector) {
+      const exists = availableNetworks.some(n => n.name.toLowerCase() === detectedOperator.toLowerCase());
+      if (!exists) {
+        setDetectedOperator(availableNetworks[0].name);
+      }
+    }
+  }, [availableNetworks, detectedOperator, setDetectedOperator, showNetworkSelector]);
+
+  React.useEffect(() => {
+    if (serviceType === 'cable' && availableCableProviders.length > 0 && detectedOperator) {
+      const exists = availableCableProviders.some(c => c.name.toLowerCase() === detectedOperator.toLowerCase());
+      if (!exists) {
+        setDetectedOperator(availableCableProviders[0].name);
+      }
+    }
+  }, [serviceType, availableCableProviders, detectedOperator, setDetectedOperator]);
+
   return (
     <div className={`space-y-4 animate-fade-in transition-all rounded-3xl ${
         isNetworkThemable && detectedOperator ? `border-t-4 ${activeNetworkTheme.accentBorder} pt-2` : ''
@@ -514,8 +580,10 @@ export default function ServiceForm(props: ServiceFormProps) {
           <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2 font-display">
             Select Network
           </label>
-          <div className="grid grid-cols-4 gap-2.5">
-            {NETWORK_PROVIDERS.map((net) => {
+          <div className={`grid gap-2.5 ${
+            availableNetworks.length <= 2 ? 'grid-cols-2' : availableNetworks.length === 3 ? 'grid-cols-3' : 'grid-cols-4'
+          }`}>
+            {availableNetworks.map((net) => {
               const isSelected = detectedOperator.toLowerCase() === net.name.toLowerCase();
               return (
                 <button
@@ -570,8 +638,10 @@ export default function ServiceForm(props: ServiceFormProps) {
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2 font-display">
               Choose Provider
             </label>
-            <div className="grid grid-cols-3 gap-2.5">
-              {CABLE_PROVIDERS.map((net) => {
+            <div className={`grid gap-2.5 ${
+              availableCableProviders.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'
+            }`}>
+              {availableCableProviders.map((net) => {
                 const currentOp = detectedOperator || 'DSTV';
                 const isSelected = currentOp.toLowerCase() === net.name.toLowerCase();
                 return (
@@ -1446,10 +1516,8 @@ export default function ServiceForm(props: ServiceFormProps) {
               {dynamicAirtimeAmounts.map((amt) => {
                 const isSelected = checkoutAmount === amt.toString();
                 const pillFace = amt;
-                const specificDiscount = getAirtimeDiscountForAmount(amt);
-                const pillDiscounted = specificDiscount > 0
-                  ? Math.round(pillFace * (1 - specificDiscount / 100) * 100) / 100
-                  : pillFace;
+                const { discountAmount: pillDisc } = getAirtimeDiscountDetails(amt);
+                const pillDiscounted = Math.max(0, pillFace - pillDisc);
 
                 return (
                   <button
@@ -1473,7 +1541,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-slate-950 font-black' : 'text-white font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
                       ₦{pillFace.toLocaleString('en-NG')}
                     </span>
-                    {specificDiscount > 0 && (
+                    {pillDisc > 0 && (
                       <span className={`text-[9.5px] font-extrabold font-mono tracking-tight px-1.5 py-0.5 rounded-md ${
                         isSelected 
                           ? (isLight ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-emerald-500 text-slate-950 font-black')
@@ -1589,7 +1657,7 @@ export default function ServiceForm(props: ServiceFormProps) {
           )}
 
           {/* Airtime Specific Breakdown when Discounted */}
-          {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+          {serviceType === 'airtime' && airtimeDiscountAmount > 0 && (
             <>
               <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
                 <span>Airtime Value</span>
@@ -1598,7 +1666,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
-                <span>Airtime Discount ({airtimeDiscountPercent}% OFF)</span>
+                <span>Airtime Discount (-₦{airtimeDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{airtimeDiscountPercent > 0 ? ` | ${airtimeDiscountPercent % 1 === 0 ? airtimeDiscountPercent.toFixed(0) : airtimeDiscountPercent.toFixed(1)}% OFF` : ''})</span>
                 <span className="font-bold font-mono">
                   -₦{airtimeDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
@@ -1620,17 +1688,17 @@ export default function ServiceForm(props: ServiceFormProps) {
           <div className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-700/80'} pt-2.5 flex justify-between items-center`}>
             <div>
               <span className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display block`}>Total Amount</span>
-              {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+              {serviceType === 'airtime' && airtimeDiscountAmount > 0 && (
                 <span className="text-[10.5px] text-slate-400 font-medium">To deduct from wallet</span>
               )}
             </div>
             <div className="text-right flex items-center gap-2">
-              {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
+              {serviceType === 'airtime' && airtimeDiscountAmount > 0 && (
                 <span className="text-xs font-bold font-mono text-slate-400 line-through">
                   ₦{airtimeFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               )}
-              <span className={`text-base font-black font-mono tabular-nums ${serviceType === 'airtime' && airtimeDiscountPercent > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-base font-black font-mono tabular-nums ${serviceType === 'airtime' && airtimeDiscountAmount > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 -₦{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -1648,7 +1716,7 @@ export default function ServiceForm(props: ServiceFormProps) {
           <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
         ) : isA2C ? (
           <>Convert Airtime to Cash <ArrowRight className="w-4 h-4" /></>
-        ) : (serviceType === 'airtime' && airtimeDiscountPercent > 0) ? (
+        ) : (serviceType === 'airtime' && airtimeDiscountAmount > 0) ? (
           <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Get ₦{airtimeFaceValue.toLocaleString('en-NG')} Airtime) <ArrowRight className="w-4 h-4" /></>
         ) : (
           <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} <ArrowRight className="w-4 h-4" /></>
