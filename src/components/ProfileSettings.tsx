@@ -217,30 +217,39 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           <h2 className="text-lg font-black text-white font-display">{currentUser.name || 'eData User'}</h2>
           <p className="text-xs text-slate-400 font-mono font-medium">{currentUser.email}</p>
 
-          <div className="mt-4 pt-4 border-t border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            <div className="p-2 rounded-2xl bg-slate-900/50 border border-slate-700/50">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">Main Wallet</span>
-              <span className="text-xs sm:text-sm font-black text-sky-400 font-mono">
+          <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-2 gap-2.5 text-left">
+            {/* Main Wallet */}
+            <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700/40 flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase font-display">Main Wallet</span>
+              <span className="text-base font-bold text-white font-mono mt-1 tracking-tight">
                 ₦{(currentUser.mainWallet ?? currentUser.walletBalance ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="p-2 rounded-2xl bg-slate-900/50 border border-slate-700/50">
-              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider block font-display">Commission</span>
-              <span className="text-xs sm:text-sm font-black text-emerald-300 font-mono">
+
+            {/* Commission */}
+            <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700/40 flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase font-display">Commission</span>
+              <span className="text-base font-bold text-slate-200 font-mono mt-1 tracking-tight">
                 ₦{(currentUser.commissionWallet ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="p-2 rounded-2xl bg-slate-900/50 border border-slate-700/50">
-              <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider block font-display">Bonus Wallet</span>
-              <span className="text-xs sm:text-sm font-black text-amber-300 font-mono">
+
+            {/* Bonus Wallet */}
+            <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700/40 flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase font-display">Bonus Wallet</span>
+              <span className="text-base font-bold text-slate-200 font-mono mt-1 tracking-tight">
                 ₦{(currentUser.bonusWallet ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="p-2 rounded-2xl bg-slate-900/50 border border-slate-700/50 flex flex-col justify-center">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">Account Tier</span>
-              <span className="text-[11px] font-black text-sky-300 uppercase font-display block truncate">
-                {currentUser.category || 'Basic User'}
-              </span>
+
+            {/* Account Tier */}
+            <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700/40 flex flex-col justify-between">
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase font-display">Account Tier</span>
+              <div className="mt-1">
+                <span className="inline-block px-2.5 py-1 rounded-xl bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-bold font-display tracking-wide truncate max-w-full">
+                  {currentUser.category || 'Basic User'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
