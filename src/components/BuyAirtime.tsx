@@ -153,20 +153,22 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           recipient: targetNumber,
           provider: detectedOperator,
           iconType: 'airtime',
+          bonusWallet: currentUser.bonusWallet,
+          mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+          userCategory: currentUser.category,
           details: airtimeDiscountPercent > 0 ? [
             { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
             { label: 'Discount Rate', value: `${airtimeDiscountPercent}% OFF (-₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})` },
-            { label: 'To Deduct', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'Total To Pay', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
           ] : [
             { label: 'Airtime Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
-            { label: 'To Deduct', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'Total To Pay', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
           ],
         }}
         onBack={() => setShowPinScreen(false)}
         onSuccess={() => {
           setShowPinScreen(false);
           if (onSuccess) onSuccess();
-          onBack();
         }}
         onSubmitPurchase={handleConfirmPurchase}
       />
@@ -194,7 +196,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
 
         <div className="wallet-chip bg-sky-500/20 border border-sky-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
           <span className="wallet-chip-label text-[9px] font-black uppercase text-sky-400 tracking-wider font-display">Wallet:</span>
-          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{currentUser.walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
 
@@ -229,6 +231,8 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           userPhone={currentUser.phone}
           onBack={onBack}
           currentBalance={currentUser.walletBalance}
+          mainBalance={currentUser.mainWallet ?? currentUser.walletBalance}
+          bonusBalance={currentUser.bonusWallet ?? 0}
           toast={toast}
         />
       </div>

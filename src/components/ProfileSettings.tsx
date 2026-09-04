@@ -217,17 +217,22 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           <h2 className="text-lg font-black text-white font-display">{currentUser.name || 'eData User'}</h2>
           <p className="text-xs text-slate-400 font-mono font-medium">{currentUser.email}</p>
 
-          <div className="mt-4 pt-4 border-t border-slate-700/60 flex items-center justify-around text-center">
+          <div className="mt-4 pt-4 border-t border-slate-700/60 grid grid-cols-3 gap-2 text-center">
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block font-display">Wallet Balance</span>
-              <span className="text-base font-black text-sky-400 font-mono">
-                ₦{(currentUser.walletBalance || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider block font-display">Main Wallet</span>
+              <span className="text-sm sm:text-base font-black text-sky-400 font-mono">
+                ₦{(currentUser.mainWallet ?? currentUser.walletBalance ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="w-px h-8 bg-slate-700/60" />
+            <div className="border-x border-slate-700/60 px-1">
+              <span className="text-[9.5px] font-black text-amber-400 uppercase tracking-wider block font-display">Bonus Wallet</span>
+              <span className="text-sm sm:text-base font-black text-amber-300 font-mono">
+                ₦{(currentUser.bonusWallet ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block font-display">Account Tier</span>
-              <span className="text-xs font-black text-amber-400 uppercase font-display">
+              <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider block font-display">Account Tier</span>
+              <span className="text-xs font-black text-emerald-400 uppercase font-display block mt-1 truncate">
                 {currentUser.category || 'Basic User'}
               </span>
             </div>

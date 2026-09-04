@@ -71,7 +71,10 @@ export async function initPushNotifications(
     // 5. Handle foreground push notification received
     await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
       console.log('Push notification received in foreground: ', notification);
-      if (toast && notification.title) {
+      const notifType = notification.data?.type || '';
+      const isPurchase = notifType === 'purchase' || (notification.title && notification.title.toLowerCase().includes('purchase'));
+      // Only toast non-purchase foreground alerts (e.g. system broadcast, funding, support) to avoid duplicate toasts on top of purchase receipts
+      if (toast && notification.title && !isPurchase) {
         toast.info(`${notification.title}: ${notification.body || ''}`);
       }
     });
