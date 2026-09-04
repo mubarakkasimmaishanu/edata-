@@ -154,6 +154,9 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
           recipient: targetNumber,
           provider: discoDisplayName,
           iconType: 'electricity',
+          bonusWallet: currentUser.bonusWallet,
+          mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+          userCategory: currentUser.category,
           details: [
             ...(customerName ? [{ label: 'Meter Owner', value: customerName }] : []),
             { label: 'Meter Type', value: meterType },
@@ -164,7 +167,6 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
         onSuccess={() => {
           setShowPinScreen(false);
           if (onSuccess) onSuccess();
-          onBack();
         }}
         onSubmitPurchase={handleConfirmPurchase}
       />
@@ -192,7 +194,7 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
 
         <div className="wallet-chip bg-sky-500/20 border border-sky-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
           <span className="wallet-chip-label text-[9px] font-black uppercase text-sky-400 tracking-wider font-display">Wallet:</span>
-          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{currentUser.walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
 

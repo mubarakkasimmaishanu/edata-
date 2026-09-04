@@ -56,6 +56,8 @@ import josIcon from '@/assets/icons/jos.png';
 import phedcIcon from '@/assets/icons/phedc.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 
+import { useBackHandler } from '../utils/backHandler';
+
 export interface PurchaseSummary {
   title: string;
   subtitle?: string;
@@ -66,6 +68,9 @@ export interface PurchaseSummary {
   icon?: string;
   iconType?: 'airtime' | 'data' | 'cable' | 'electricity' | 'exam' | 'a2c' | 'upgrade';
   details?: { label: string; value: string }[];
+  bonusWallet?: number;
+  mainWallet?: number;
+  userCategory?: string;
 }
 
 export interface PinScreenProps {
@@ -135,8 +140,16 @@ export default function PinScreen({
     serial?: string;
     airtimeValue?: string;
     discountRate?: string;
+    usedBonus?: number;
+    usedMain?: number;
     rawResult?: any;
   } | null>(null);
+
+  // Close receipt modal on hardware Back press without leaving page
+  useBackHandler(Boolean(transactionResult?.open), () => {
+    setTransactionResult(null);
+    return true;
+  });
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopyText = (text: string, label: string, key: string) => {
@@ -282,6 +295,9 @@ export default function PinScreen({
   // Handle auto submit / step completion
   const handleComplete = async (completedValue: string) => {
     if (loading) return;
+    try {
+      (document.activeElement as HTMLElement)?.blur();
+    } catch { }
     setHasError(false);
     setErrorMessage('');
 
@@ -305,12 +321,21 @@ export default function PinScreen({
         const resData = res?.data || {};
         const isPending = resData.status === 'Pending' || res?.status === 'Pending' || res?.status === 'pending';
 
+        // Calculate expected breakdown if not already returned in resData
+        const totalAmountNum = resData.amount ?? (typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : Number(summary?.amount || 0));
+        const isPrem = summary?.userCategory?.toLowerCase().includes('premium');
+        const bRate = isPrem ? 0.005 : 0.01;
+        const bTarget = Math.round(totalAmountNum * bRate * 100) / 100;
+        const bAvail = summary?.bonusWallet ?? 0;
+        const bDeduct = Math.min(bAvail, bTarget);
+        const mDeduct = Math.max(0, Math.round((totalAmountNum - bDeduct) * 100) / 100);
+
         setTransactionResult({
           open: true,
           status: isPending ? 'pending' : 'success',
           title: isPending ? 'Purchase Processing ⏳' : 'Purchase Successful! ✅',
           message: res?.message || (isPending ? 'Your order is being processed by the network provider.' : 'Your transaction was completed successfully!'),
-          amount: resData.amount ?? (typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : summary?.amount),
+          amount: totalAmountNum,
           reference: resData.reference || resData.ref || 'N/A',
           recipient: resData.customer_phone || resData.meter_number || (requiresRecipient ? recipientPhone.trim() : summary?.recipient),
           serviceName: resData.service_name || summary?.title || 'Purchase',
@@ -319,6 +344,8 @@ export default function PinScreen({
           serial: resData.serial_number,
           airtimeValue: resData.face_amount ? ('₦' + Number(resData.face_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })) : summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
           discountRate: summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
+          usedBonus: resData.used_bonus !== undefined ? Number(resData.used_bonus) : (bDeduct > 0 ? bDeduct : undefined),
+          usedMain: resData.used_main !== undefined ? Number(resData.used_main) : (mDeduct > 0 ? mDeduct : undefined),
           rawResult: res,
         });
       } catch (err: any) {
@@ -730,6 +757,59 @@ export default function PinScreen({
                   ))}
                 </div>
               )}
+
+              {/* ── Bonus & Main Wallet Deduction Breakdown (Before PIN Entry) ── */}
+              {(() => {
+                const numericAmount = typeof summary.amount === 'number'
+                  ? Math.max(0, summary.amount - promoDiscount)
+                  : parseFloat(String(summary.amount || 0));
+                const isPremiumUser = summary.userCategory?.toLowerCase().includes('premium');
+                const bonusRate = isPremiumUser ? 0.005 : 0.01;
+                const maxBonusUsable = Math.round(numericAmount * bonusRate * 100) / 100;
+                const availableBonus = summary.bonusWallet ?? 0;
+                const bonusDeduction = Math.min(availableBonus, maxBonusUsable);
+                const mainDeduction = Math.max(0, Math.round((numericAmount - bonusDeduction) * 100) / 100);
+
+                return (
+                  <div className="mt-2 pt-2 border-t border-slate-800/60 space-y-1 text-left">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-medium">Payment Source:</span>
+                      <span className="font-bold text-slate-200">eData Wallet</span>
+                    </div>
+
+                    {bonusDeduction > 0 ? (
+                      <>
+                        <div className="flex items-center justify-between text-[11px] bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg">
+                          <span className="text-amber-300 font-semibold flex items-center gap-1">
+                            <span>Bonus Wallet:</span>
+                          </span>
+                          <span className="font-mono font-bold text-amber-300">
+                            -₦{bonusDeduction.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
+                          <span className="text-slate-300 font-semibold">Main Wallet to Deduct:</span>
+                          <span className="font-mono font-black text-sky-400">
+                            ₦{mainDeduction.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <p className="text-[9.5px] text-slate-400 leading-tight px-1 italic">
+                          💡 ₦{bonusDeduction.toFixed(2)} will be paid from your bonus wallet.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
+                        <span className="text-slate-300 font-semibold">Main Wallet to Deduct:</span>
+                        <span className="font-mono font-black text-white">
+                          ₦{numericAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1173,13 +1253,35 @@ export default function PinScreen({
 
                 {/* Amount Paid */}
                 <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
-                  <span className="text-slate-400 font-medium">Amount Paid</span>
+                  <span className="text-slate-400 font-medium">Total Amount</span>
                   <span className="font-mono font-black text-emerald-400">
                     {typeof transactionResult.amount === 'number'
                       ? `₦${transactionResult.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
                       : String(transactionResult.amount || '—')}
                   </span>
                 </div>
+
+                {/* Bonus Wallet Deduction */}
+                {transactionResult.usedBonus !== undefined && transactionResult.usedBonus > 0 && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-amber-400 font-medium flex items-center gap-1">
+                      <span>Bonus Used</span>
+                    </span>
+                    <span className="font-mono font-bold text-amber-400">
+                      -₦{transactionResult.usedBonus.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Main Wallet Paid */}
+                {transactionResult.usedMain !== undefined && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-slate-400 font-medium">Paid from Main Wallet</span>
+                    <span className="font-mono font-black text-sky-400">
+                      ₦{transactionResult.usedMain.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
 
                 {/* Airtime Value (if discounted) */}
                 {transactionResult.airtimeValue && (

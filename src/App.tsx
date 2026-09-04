@@ -479,19 +479,7 @@ function MainApp() {
       console.warn('[eData Wallet Sync] Could not extract balance from /api/wallet or /api/profile — using stale cached balance. walletRes:', walletRes, 'profileRes:', profileRes);
     }
 
-    if (silent && currentUser.walletBalance > 0) {
-      const now = Date.now();
-      const canToast = now - lastWalletToastRef.current > 5000;
-      if (parsedBalance > currentUser.walletBalance && canToast) {
-        const diff = parsedBalance - currentUser.walletBalance;
-        lastWalletToastRef.current = now;
-        toast.success(`Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
-      } else if (parsedBalance < currentUser.walletBalance && canToast) {
-        // Balance decreased — website purchase, admin deduction, or external transaction
-        lastWalletToastRef.current = now;
-        toast.info(`💳 Balance Updated: ₦${parsedBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`);
-      }
-    }
+
 
     const firstName = user.firstname || user.first_name || '';
     const lastName = user.lastname || user.last_name || '';
@@ -696,18 +684,13 @@ function MainApp() {
         if (newBalance !== undefined && !isNaN(newBalance)) {
           setCurrentUser(prev => {
             const now = Date.now();
-            const canToast = now - lastWalletToastRef.current > 5000; // Prevent duplicate toasts within 5s
+            const canToast = now - lastWalletToastRef.current > 30000; // Minimum 30s between wallet toast alerts
 
-            if (prev.walletBalance > 0 && newBalance > prev.walletBalance && canToast) {
-              const diff = newBalance - prev.walletBalance;
+            // Only notify if explicitly non-silent (manual refresh), never in background polling
+            const mainDiff = mainW - (prev.mainWallet ?? prev.walletBalance);
+            if (!silent && (prev.mainWallet ?? prev.walletBalance) > 0 && mainDiff >= 50 && canToast) {
               lastWalletToastRef.current = now;
-              toast.success(`⚡ Wallet Credited! +₦${diff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (New Balance: ₦${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
-            } else if (prev.walletBalance > 0 && newBalance < prev.walletBalance && canToast) {
-              // Debit detected — likely a website purchase, admin deduction, or
-              // external transaction. Notify the user so they know the mobile
-              // app is fully synced with the server.
-              lastWalletToastRef.current = now;
-              toast.info(`💳 Balance Updated: ₦${newBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`);
+              toast.success(`⚡ Wallet Credited! +₦${mainDiff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Balance: ₦${mainW.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
             }
             const updated: UserProfile = {
               ...prev,
@@ -1368,6 +1351,9 @@ function MainApp() {
                           : (currentUser.phone || '08000000000'),
                         provider: activeQuickAction.network,
                         iconType: (activeQuickAction.service_type as any) || 'data',
+                        bonusWallet: currentUser.bonusWallet,
+                        mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+                        userCategory: currentUser.category,
                         details: [
                           { label: 'Service', value: (activeQuickAction.service_type || 'data').toUpperCase() },
                           { label: 'Provider', value: activeQuickAction.network },
@@ -1391,6 +1377,7 @@ function MainApp() {
                     } else {
                       setPinScreenMode(null);
                       setActiveQuickAction(null);
+                      handleGlobalRefresh();
                     }
                   }}
                   onSubmitPurchase={handleConfirmQuickActionPurchase}

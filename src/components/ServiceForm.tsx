@@ -311,6 +311,8 @@ interface ServiceFormProps {
   onOpenContacts: () => void;
   onBack: () => void;
   currentBalance: number;
+  mainBalance?: number;
+  bonusBalance?: number;
   isValidatingNumber?: boolean;
   handleValidateNumber?: () => void;
   customerName?: string;
@@ -335,7 +337,7 @@ export default function ServiceForm(props: ServiceFormProps) {
     selectedProduct, setSelectedProduct, setSelectedCategory, getDynamicPrice,
     promoCodeInput, setPromoCodeInput, appliedPromo, setAppliedPromo,
     promoDiscount, setPromoDiscount, promoError, handleApplyPromoCode,
-    handleCheckoutInitiate, onOpenContacts, onBack, currentBalance,
+    handleCheckoutInitiate, onOpenContacts, onBack, currentBalance, mainBalance, bonusBalance,
     isValidatingNumber, handleValidateNumber, customerName, validationError,
     a2cBank, setA2cBank, a2cAccount, setA2cAccount, a2cPayout, setA2cPayout,
     toast,
@@ -1570,11 +1572,21 @@ export default function ServiceForm(props: ServiceFormProps) {
         <div className={`border rounded-2xl p-4 space-y-2.5 ${isLight ? 'bg-white border-slate-200 shadow-sm text-slate-800' : 'bg-slate-800/90 border-slate-700/80 shadow-md text-slate-300'}`}>
           {/* Current Wallet Balance */}
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>Wallet Balance</span>
+            <span>Main Wallet Balance</span>
             <span className="font-black font-mono text-slate-200">
-              ₦{currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ₦{(mainBalance !== undefined ? mainBalance : currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
+          {bonusBalance !== undefined && bonusBalance > 0 && (
+            <div className="flex justify-between items-center text-xs text-amber-400 font-semibold">
+              <span className="flex items-center gap-1.5">
+                <span>Bonus Wallet</span>
+              </span>
+              <span className="font-black font-mono text-amber-300">
+                ₦{bonusBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
 
           {/* Airtime Specific Breakdown when Discounted */}
           {serviceType === 'airtime' && airtimeDiscountPercent > 0 && (
