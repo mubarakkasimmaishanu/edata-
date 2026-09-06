@@ -2,7 +2,7 @@ package com.eDATA.app;
 
 import android.os.Bundle;
 import android.os.Build;
-import androidx.activity.EdgeToEdge;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
@@ -10,18 +10,21 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        EdgeToEdge.enable(this);
+        // Install Android 12+ SplashScreen so it transitions properly to postSplashScreenTheme
+        SplashScreen.installSplashScreen(this);
+
         super.onCreate(savedInstanceState);
 
-        // Modern WindowInsetsControllerCompat for status bar appearance
+        // Configure light status bar & nav bar icons (white text/icons) on dark #0f172a background
         WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (insetsController != null) {
             insetsController.setAppearanceLightStatusBars(false);
+            insetsController.setAppearanceLightNavigationBars(false);
         }
 
-        // For Android versions prior to Android 15 (API 35), set background color
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && Build.VERSION.SDK_INT < 35) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(android.graphics.Color.parseColor("#0f172a"));
+            getWindow().setNavigationBarColor(android.graphics.Color.parseColor("#0f172a"));
         }
     }
 }
