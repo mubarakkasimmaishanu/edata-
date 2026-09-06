@@ -3,11 +3,16 @@ import { PushNotifications, Token, ActionPerformed, PushNotificationSchema } fro
 import { api } from './api';
 
 let isInitialized = false;
+let currentToast: { info: (msg: string) => void; success: (msg: string) => void } | null = null;
 
 export async function initPushNotifications(
   onNavigate?: (view: string) => void,
   toast?: { info: (msg: string) => void; success: (msg: string) => void }
 ) {
+  if (toast) {
+    currentToast = toast;
+  }
+
   if (!Capacitor.isNativePlatform()) {
     // Push notifications via Capacitor are native-only (Android/iOS)
     return;
@@ -71,13 +76,18 @@ export async function initPushNotifications(
     // 5. Handle foreground push notification received
     await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
       console.log('Push notification received in foreground: ', notification);
-      if (toast && notification.title) {
-        const notifType = notification.data?.type || '';
-        const isPurchase = notifType === 'purchase' || notification.title.toLowerCase().includes('purchase');
+      if (currentToast && notification.title) {
+        const notifType = (notification.data?.type || '').toLowerCase();
+        const titleLower = (notification.title || '').toLowerCase();
+        const isPurchase = notifType === 'purchase' || titleLower.includes('purchase');
+        const isWallet = notifType.includes('wallet') || notifType.includes('deposit') || notifType.includes('credit') || titleLower.includes('wallet') || titleLower.includes('credit');
+
         if (isPurchase) {
-          toast.success(`🔔 ${notification.title}: ${notification.body || ''}`);
+          currentToast.success(`🛍️ ${notification.title}: ${notification.body || ''}`);
+        } else if (isWallet) {
+          currentToast.success(`💰 ${notification.title}: ${notification.body || ''}`);
         } else {
-          toast.info(`🔔 ${notification.title}: ${notification.body || ''}`);
+          currentToast.info(`🔔 ${notification.title}: ${notification.body || ''}`);
         }
       }
     });
