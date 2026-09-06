@@ -11,11 +11,12 @@ interface CableTVProps {
   currentUser: UserProfile;
   products: ProductItem[];
   initialProvider?: string;
+  initialPlanId?: number | null;
   onBack: () => void;
   onSuccess?: () => void;
 }
 
-export default function CableTV({ currentUser, products, initialProvider, onBack, onSuccess }: CableTVProps) {
+export default function CableTV({ currentUser, products, initialProvider, initialPlanId, onBack, onSuccess }: CableTVProps) {
   const toast = useToast();
   const [dynamicCableProviders, setDynamicCableProviders] = useState<CableProvider[]>([]);
   const [targetNumber, setTargetNumber] = useState('');
@@ -33,25 +34,45 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
           if (list.length > 0) {
             setDynamicCableProviders(list);
             
-            // Set initial selected operator to first provider if not matching
-            const currentOp = initialProvider || 'DSTV';
-            const matched = list.find(p => p.name.toLowerCase() === currentOp.toLowerCase() || (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase()));
-            const activeProv = matched || list[0];
-            if (activeProv) {
-              setDetectedOperator(activeProv.name);
-              if (activeProv.plans && activeProv.plans.length > 0) {
-                const first = activeProv.plans[0];
+            // Resolve provider and plan matching initialProvider and initialPlanId
+            let targetPlan: any = null;
+            let targetProv: CableProvider | undefined = undefined;
+
+            if (initialPlanId) {
+              for (const prov of list) {
+                const foundPlan = prov.plans?.find(p => Number(p.id) === Number(initialPlanId));
+                if (foundPlan) {
+                  targetPlan = foundPlan;
+                  targetProv = prov;
+                  break;
+                }
+              }
+            }
+
+            if (!targetProv) {
+              const currentOp = initialProvider || 'DSTV';
+              const matched = list.find(p => p.name.toLowerCase() === currentOp.toLowerCase() || (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase()));
+              targetProv = matched || list[0];
+            }
+
+            if (targetProv) {
+              setDetectedOperator(targetProv.name);
+              if (!targetPlan && targetProv.plans && targetProv.plans.length > 0) {
+                targetPlan = targetProv.plans[0];
+              }
+
+              if (targetPlan) {
                 const prodItem: ProductItem = {
-                  id: first.id.toString(),
-                  serviceTypeId: first.service_type_id,
-                  name: first.plan_name || first.name,
+                  id: targetPlan.id.toString(),
+                  serviceTypeId: targetPlan.service_type_id,
+                  name: targetPlan.plan_name || targetPlan.name,
                   category: 'Cable TV',
-                  operator: activeProv.name,
-                  priceNormal: Number(first.price || first.priceNormal || first.selling_price),
-                  priceReferred: Number(first.referred_price || first.price || first.selling_price),
-                  pricePremium: Number(first.premium_price || first.price || first.selling_price),
+                  operator: targetProv.name,
+                  priceNormal: Number(targetPlan.price || targetPlan.priceNormal || targetPlan.selling_price),
+                  priceReferred: Number(targetPlan.referred_price || targetPlan.price || targetPlan.selling_price),
+                  pricePremium: Number(targetPlan.premium_price || targetPlan.price || targetPlan.selling_price),
                   active: true,
-                  bundle_id: first.bundle_id,
+                  bundle_id: targetPlan.bundle_id,
                 };
                 setSelectedProduct(prodItem);
                 setCheckoutAmount(prodItem.priceNormal.toString());
@@ -65,7 +86,7 @@ export default function CableTV({ currentUser, products, initialProvider, onBack
     };
     fetchProviders();
     return () => { isMounted = false; };
-  }, [initialProvider]);
+  }, [initialProvider, initialPlanId]);
 
   React.useEffect(() => {
     if (initialProvider) {

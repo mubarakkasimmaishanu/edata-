@@ -59,6 +59,10 @@ const ICON_MAP: Record<string, string> = {
 };
 
 function getActionIcon(iconName?: string, network?: string): string {
+  if (iconName && (iconName.startsWith('http://') || iconName.startsWith('https://') || iconName.startsWith('/uploads/') || iconName.startsWith('data:'))) {
+    return resolveImageUrl(iconName);
+  }
+
   const iconLower = (iconName || '').toLowerCase().trim();
   const netLower = (network || '').toLowerCase().trim();
 

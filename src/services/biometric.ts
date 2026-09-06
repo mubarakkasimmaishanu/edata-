@@ -1,4 +1,4 @@
-﻿import { Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { BiometricAuth, BiometryType } from '@aparajita/capacitor-biometric-auth';
 
 const STORAGE_KEY_ENABLED = 'edata_biometric_enabled';
@@ -68,7 +68,7 @@ export async function checkBiometrics(): Promise<BiometricStatus> {
     } else if (info.biometryType === BiometryType.touchId || info.biometryType === BiometryType.fingerprintAuthentication) {
       biometryType = 'fingerprint';
       typeName = 'Fingerprint';
-    } else if (info.biometryType === BiometryType.multiple) {
+    } else if (info.biometryType === (BiometryType as any).multiple) {
       biometryType = 'fingerprint';
       typeName = 'Fingerprint / Face ID';
     }
@@ -133,7 +133,7 @@ export async function enableBiometrics(pin: string): Promise<boolean> {
       cancelTitle: 'Cancel',
       allowDeviceCredential: false,
       iosFallbackTitle: 'Enter PIN',
-    });
+    } as any);
 
     // 2. Store encrypted PIN securely
     const encrypted = encryptPin(pin);
@@ -195,7 +195,7 @@ export async function authenticateWithBiometrics(options?: {
       cancelTitle: 'Use PIN',
       allowDeviceCredential: false,
       iosFallbackTitle: 'Use PIN',
-    });
+    } as any);
 
     return storedPin;
   } catch (err: any) {

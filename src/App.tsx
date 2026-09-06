@@ -532,6 +532,15 @@ function MainApp() {
       virtualAccounts: vAccounts,
     };
 
+    const prevMain = currentUser.mainWallet ?? currentUser.walletBalance;
+    const mainDiff = mainW - prevMain;
+    const now = Date.now();
+    const canToast = now - lastWalletToastRef.current > 10000;
+    if (prevMain > 0 && mainDiff >= 10 && canToast) {
+      lastWalletToastRef.current = now;
+      toast.success(`⚡ Wallet Credited! +₦${mainDiff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Balance: ₦${mainW.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+    }
+
     handleSetCurrentUser(syncedUser);
   };
 
@@ -684,13 +693,15 @@ function MainApp() {
         if (newBalance !== undefined && !isNaN(newBalance)) {
           setCurrentUser(prev => {
             const now = Date.now();
-            const canToast = now - lastWalletToastRef.current > 30000; // Minimum 30s between wallet toast alerts
+            const canToast = now - lastWalletToastRef.current > 10000; // 10s cooldown
 
-            // Only notify if explicitly non-silent (manual refresh), never in background polling
-            const mainDiff = mainW - (prev.mainWallet ?? prev.walletBalance);
-            if (!silent && (prev.mainWallet ?? prev.walletBalance) > 0 && mainDiff >= 50 && canToast) {
+            const prevMain = prev.mainWallet ?? prev.walletBalance;
+            const mainDiff = mainW - prevMain;
+            if (prevMain > 0 && mainDiff >= 10 && canToast) {
               lastWalletToastRef.current = now;
               toast.success(`⚡ Wallet Credited! +₦${mainDiff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Balance: ₦${mainW.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+              syncTransactions(true);
+              syncNotifications(true);
             }
             const updated: UserProfile = {
               ...prev,
@@ -1242,6 +1253,7 @@ function MainApp() {
                     currentUser={currentUser}
                     products={products}
                     initialProvider={preselectedNetwork}
+                    initialPlanId={preselectedPlanId}
                     onBack={handleGoBack}
                     onSuccess={handleGlobalRefresh}
                   />

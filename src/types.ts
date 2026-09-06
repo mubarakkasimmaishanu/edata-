@@ -72,6 +72,7 @@ export interface ProductItem {
   code?: string;
   serviceTypeId?: number | string;
   service_type_id?: number | string;
+  planId?: number;
   bundle_id?: string | null;
   price?: number;
 }
@@ -130,13 +131,16 @@ export interface ManualBank {
 
 export interface QuickAction {
   id: number | string;
+  category_id?: number | null;
+  service_type_id?: number | null;
   title: string;
-  service_type: 'data' | 'airtime' | 'cable' | 'electricity' | 'exams' | 'a2c';
+  service_type: 'data' | 'airtime' | 'cable' | 'electricity' | 'exams' | 'a2c' | string;
   network: string;
   plan_id?: number | null;
   icon: string;
   display_order: number;
   status: number;
+  is_available?: boolean;
 }
 
 export interface PlanTypeItem {

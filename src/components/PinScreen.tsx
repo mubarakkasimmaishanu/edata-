@@ -31,6 +31,7 @@ import {
   checkBiometrics,
   isBiometricsEnabled,
   enableBiometrics,
+  disableBiometrics,
   authenticateWithBiometrics,
   BiometricStatus,
 } from '../services/biometric';
@@ -348,6 +349,13 @@ export default function PinScreen({
           usedMain: resData.used_main !== undefined ? Number(resData.used_main) : (mDeduct > 0 ? mDeduct : undefined),
           rawResult: res,
         });
+
+        // Instant feedback toast notification
+        if (isPending) {
+          toast.info('⏳ Purchase is being processed by the provider.');
+        } else {
+          toast.success(`✅ ${res?.message || 'Purchase completed successfully!'}`);
+        }
       } catch (err: any) {
         setIsSubmitting(false);
         const errMsg = err?.message || 'Transaction failed. Please check your PIN and try again.';
