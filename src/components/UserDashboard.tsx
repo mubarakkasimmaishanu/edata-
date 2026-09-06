@@ -256,7 +256,7 @@ export default function UserDashboard({
   );
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-28">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-36">
       {/* ── 1. Top Header App Bar (Matching Image 1) ── */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-lg safe-top">
         <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ export default function UserDashboard({
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-5 space-y-5 max-w-lg mx-auto w-full">
+      <main className="flex-1 px-4 py-5 space-y-5 max-w-lg mx-auto w-full pb-12">
         {/* ── 2. Hero Wallet Balance Card (Matching Image 1 & 2) ── */}
         <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-4 rounded-[1.8rem] shadow-xl shadow-sky-950/50 relative overflow-hidden border border-sky-400/30 space-y-2.5">
           <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
