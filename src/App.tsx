@@ -141,14 +141,15 @@ function MainApp() {
     } catch { }
     return DEFAULT_USER;
   });
+  const currentUserRef = useRef<UserProfile>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
   const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
   const [lastSynced, setLastSynced] = useState<string>('Never');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
-  // Tracks the last time a wallet change toast was shown to prevent duplicate
-  // toasts from fetchWalletFast and syncProfileAndWallet firing simultaneously.
-  const lastWalletToastRef = useRef<number>(0);
   const [currentScreen, setCurrentScreen] = useState<'auth' | 'app'>(() => {
     return getAuthToken() ? 'app' : 'auth';
   });
@@ -532,15 +533,6 @@ function MainApp() {
       virtualAccounts: vAccounts,
     };
 
-    const prevMain = currentUser.mainWallet ?? currentUser.walletBalance;
-    const mainDiff = mainW - prevMain;
-    const now = Date.now();
-    const canToast = now - lastWalletToastRef.current > 10000;
-    if (prevMain > 0 && mainDiff >= 10 && canToast) {
-      lastWalletToastRef.current = now;
-      toast.success(`⚡ Wallet Credited! +₦${mainDiff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Balance: ₦${mainW.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
-    }
-
     handleSetCurrentUser(syncedUser);
   };
 
@@ -569,6 +561,8 @@ function MainApp() {
         serviceName: t.service_name || null,
         a2cPayable: t.a2c_payable || null,
         a2cBank: t.a2c_bank || null,
+        fee: t.fee !== undefined && t.fee !== null ? parseFloat(t.fee) : undefined,
+        grossAmount: t.gross_amount !== undefined && t.gross_amount !== null ? parseFloat(t.gross_amount) : undefined,
       }));
       setTransactions(mappedTx);
       try { localStorage.setItem('edata_cached_transactions', JSON.stringify(mappedTx)); } catch { }
@@ -692,17 +686,13 @@ function MainApp() {
 
         if (newBalance !== undefined && !isNaN(newBalance)) {
           setCurrentUser(prev => {
-            const now = Date.now();
-            const canToast = now - lastWalletToastRef.current > 10000; // 10s cooldown
-
-            const prevMain = prev.mainWallet ?? prev.walletBalance;
-            const mainDiff = mainW - prevMain;
-            if (prevMain > 0 && mainDiff >= 10 && canToast) {
-              lastWalletToastRef.current = now;
-              toast.success(`⚡ Wallet Credited! +₦${mainDiff.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Balance: ₦${mainW.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`);
+            const prevTotal = prev.totalEffectiveBalance ?? prev.walletBalance;
+            const balanceChanged = Math.abs(newBalance - prevTotal) > 0.01 || Math.abs(mainW - (prev.mainWallet ?? 0)) > 0.01;
+            if (balanceChanged) {
               syncTransactions(true);
               syncNotifications(true);
             }
+
             const updated: UserProfile = {
               ...prev,
               walletBalance: newBalance,

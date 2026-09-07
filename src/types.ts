@@ -54,6 +54,8 @@ export interface Transaction {
   serviceName?: string | null;
   a2cPayable?: number | null;
   a2cBank?: string | null;
+  fee?: number;
+  grossAmount?: number;
 }
 
 export interface ProductItem {
