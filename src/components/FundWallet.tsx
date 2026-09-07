@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, VirtualAccount } from '../types';
-import { ChevronLeft, Copy, Landmark, Check, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info } from 'lucide-react';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 
@@ -24,6 +24,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
 
   // KatPay state
   const [katpayAmount, setKatpayAmount] = useState('2000');
+  const grossKatpay = parseFloat(katpayAmount || '0') || 0;
+  const katpayFee = Math.round(grossKatpay * 0.01 * 100) / 100;
+  const netKatpayCredit = Math.max(0, Math.round((grossKatpay - katpayFee) * 100) / 100);
   const [katpaySubmitting, setKatpaySubmitting] = useState(false);
 
   // Manual funding state
@@ -179,10 +182,16 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
         {/* Tab 1: Virtual / Wallet Accounts */}
         {fundTab === 'virtual' && (
           <div className="space-y-4">
-            <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl">
-              <p className="text-xs text-sky-300">
+            <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl space-y-2">
+              <p className="text-xs text-sky-300 leading-relaxed">
                 Transfer any amount to your dedicated <strong>Wallet Account</strong> below. Your eData wallet will be credited <strong>instantly</strong>.
               </p>
+              <div className="pt-2 border-t border-sky-500/20 flex items-start gap-2 text-[11px] text-amber-300">
+                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
+                <span>
+                  <strong>Notice:</strong> A 1% bank charge applies to all DVA transfers (e.g. ₦1,000 transfer credits <strong>₦990.00</strong> to your wallet).
+                </span>
+              </div>
             </div>
 
             {virtualAccounts.length === 0 ? (
@@ -308,15 +317,21 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
         {/* Tab 2: KatPay Online Checkout */}
         {fundTab === 'katpay' && (
           <form onSubmit={handleKatpayCheckout} className="space-y-4">
-            <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl">
+            <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl space-y-2">
               <p className="text-xs text-sky-300 leading-relaxed">
                 Pay online using <strong>Debit Card, USSD, or Bank Transfer</strong> via KatPay Payment Gateway. Your wallet will be credited automatically.
               </p>
+              <div className="pt-2 border-t border-sky-500/20 flex items-start gap-2 text-[11px] text-amber-300">
+                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
+                <span>
+                  A <strong>1% gateway transaction charge</strong> applies to online checkout funding.
+                </span>
+              </div>
             </div>
 
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Funding Amount (₦)</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Amount to Pay (₦)</label>
                 <input
                   type="number"
                   value={katpayAmount}
@@ -345,6 +360,24 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                 ))}
               </div>
 
+              {/* 1% Charge Calculation Breakdown Card */}
+              <div className="p-3.5 bg-slate-950/80 border border-slate-700/80 rounded-xl space-y-2 text-xs">
+                <div className="flex justify-between items-center text-slate-300">
+                  <span>Payment Amount:</span>
+                  <span className="font-mono font-bold text-white">₦{grossKatpay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center text-amber-400">
+                  <span className="flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" /> 1% Transaction Charge:
+                  </span>
+                  <span className="font-mono font-bold">-₦{katpayFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-emerald-400 font-bold">
+                  <span>Net Wallet Credit:</span>
+                  <span className="text-sm font-mono tracking-wider">₦{netKatpayCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={katpaySubmitting}
@@ -356,7 +389,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                     <span>Connecting KatPay Gateway...</span>
                   </>
                 ) : (
-                  <span>Pay ₦{parseFloat(katpayAmount || '0').toLocaleString()} with KatPay</span>
+                  <span>Pay ₦{grossKatpay.toLocaleString()} with KatPay (Net: ₦{netKatpayCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
                 )}
               </button>
             </div>

@@ -1,20 +1,41 @@
-import { Capacitor } from '@capacitor/core';
+import { registerPlugin, Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, ActionPerformed, PushNotificationSchema } from '@capacitor/push-notifications';
 import { api } from './api';
 
+const NativeNotifier = registerPlugin<{
+  notify: (options: { title: string; body: string }) => Promise<void>;
+}>('NativeNotifier');
+
 let isInitialized = false;
-let currentToast: { info: (msg: string) => void; success: (msg: string) => void } | null = null;
+
+let lastNotifKey = '';
+let lastNotifTime = 0;
+
+/**
+ * Triggers a real Android/iOS system tray / status bar notification.
+ * Posts directly to the phone's notification bar even when inside the app!
+ */
+export async function triggerDeviceNotification(title: string, body: string, data?: any) {
+  if (!Capacitor.isNativePlatform()) return;
+  const key = `${title}::${body}`;
+  const now = Date.now();
+  if (key === lastNotifKey && now - lastNotifTime < 4000) {
+    return;
+  }
+  lastNotifKey = key;
+  lastNotifTime = now;
+  try {
+    await NativeNotifier.notify({ title, body });
+  } catch (err) {
+    console.warn('NativeNotifier.notify error:', err);
+  }
+}
 
 export async function initPushNotifications(
   onNavigate?: (view: string) => void,
-  toast?: { info: (msg: string) => void; success: (msg: string) => void }
+  toast?: any
 ) {
-  if (toast) {
-    currentToast = toast;
-  }
-
   if (!Capacitor.isNativePlatform()) {
-    // Push notifications via Capacitor are native-only (Android/iOS)
     return;
   }
 
@@ -26,7 +47,6 @@ export async function initPushNotifications(
   try {
     // 1. Check & Request Permissions
     let permStatus = await PushNotifications.checkPermissions();
-
     if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
       permStatus = await PushNotifications.requestPermissions();
     }
@@ -54,10 +74,10 @@ export async function initPushNotifications(
       }
     }
 
-    // 3. Register with Apple / Google APNs/FCM
+    // 3. Register with Google FCM
     await PushNotifications.register();
 
-    // 3. Listen for device token
+    // 4. Listen for device token
     await PushNotifications.addListener('registration', async (token: Token) => {
       console.log('Push registration success, device token:', token.value);
       try {
@@ -68,36 +88,27 @@ export async function initPushNotifications(
       }
     });
 
-    // 4. Handle registration errors
+    // 5. Handle registration errors
     await PushNotifications.addListener('registrationError', (error: any) => {
       console.error('Push registration error: ', JSON.stringify(error));
     });
 
-    // 5. Handle foreground push notification received
-    await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+    // 6. Handle foreground push notification received -> POST TO PHONE NOTIFICATION BAR
+    await PushNotifications.addListener('pushNotificationReceived', async (notification: PushNotificationSchema) => {
       console.log('Push notification received in foreground: ', notification);
-      if (currentToast && notification.title) {
-        const notifType = (notification.data?.type || '').toLowerCase();
-        const titleLower = (notification.title || '').toLowerCase();
-        const isPurchase = notifType === 'purchase' || titleLower.includes('purchase');
-        const isWallet = notifType.includes('wallet') || notifType.includes('deposit') || notifType.includes('credit') || titleLower.includes('wallet') || titleLower.includes('credit');
-
-        if (isPurchase) {
-          currentToast.success(`🛍️ ${notification.title}: ${notification.body || ''}`);
-        } else if (isWallet) {
-          currentToast.success(`💰 ${notification.title}: ${notification.body || ''}`);
-        } else {
-          currentToast.info(`🔔 ${notification.title}: ${notification.body || ''}`);
-        }
+      if (notification.title) {
+        await triggerDeviceNotification(
+          notification.title,
+          notification.body || ''
+        );
       }
     });
 
-    // 6. Handle notification click / tap action
+    // 7. Handle notification click / tap action
     await PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
       console.log('Push notification action performed: ', notification);
       const data = notification.notification.data || {};
       const targetView = data.view || data.screen || data.route || 'notifications';
-
       if (onNavigate) {
         onNavigate(targetView);
       }

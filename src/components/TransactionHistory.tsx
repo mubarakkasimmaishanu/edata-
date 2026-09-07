@@ -652,6 +652,30 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
                 </span>
               </div>
 
+              {/* 1% Charge Breakdown for Funding Transactions */}
+              {activeReceipt.fee && activeReceipt.fee > 0 ? (
+                <>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-slate-400 font-medium">Deposited Amount</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      ₦{formatMoney(activeReceipt.grossAmount || (activeReceipt.amount + activeReceipt.fee))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-amber-500 font-medium">1% Bank Charge</span>
+                    <span className="font-mono font-bold text-amber-500">
+                      -₦{formatMoney(activeReceipt.fee)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                    <span className="text-emerald-500 font-bold">Net Credited</span>
+                    <span className="font-mono font-black text-emerald-500">
+                      ₦{formatMoney(activeReceipt.amount)}
+                    </span>
+                  </div>
+                </>
+              ) : null}
+
               {/* Target / Recipient / Phone (if applicable) */}
               {activeReceipt.phoneOrMeter &&
                 activeReceipt.phoneOrMeter !== activeReceipt.reference &&
