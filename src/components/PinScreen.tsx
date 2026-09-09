@@ -350,10 +350,11 @@ export default function PinScreen({
 
         // Calculate expected breakdown if not already returned in resData
         const totalAmountNum = resData.amount ?? (typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : Number(summary?.amount || 0));
+        const isAirtime = summary?.iconType === 'airtime' || serviceTypeLower === 'airtime';
         const isPrem = summary?.userCategory?.toLowerCase().includes('premium');
         const bRate = isPrem ? 0.005 : 0.01;
-        const bTarget = Math.round(totalAmountNum * bRate * 100) / 100;
-        const bAvail = summary?.bonusWallet ?? 0;
+        const bTarget = isAirtime ? 0 : Math.round(totalAmountNum * bRate * 100) / 100;
+        const bAvail = isAirtime ? 0 : (summary?.bonusWallet ?? 0);
         const bDeduct = Math.min(bAvail, bTarget);
         const mDeduct = Math.max(0, Math.round((totalAmountNum - bDeduct) * 100) / 100);
 
@@ -803,10 +804,11 @@ export default function PinScreen({
                 const numericAmount = typeof summary.amount === 'number'
                   ? Math.max(0, summary.amount - promoDiscount)
                   : parseFloat(String(summary.amount || 0));
+                const isAirtime = summary.iconType === 'airtime' || serviceTypeLower === 'airtime';
                 const isPremiumUser = summary.userCategory?.toLowerCase().includes('premium');
                 const bonusRate = isPremiumUser ? 0.005 : 0.01;
-                const maxBonusUsable = Math.round(numericAmount * bonusRate * 100) / 100;
-                const availableBonus = summary.bonusWallet ?? 0;
+                const maxBonusUsable = isAirtime ? 0 : Math.round(numericAmount * bonusRate * 100) / 100;
+                const availableBonus = isAirtime ? 0 : (summary.bonusWallet ?? 0);
                 const bonusDeduction = Math.min(availableBonus, maxBonusUsable);
                 const mainDeduction = Math.max(0, Math.round((numericAmount - bonusDeduction) * 100) / 100);
 
