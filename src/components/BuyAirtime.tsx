@@ -157,7 +157,7 @@ export default function BuyAirtime({ currentUser, products, initialNetwork, onBa
           recipient: targetNumber,
           provider: detectedOperator,
           iconType: 'airtime',
-          bonusWallet: currentUser.bonusWallet,
+          bonusWallet: 0,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
           userCategory: currentUser.category,
           details: discountAmount > 0 ? [
