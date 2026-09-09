@@ -10,3 +10,6 @@ coverage/
 .vercel/
 *.jks
 *.keystore
+*.apk
+*.aab
+scratch/

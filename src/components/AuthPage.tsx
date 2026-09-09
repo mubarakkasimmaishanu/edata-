@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck, Sun, Moon, Check } from 'lucide-react';
 import edataLogo from '../assets/edata_logo.png';
 import { api, setAuthToken } from '../services/api';
+import { getPendingReferral, clearPendingReferral, onReferralCaptured } from '../services/deepLink';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { UserProfile } from '../types';
@@ -32,10 +33,31 @@ export default function AuthPage({
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
-  const [authPromo, setAuthPromo] = useState('');
+  const [authPromo, setAuthPromo] = useState(() => {
+    try {
+      return getPendingReferral() || '';
+    } catch {
+      return '';
+    }
+  });
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Listen for captured referral codes from Deep Links or Deferred Clipboard bridge
+  useEffect(() => {
+    const pending = getPendingReferral();
+    if (pending && pending.trim()) {
+      setAuthPromo(pending.trim().toUpperCase());
+      setIsRegistering(true);
+    }
+    const unsub = onReferralCaptured((code) => {
+      setAuthPromo(code);
+      setIsRegistering(true);
+      toast.info(`Referral code applied: ${code}`);
+    });
+    return unsub;
+  }, []);
 
   // OTP Fields
   const [otpCode, setOtpCode] = useState('');
@@ -347,6 +369,7 @@ export default function AuthPage({
         onLoginSuccess(res.data.token);
         toast.success(res.message || 'Registration completed successfully! Welcome to eData.');
         setRegPassword(''); setRegConfirmPassword('');
+        clearPendingReferral();
       } else {
         toast.error(res.error || 'Registration failed.');
       }
@@ -484,9 +507,16 @@ export default function AuthPage({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
-                        Referral / Promo Code <span className={`${theme === 'light' ? 'text-slate-400' : 'text-slate-500'} font-normal`}>(Optional)</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
+                          Referral / Promo Code <span className={`${theme === 'light' ? 'text-slate-400' : 'text-slate-500'} font-normal`}>(Optional)</span>
+                        </label>
+                        {authPromo && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-500 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
+                            <Check className="w-3 h-3" /> Auto-Applied
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         name="promo"
@@ -499,7 +529,7 @@ export default function AuthPage({
                           theme === 'light'
                             ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 shadow-xs'
                             : 'bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500'
-                        }`}
+                        } ${authPromo ? 'border-sky-500/50 bg-sky-500/5' : ''}`}
                       />
                     </div>
                     <label className="flex items-center gap-2.5 pt-1 cursor-pointer">

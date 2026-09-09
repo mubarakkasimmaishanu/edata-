@@ -25,7 +25,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
 
   // Derived fallbacks in case API is loading / offline
   const fallbackCode = currentUser.phone || currentUser.email?.split('@')[0] || String(currentUser.id || 'EDATA');
-  const fallbackLink = `https://edata.com.ng/register?ref=${encodeURIComponent(fallbackCode)}`;
+  const fallbackLink = `https://edata.com.ng/join?ref=${encodeURIComponent(fallbackCode)}`;
 
   useEffect(() => {
     fetchConfig();
