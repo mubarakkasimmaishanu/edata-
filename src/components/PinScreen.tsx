@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import PinInput from './PinInput';
 import { api } from '../services/api';
+import { triggerDeviceNotification } from '../services/pushNotification';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { isValidRecipient } from '../utils/phoneValidation';
@@ -315,10 +316,35 @@ export default function PinScreen({
         return;
       }
       setIsSubmitting(true);
+      let res: any = null;
       try {
-        const res: any = await onSubmitPurchase(completedValue, requiresRecipient ? recipientPhone.trim() : undefined, appliedPromoCode || undefined);
+        res = await onSubmitPurchase(completedValue, requiresRecipient ? recipientPhone.trim() : undefined, appliedPromoCode || undefined);
+      } catch (err: any) {
         setIsSubmitting(false);
+        const errMsg = err?.message || 'Transaction failed. Please check your PIN and try again.';
+        if (errMsg.toLowerCase().includes('pin') && isBiometricsEnabled()) {
+          disableBiometrics();
+          setBioStatus(prev => prev ? ({ ...prev, isEnabled: false }) : null);
+          toast.info('Biometric link refreshed. Please type your 4-digit PIN.');
+        }
+        setErrorMessage(errMsg);
+        setPin('');
 
+        setTransactionResult({
+          open: true,
+          status: 'failed',
+          title: 'Purchase Failed ❌',
+          message: errMsg,
+          amount: typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : summary?.amount,
+          recipient: requiresRecipient ? recipientPhone.trim() : summary?.recipient,
+          serviceName: summary?.title || 'Purchase',
+        });
+        return;
+      }
+
+      setIsSubmitting(false);
+
+      try {
         const resData = res?.data || {};
         const isPending = resData.status === 'Pending' || res?.status === 'Pending' || res?.status === 'pending';
 
@@ -330,6 +356,20 @@ export default function PinScreen({
         const bAvail = summary?.bonusWallet ?? 0;
         const bDeduct = Math.min(bAvail, bTarget);
         const mDeduct = Math.max(0, Math.round((totalAmountNum - bDeduct) * 100) / 100);
+
+        // Safely trigger phone notification bar alert
+        try {
+          const deviceNotifTitle = isPending ? 'Purchase Processing' : 'Purchase Successful';
+          const deviceNotifBody = res?.message || `${summary?.title || 'Purchase'} was completed successfully.`;
+          triggerDeviceNotification(deviceNotifTitle, deviceNotifBody, {
+            type: 'purchase',
+            reference: resData.reference || resData.ref,
+            service: summary?.title,
+            amount: totalAmountNum
+          });
+        } catch (notifErr) {
+          console.warn('triggerDeviceNotification error:', notifErr);
+        }
 
         setTransactionResult({
           open: true,
@@ -356,25 +396,17 @@ export default function PinScreen({
         } else {
           toast.success(`✅ ${res?.message || 'Purchase completed successfully!'}`);
         }
-      } catch (err: any) {
-        setIsSubmitting(false);
-        const errMsg = err?.message || 'Transaction failed. Please check your PIN and try again.';
-        if (errMsg.toLowerCase().includes('pin') && isBiometricsEnabled()) {
-          disableBiometrics();
-          setBioStatus(prev => prev ? ({ ...prev, isEnabled: false }) : null);
-          toast.info('Biometric link refreshed. Please type your 4-digit PIN.');
-        }
-        setErrorMessage(errMsg);
-        setPin('');
-
+      } catch (renderErr) {
+        console.error('Post purchase handling error:', renderErr);
         setTransactionResult({
           open: true,
-          status: 'failed',
-          title: 'Purchase Failed ❌',
-          message: errMsg,
+          status: 'success',
+          title: 'Purchase Successful! ✅',
+          message: res?.message || 'Your transaction was completed successfully!',
           amount: typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : summary?.amount,
           recipient: requiresRecipient ? recipientPhone.trim() : summary?.recipient,
           serviceName: summary?.title || 'Purchase',
+          rawResult: res,
         });
       }
     } else if (mode === 'upgrade_pin') {

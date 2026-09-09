@@ -29,6 +29,17 @@
                 <data android:scheme="com.eDATA.app" />
             </intent-filter>
 
+            <!-- Android App Links for edata.com.ng (Auto-verified via .well-known/assetlinks.json) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="edata.com.ng" android:pathPrefix="/join" />
+                <data android:scheme="https" android:host="edata.com.ng" android:pathPrefix="/r" />
+                <data android:scheme="https" android:host="www.edata.com.ng" android:pathPrefix="/join" />
+                <data android:scheme="https" android:host="www.edata.com.ng" android:pathPrefix="/r" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -40,6 +51,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+            <!-- Custom Firebase Messaging Service for foreground system tray display -->
+        
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="edata_main_channel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
     </application>
 
     <!-- Permissions -->

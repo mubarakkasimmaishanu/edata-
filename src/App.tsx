@@ -7,6 +7,7 @@ import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from '
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
+import { initDeepLinking, onReferralCaptured } from './services/deepLink';
 
 // Eager: always visible on cold start OR needed instantly (no route wait
 // is acceptable). Dashboard is the entry point, BottomNav sits over every
@@ -230,9 +231,19 @@ function MainApp() {
       });
     }).catch(() => { });
 
+    // Initialize Deep Linking (Direct App Links + Deferred Clipboard/Referrer Bridge)
+    initDeepLinking();
+    const unsubReferral = onReferralCaptured((code) => {
+      console.log('[App] Referral code received:', code);
+      if (!getAuthToken()) {
+        setCurrentScreen('auth');
+      }
+    });
+
     return () => {
       cancelled = true;
       if (removeListener) removeListener();
+      unsubReferral();
     };
   }, []);
 
