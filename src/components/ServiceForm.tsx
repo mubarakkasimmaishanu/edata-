@@ -277,6 +277,60 @@ export function formatPlanSectionTitle(rawTitle: string): string {
   return title;
 }
 
+export function parsePlanDurationDays(planName?: string, planTypeName?: string): number {
+  const pn = String(planName || '').toLowerCase().trim();
+  const pt = String(planTypeName || '').toLowerCase().trim();
+
+  for (const text of [pn, pt]) {
+    if (!text) continue;
+
+    // 1. Explicit day counts e.g. "30 Days", "7 Days", "1 - 2 Days", "14-30 days", "1day"
+    const mDay = text.match(/(\d+)\s*(?:-\s*(\d+))?\s*(?:day|days|d)\b/i);
+    if (mDay) return parseInt(mDay[1], 10);
+
+    // 2. Hours e.g. "24 Hours", "24hrs", "48 hrs"
+    const mHr = text.match(/(\d+)\s*(?:hour|hours|hrs|hr)\b/i);
+    if (mHr) return Math.max(1, Math.round(parseInt(mHr[1], 10) / 24));
+
+    // 3. Weeks e.g. "1 Week", "2 Weeks", "weekly"
+    const mWk = text.match(/(\d+)\s*(?:week|weeks|wk|wks)\b/i);
+    if (mWk) return parseInt(mWk[1], 10) * 7;
+    if (text.includes('weekly')) return 7;
+
+    // 4. Months e.g. "1 Month", "2 Months", "3 Months", "monthly"
+    const mMo = text.match(/(\d+)\s*(?:month|months|mo|mth|mths)\b/i);
+    if (mMo) return parseInt(mMo[1], 10) * 30;
+    if (text.includes('monthly')) return 30;
+
+    // 5. Yearly / Annual: e.g. "1 Year", "yearly", "annual", "365"
+    if (text.includes('yearly') || text.includes('annual') || text.includes('1 year') || text.includes('365')) return 365;
+
+    // 6. Daily
+    if (text.includes('daily')) return 1;
+  }
+
+  // Default standard data bundle duration is 30 days
+  return 30;
+}
+
+export function parsePlanDataSizeMb(planName?: string): number {
+  const pn = String(planName || '').toLowerCase().trim();
+
+  const mTb = pn.match(/(\d+(?:\.\d+)?)\s*(?:tb)\b/i);
+  if (mTb) return parseFloat(mTb[1]) * 1024 * 1024;
+
+  const mGb = pn.match(/(\d+(?:\.\d+)?)\s*(?:gb)\b/i);
+  if (mGb) return parseFloat(mGb[1]) * 1024;
+
+  const mMb = pn.match(/(\d+(?:\.\d+)?)\s*(?:mb)\b/i);
+  if (mMb) return parseFloat(mMb[1]);
+
+  const mKb = pn.match(/(\d+(?:\.\d+)?)\s*(?:kb)\b/i);
+  if (mKb) return parseFloat(mKb[1]) / 1024;
+
+  return 0;
+}
+
 interface ServiceFormProps {
   dynamicDiscos?: ElectricityDisco[];
   dynamicCableProviders?: CableProvider[];
@@ -367,6 +421,11 @@ export default function ServiceForm(props: ServiceFormProps) {
   React.useEffect(() => () => {
     if (detectNetworkTimerRef.current) clearTimeout(detectNetworkTimerRef.current);
   }, []);
+
+  // Reset data plan type filter to 'ALL' whenever the selected or detected network changes
+  React.useEffect(() => {
+    setDataTypeFilter('ALL');
+  }, [detectedOperator]);
 
   // Android back closes an open modal before letting the app-level
   // history handler pop the parent screen. Both modals register; the
@@ -1266,15 +1325,19 @@ export default function ServiceForm(props: ServiceFormProps) {
                             chips from codes that only appear on plans; if
                             the admin didn't register a plan type, it does
                             not render here. */}
-                        {/* Dynamic Category Filter Chips — pure mirror of admin-defined `plan_types`. */}
+                        {/* Dynamic Category Filter Chips — strictly filtered to the active network */}
                         {(() => {
+                          // Only include plan types that actually belong to the current network and have active plans in dataProds.
+                          // This guarantees that MTN never shows Airtel, Glo, or 9mobile plan types, and vice versa.
+                          const networkPlanTypes = (planTypes && planTypes.length > 0)
+                            ? planTypes.filter(pt => dataProds.some(p => Number(p.planTypeId) === Number(pt.id)))
+                            : [];
+
                           const chipList: Array<{ id: string; label: string }> = [{ id: 'ALL', label: 'ALL' }];
-                          if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach(pt => {
-                              const cleanName = pt.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || pt.name;
-                              chipList.push({ id: String(pt.id), label: cleanName });
-                            });
-                          }
+                          networkPlanTypes.forEach(pt => {
+                            const cleanName = pt.name.replace(/\s*(data|plan|plans)/gi, '').trim().toUpperCase() || pt.name;
+                            chipList.push({ id: String(pt.id), label: cleanName });
+                          });
 
                           return (
                             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
@@ -1324,6 +1387,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                             );
                           }
 
+                          // Filter planTypes strictly to the current active network
+                          const networkPlanTypes = (planTypes && planTypes.length > 0)
+                            ? planTypes.filter(pt => dataProds.some(p => Number(p.planTypeId) === Number(pt.id)))
+                            : [];
+
                           const colorPalette = [
                             'text-amber-400', 'text-emerald-400', 'text-sky-400',
                             'text-rose-400', 'text-purple-400', 'text-amber-300',
@@ -1331,8 +1399,8 @@ export default function ServiceForm(props: ServiceFormProps) {
                           ];
                           const dynamicLabels: Record<number, { title: string; color: string }> = {};
 
-                          if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach((pt, idx) => {
+                          if (networkPlanTypes.length > 0) {
+                            networkPlanTypes.forEach((pt, idx) => {
                               dynamicLabels[pt.id] = {
                                 title: formatPlanSectionTitle(pt.name),
                                 color: colorPalette[idx % colorPalette.length],
@@ -1348,8 +1416,8 @@ export default function ServiceForm(props: ServiceFormProps) {
                           });
 
                           const groupIds: number[] = [];
-                          if (planTypes && planTypes.length > 0) {
-                            planTypes.forEach(pt => groupIds.push(pt.id));
+                          if (networkPlanTypes.length > 0) {
+                            networkPlanTypes.forEach(pt => groupIds.push(pt.id));
                           }
                           if (groups[0] && !groupIds.includes(0)) {
                             groupIds.push(0);
@@ -1358,6 +1426,24 @@ export default function ServiceForm(props: ServiceFormProps) {
                           return groupIds.map(key => {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
+
+                            // Sort plans under this plan type strictly in ascending order of duration, then data size, then price
+                            items.sort((a, b) => {
+                              const durA = parsePlanDurationDays(a.name, a.planTypeName);
+                              const durB = parsePlanDurationDays(b.name, b.planTypeName);
+                              if (durA !== durB) return durA - durB;
+
+                              const sizeA = parsePlanDataSizeMb(a.name);
+                              const sizeB = parsePlanDataSizeMb(b.name);
+                              if (sizeA > 0 || sizeB > 0) {
+                                if (sizeA !== sizeB) return sizeA - sizeB;
+                              }
+
+                              const priceA = getDynamicPrice(a);
+                              const priceB = getDynamicPrice(b);
+                              return priceA - priceB;
+                            });
+
                             const meta = dynamicLabels[key] || {
                               title: key === 0 ? 'General' : `Plan Type #${key}`,
                               color: 'text-sky-400',
