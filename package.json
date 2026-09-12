@@ -1,7 +1,7 @@
 {
   "name": "edata-mobile",
   "private": true,
-  "version": "2.3.12",
+  "version": "2.3.13",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
