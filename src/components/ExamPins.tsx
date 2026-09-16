@@ -222,7 +222,9 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
           provider: detectedOperator,
           iconType: 'exam',
           bonusWallet: currentUser.bonusWallet,
+          commissionWallet: currentUser.commissionWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+          costPrice: selectedProduct?.cost_price ? Number(selectedProduct.cost_price) * quantity : undefined,
           userCategory: currentUser.category,
           details: [{ label: 'Quantity', value: `${quantity} Card(s)` }],
         }}

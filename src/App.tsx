@@ -6,6 +6,10 @@ import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem, Popup
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
+import { AppVersionData } from './types';
+import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate } from './services/appUpdateService';
+import ForceUpdateScreen from './components/ForceUpdateScreen';
+import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
 
@@ -69,6 +73,45 @@ type ActiveView =
 
 function MainApp() {
   const toast = useToast();
+  const [appUpdateData, setAppUpdateData] = useState<AppVersionData | null>(null);
+  const [isUpdateDismissed, setIsUpdateDismissed] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+
+  // --- WhatsApp / OPay / Moniepoint Version Handshake & Grace Period Deprecation ---
+  const runVersionCheck = async () => {
+    try {
+      const data = await checkAppUpdate('android');
+      if (!data) return;
+
+      setAppUpdateData(data);
+
+      const isForce = data.update_type === 'FORCE' || data.is_expired || data.days_to_expire <= 0;
+      if (isForce) {
+        setIsUpdateDismissed(false);
+      } else if (data.update_type === 'FLEXIBLE') {
+        const snoozed = isUpdateSnoozed(data.latest_version);
+        if (snoozed) {
+          setIsUpdateDismissed(true);
+        }
+      }
+    } catch (err) {
+      console.warn('[AppUpdate] Error running version check:', err);
+    }
+  };
+
+  useEffect(() => {
+    runVersionCheck();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        runVersionCheck();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
   const [subscribers, setSubscribers] = useState<UserProfile[]>(INITIAL_SUBSCRIBERS);
   const [products, setProducts] = useState<ProductItem[]>(() => {
     try {
@@ -510,11 +553,36 @@ function MainApp() {
       } catch { }
     }
 
-    const mainW = parseFloat(walletRes?.data?.main_wallet ?? walletRes?.data?.balance ?? parsedBalance);
-    const commW = parseFloat(walletRes?.data?.commission_wallet ?? 0);
-    const bonusW = parseFloat(walletRes?.data?.bonus_wallet ?? 0);
-    const bonusExp = walletRes?.data?.bonus_expires_at ?? null;
-    const totalEff = parseFloat(walletRes?.data?.total_effective_balance ?? (mainW + commW + bonusW));
+    // Tiered wallet resolution:
+    // 1. walletRes.data (from /api/wallet)
+    // 2. profileRes.data.wallet (from /api/profile)
+    // 3. Fall back to existing currentUser state to PREVENT poor-network tripartite collapse
+    const incomingWallet = (walletRes?.data?.main_wallet !== undefined || walletRes?.data?.balance !== undefined)
+      ? walletRes.data
+      : (user?.wallet?.main_wallet !== undefined || user?.wallet?.balance !== undefined)
+        ? user.wallet
+        : null;
+
+    let mainW: number;
+    let commW: number;
+    let bonusW: number;
+    let bonusExp: string | null;
+    let totalEff: number;
+
+    if (incomingWallet) {
+      mainW = parseFloat(incomingWallet.main_wallet ?? incomingWallet.balance ?? currentUser.mainWallet ?? 0);
+      commW = incomingWallet.commission_wallet !== undefined ? parseFloat(incomingWallet.commission_wallet) : (currentUser.commissionWallet ?? 0);
+      bonusW = incomingWallet.bonus_wallet !== undefined ? parseFloat(incomingWallet.bonus_wallet) : (currentUser.bonusWallet ?? 0);
+      bonusExp = incomingWallet.bonus_expires_at !== undefined ? incomingWallet.bonus_expires_at : (currentUser.bonusExpiresAt ?? null);
+      totalEff = parseFloat(incomingWallet.total_effective_balance ?? (mainW + commW + bonusW));
+    } else {
+      // Offline / poor network: keep cached tripartite balances intact!
+      mainW = currentUser.mainWallet !== undefined ? currentUser.mainWallet : (parsedBalance ?? 0);
+      commW = currentUser.commissionWallet ?? 0;
+      bonusW = currentUser.bonusWallet ?? 0;
+      bonusExp = currentUser.bonusExpiresAt ?? null;
+      totalEff = currentUser.totalEffectiveBalance ?? (mainW + commW + bonusW);
+    }
 
     const syncedUser: UserProfile = {
       id: user.id || currentUser.id,
@@ -688,15 +756,15 @@ function MainApp() {
       }
       if (walletRes && walletRes.success !== false) {
         const walletData = walletRes.data || walletRes;
-        const mainW = parseFloat(walletData?.main_wallet ?? walletData?.balance ?? 0);
-        const commW = parseFloat(walletData?.commission_wallet ?? 0);
-        const bonusW = parseFloat(walletData?.bonus_wallet ?? 0);
-        const bonusExp = walletData?.bonus_expires_at ?? null;
-        const totalEff = parseFloat(walletData?.total_effective_balance ?? (mainW + commW + bonusW));
-        const newBalance = totalEff > 0 ? totalEff : mainW;
-
-        if (newBalance !== undefined && !isNaN(newBalance)) {
+        if (walletData && (walletData.main_wallet !== undefined || walletData.balance !== undefined)) {
           setCurrentUser(prev => {
+            const mainW = parseFloat(walletData?.main_wallet ?? walletData?.balance ?? prev.mainWallet ?? 0);
+            const commW = walletData?.commission_wallet !== undefined ? parseFloat(walletData.commission_wallet) : (prev.commissionWallet ?? 0);
+            const bonusW = walletData?.bonus_wallet !== undefined ? parseFloat(walletData.bonus_wallet) : (prev.bonusWallet ?? 0);
+            const bonusExp = walletData?.bonus_expires_at !== undefined ? walletData.bonus_expires_at : (prev.bonusExpiresAt ?? null);
+            const totalEff = parseFloat(walletData?.total_effective_balance ?? (mainW + commW + bonusW));
+            const newBalance = totalEff > 0 ? totalEff : mainW;
+
             const prevTotal = prev.totalEffectiveBalance ?? prev.walletBalance;
             const balanceChanged = Math.abs(newBalance - prevTotal) > 0.01 || Math.abs(mainW - (prev.mainWallet ?? 0)) > 0.01;
             if (balanceChanged) {
@@ -1200,6 +1268,15 @@ function MainApp() {
             />
           ) : (
             <>
+              {/* Grace Period Countdown Top Banner (WhatsApp/OPay style) */}
+              {appUpdateData && appUpdateData.update_type === 'FLEXIBLE' && appUpdateData.days_to_expire > 0 && !isBannerDismissed && (
+                <GracePeriodBanner
+                  updateData={appUpdateData}
+                  onOpenModal={() => setIsUpdateDismissed(false)}
+                  onDismiss={() => setIsBannerDismissed(true)}
+                />
+              )}
+
               {/* Dashboard is eager — renders instantly on entry, no chunk fetch. */}
               {activeView === 'dashboard' && (
                 <UserDashboard
@@ -1406,6 +1483,21 @@ function MainApp() {
             users too. Only one popup is ever on screen; the effect that
             picks `activePopup` promotes the next qualifying popup after
             the current one is dismissed. */}
+        {/* --- WhatsApp / OPay / Moniepoint Professional Force Update Gate --- */}
+        {appUpdateData && (appUpdateData.update_type === 'FORCE' || (!isUpdateDismissed && appUpdateData.update_type === 'FLEXIBLE')) && (
+          <ForceUpdateScreen
+            updateData={appUpdateData}
+            onSnooze={
+              appUpdateData.update_type === 'FLEXIBLE'
+                ? () => {
+                    snoozeUpdate(appUpdateData.latest_version);
+                    setIsUpdateDismissed(true);
+                  }
+                : undefined
+            }
+          />
+        )}
+
         {activePopup && (
           <PopupBanner
             popup={activePopup}

@@ -138,7 +138,9 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
           provider: selectedProduct.operator || detectedOperator,
           iconType: 'data',
           bonusWallet: currentUser.bonusWallet,
+          commissionWallet: currentUser.commissionWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+          costPrice: selectedProduct.cost_price || selectedProduct.costPrice,
           userCategory: currentUser.category,
         }}
         onBack={() => setShowPinScreen(false)}

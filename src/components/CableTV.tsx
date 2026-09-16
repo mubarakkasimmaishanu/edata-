@@ -203,7 +203,9 @@ export default function CableTV({ currentUser, products, initialProvider, initia
           provider: detectedOperator,
           iconType: 'cable',
           bonusWallet: currentUser.bonusWallet,
+          commissionWallet: currentUser.commissionWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
+          costPrice: selectedProduct.cost_price || selectedProduct.costPrice,
           userCategory: currentUser.category,
           details: customerName ? [{ label: 'Subscriber Name', value: customerName }] : undefined,
         }}

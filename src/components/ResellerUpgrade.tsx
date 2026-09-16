@@ -41,7 +41,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
   const upgradeFeeLabel = upgradeFee > 0
     ? `₦${upgradeFee.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
     : '—';
-  const walletBalance = currentUser.walletBalance || 0;
+  const walletBalance = currentUser.mainWallet !== undefined ? currentUser.mainWallet : (currentUser.walletBalance || 0);
   const hasEnoughBalance = upgradeFee > 0 && walletBalance >= upgradeFee;
   const isAlreadyPremium = currentUser.category === 'Premium User';
   const isPending = Boolean(currentUser.hasPendingUpgrade);
@@ -191,7 +191,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
                 <h2 className={`text-base font-black ${headingText}`}>Insufficient Wallet Balance</h2>
                 <p className={`text-xs ${bodyText} mt-0.5`}>
                   {upgradeFee > 0
-                    ? <>Add <strong>₦{(upgradeFee - walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong> to your wallet to complete the {upgradeFeeLabel} upgrade.</>
+                    ? <>Add <strong>₦{(upgradeFee - walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong> to your main wallet to complete the {upgradeFeeLabel} upgrade.</>
                     : 'Waiting for the current upgrade fee from server. Please try again in a moment.'}
                 </p>
               </div>
@@ -200,7 +200,7 @@ export default function ResellerUpgrade({ currentUser, onBack, onSuccess, onNavi
             <div className={`p-3 rounded-2xl border flex items-center justify-between ${
               theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'
             }`}>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${bodyText}`}>Wallet Balance</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${bodyText}`}>Main Wallet Balance</span>
               <span className={`text-sm font-black font-mono ${headingText}`}>
                 ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>

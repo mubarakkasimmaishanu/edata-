@@ -12,4 +12,4 @@ coverage/
 *.keystore
 *.apk
 *.aab
-scratch/
+scratch/*.abb
