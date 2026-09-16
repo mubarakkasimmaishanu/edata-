@@ -295,3 +295,25 @@ export interface CableProvider {
   description?: string;
   plans?: CablePlan[];
 }
+
+// --- App Version & Force Update Governance ---
+export type AppUpdateType = 'FORCE' | 'FLEXIBLE' | 'NONE';
+
+export interface AppVersionData {
+  update_required: boolean;
+  update_type: AppUpdateType;
+  is_expired: boolean;
+  days_to_expire: number;
+  deadline_date?: string | null;
+  deadline_formatted?: string | null;
+  latest_version: string;
+  installed_version: string;
+  min_version?: string;
+  title: string;
+  message: string;
+  release_notes: string[];
+  play_store_url: string;
+  market_url?: string;
+  direct_apk_url?: string | null;
+  support_whatsapp?: string;
+}

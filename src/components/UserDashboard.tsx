@@ -396,11 +396,15 @@ export default function UserDashboard({
             <div className="flex items-center justify-between px-3.5 py-2 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[11px] font-bold text-sky-100 font-display tracking-tight truncate">Bonus</span>
-                {currentUser.bonusExpiresAt && (
-                  <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/35 px-1.5 py-0.2 rounded-full border border-amber-400/40 shrink-0">
-                    14d
-                  </span>
-                )}
+                {currentUser.bonusExpiresAt && (currentUser.bonusWallet ?? 0) > 0 && (() => {
+                  const diffMs = new Date(currentUser.bonusExpiresAt).getTime() - Date.now();
+                  const daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                  return (
+                    <span className="text-[7.5px] font-bold text-amber-200 bg-amber-500/35 px-1.5 py-0.2 rounded-full border border-amber-400/40 shrink-0">
+                      {daysLeft}d
+                    </span>
+                  );
+                })()}
               </div>
               <span className="text-xs font-black text-amber-300 font-mono tabular-nums ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.bonusWallet ?? 0)}

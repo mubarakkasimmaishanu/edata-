@@ -71,7 +71,9 @@ export interface PurchaseSummary {
   iconType?: 'airtime' | 'data' | 'cable' | 'electricity' | 'exam' | 'a2c' | 'upgrade';
   details?: { label: string; value: string }[];
   bonusWallet?: number;
+  commissionWallet?: number;
   mainWallet?: number;
+  costPrice?: number;
   userCategory?: string;
 }
 
@@ -143,6 +145,7 @@ export default function PinScreen({
     airtimeValue?: string;
     discountRate?: string;
     usedBonus?: number;
+    usedCommission?: number;
     usedMain?: number;
     rawResult?: any;
   } | null>(null);
@@ -351,12 +354,15 @@ export default function PinScreen({
         // Calculate expected breakdown if not already returned in resData
         const totalAmountNum = resData.amount ?? (typeof summary?.amount === 'number' ? Math.max(0, summary.amount - promoDiscount) : Number(summary?.amount || 0));
         const isAirtime = summary?.iconType === 'airtime' || serviceTypeLower === 'airtime';
-        const isPrem = summary?.userCategory?.toLowerCase().includes('premium');
-        const bRate = isPrem ? 0.005 : 0.01;
-        const bTarget = isAirtime ? 0 : Math.round(totalAmountNum * bRate * 100) / 100;
+        const costPrice = summary?.costPrice ?? totalAmountNum;
+        const profit = Math.max(0, Math.round((totalAmountNum - costPrice) * 100) / 100);
+        const maxBonus = isAirtime ? 0 : Math.round(profit * 0.50 * 100) / 100;
+        const maxComm = isAirtime ? 0 : Math.round(profit * 0.50 * 100) / 100;
         const bAvail = isAirtime ? 0 : (summary?.bonusWallet ?? 0);
-        const bDeduct = Math.min(bAvail, bTarget);
-        const mDeduct = Math.max(0, Math.round((totalAmountNum - bDeduct) * 100) / 100);
+        const cAvail = isAirtime ? 0 : (summary?.commissionWallet ?? 0);
+        const bDeduct = Math.min(bAvail, maxBonus);
+        const cDeduct = Math.min(cAvail, maxComm);
+        const mDeduct = Math.max(0, Math.round((totalAmountNum - bDeduct - cDeduct) * 100) / 100);
 
         // Safely trigger phone notification bar alert
         try {
@@ -387,6 +393,7 @@ export default function PinScreen({
           airtimeValue: resData.face_amount ? ('₦' + Number(resData.face_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })) : summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
           discountRate: summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
           usedBonus: resData.used_bonus !== undefined ? Number(resData.used_bonus) : (bDeduct > 0 ? bDeduct : undefined),
+          usedCommission: resData.used_commission !== undefined ? Number(resData.used_commission) : (cDeduct > 0 ? cDeduct : undefined),
           usedMain: resData.used_main !== undefined ? Number(resData.used_main) : (mDeduct > 0 ? mDeduct : undefined),
           rawResult: res,
         });
@@ -799,18 +806,23 @@ export default function PinScreen({
                 </div>
               )}
 
-              {/* ── Bonus & Main Wallet Deduction Breakdown (Before PIN Entry) ── */}
+              {/* ── Tripartite Wallet Deduction Breakdown (Before PIN Entry) ── */}
               {(() => {
                 const numericAmount = typeof summary.amount === 'number'
                   ? Math.max(0, summary.amount - promoDiscount)
                   : parseFloat(String(summary.amount || 0));
                 const isAirtime = summary.iconType === 'airtime' || serviceTypeLower === 'airtime';
-                const isPremiumUser = summary.userCategory?.toLowerCase().includes('premium');
-                const bonusRate = isPremiumUser ? 0.005 : 0.01;
-                const maxBonusUsable = isAirtime ? 0 : Math.round(numericAmount * bonusRate * 100) / 100;
+                const costPrice = summary.costPrice !== undefined ? summary.costPrice : numericAmount;
+                const profit = Math.max(0, Math.round((numericAmount - costPrice) * 100) / 100);
+
+                const maxBonus = isAirtime ? 0 : Math.round(profit * 0.50 * 100) / 100;
+                const maxComm = isAirtime ? 0 : Math.round(profit * 0.50 * 100) / 100;
                 const availableBonus = isAirtime ? 0 : (summary.bonusWallet ?? 0);
-                const bonusDeduction = Math.min(availableBonus, maxBonusUsable);
-                const mainDeduction = Math.max(0, Math.round((numericAmount - bonusDeduction) * 100) / 100);
+                const availableComm = isAirtime ? 0 : (summary.commissionWallet ?? 0);
+
+                const bonusDeduction = Math.min(availableBonus, maxBonus);
+                const commDeduction = Math.min(availableComm, maxComm);
+                const mainDeduction = Math.max(0, Math.round((numericAmount - bonusDeduction - commDeduction) * 100) / 100);
 
                 return (
                   <div className="mt-2 pt-2 border-t border-slate-800/60 space-y-1 text-left">
@@ -819,35 +831,39 @@ export default function PinScreen({
                       <span className="font-bold text-slate-200">eData Wallet</span>
                     </div>
 
-                    {bonusDeduction > 0 ? (
-                      <>
-                        <div className="flex items-center justify-between text-[11px] bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg">
-                          <span className="text-amber-300 font-semibold flex items-center gap-1">
-                            <span>Bonus Wallet:</span>
-                          </span>
-                          <span className="font-mono font-bold text-amber-300">
-                            -₦{bonusDeduction.toFixed(2)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
-                          <span className="text-slate-300 font-semibold">Main Wallet to Deduct:</span>
-                          <span className="font-mono font-black text-sky-400">
-                            ₦{mainDeduction.toFixed(2)}
-                          </span>
-                        </div>
-
-                        <p className="text-[9.5px] text-slate-400 leading-tight px-1 italic">
-                          💡 ₦{bonusDeduction.toFixed(2)} will be paid from your bonus wallet.
-                        </p>
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
-                        <span className="text-slate-300 font-semibold">Main Wallet to Deduct:</span>
-                        <span className="font-mono font-black text-white">
-                          ₦{numericAmount.toFixed(2)}
+                    {bonusDeduction > 0 && (
+                      <div className="flex items-center justify-between text-[11px] bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg">
+                        <span className="text-amber-300 font-semibold flex items-center gap-1">
+                          <span>Bonus Wallet:</span>
+                        </span>
+                        <span className="font-mono font-bold text-amber-300">
+                          -₦{bonusDeduction.toFixed(2)}
                         </span>
                       </div>
+                    )}
+
+                    {commDeduction > 0 && (
+                      <div className="flex items-center justify-between text-[11px] bg-emerald-500/10 border border-emerald-500/25 px-2 py-1 rounded-lg">
+                        <span className="text-emerald-300 font-semibold flex items-center gap-1">
+                          <span>Commission Wallet:</span>
+                        </span>
+                        <span className="font-mono font-bold text-emerald-300">
+                          -₦{commDeduction.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
+                      <span className="text-slate-300 font-semibold">Main Wallet to Deduct:</span>
+                      <span className="font-mono font-black text-sky-400">
+                        ₦{mainDeduction.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {(bonusDeduction > 0 || commDeduction > 0) && (
+                      <p className="text-[9.5px] text-slate-400 leading-tight px-1 italic">
+                        💡 100% cost covered by Main Wallet; profit split with bonus &amp; commission.
+                      </p>
                     )}
                   </div>
                 );
@@ -1311,6 +1327,18 @@ export default function PinScreen({
                     </span>
                     <span className="font-mono font-bold text-amber-400">
                       -₦{transactionResult.usedBonus.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Commission Wallet Deduction */}
+                {transactionResult.usedCommission !== undefined && transactionResult.usedCommission > 0 && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-emerald-400 font-medium flex items-center gap-1">
+                      <span>Commission Used</span>
+                    </span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      -₦{transactionResult.usedCommission.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}

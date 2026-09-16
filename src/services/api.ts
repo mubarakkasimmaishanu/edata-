@@ -424,6 +424,19 @@ export const api = {
       body: JSON.stringify({ push_token: token, token, platform }),
     }, true);
   },
+
+  // Handshake for App Version, Force Update, and Days-to-Expire Countdown (WhatsApp/OPay/Moniepoint standard)
+  async getAppConfig(platform: string = 'android', appVersion?: string, silent = true) {
+    const params = new URLSearchParams();
+    if (platform) params.append('platform', platform);
+    if (appVersion) params.append('app_version', appVersion);
+    params.append('_t', String(Date.now()));
+    return request(`/app-config?${params.toString()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        ...(appVersion ? { 'X-App-Version': appVersion } : {}),
+      }
+    }, silent);
+  },
 };
-
-

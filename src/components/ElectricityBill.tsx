@@ -155,6 +155,7 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
           provider: discoDisplayName,
           iconType: 'electricity',
           bonusWallet: currentUser.bonusWallet,
+          commissionWallet: currentUser.commissionWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
           userCategory: currentUser.category,
           details: [
