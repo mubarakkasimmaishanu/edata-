@@ -3,7 +3,7 @@ import { Browser } from '@capacitor/browser';
 import { api } from './api';
 import { AppVersionData } from '../types';
 
-export const FALLBACK_APP_VERSION = '2.3.14';
+export const FALLBACK_APP_VERSION = '2.4.0';
 
 /**
  * Retrieve the current installed application version via Capacitor.
