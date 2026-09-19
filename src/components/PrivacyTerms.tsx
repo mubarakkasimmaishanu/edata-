@@ -65,7 +65,7 @@ export default function PrivacyTerms({ mode, onBack }: PrivacyTermsProps) {
 
         <div className="pt-6 text-center border-t border-slate-900 space-y-2">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-            eData Mobile v2.4.0 • Verified Security & Encrypted
+            eData Mobile v2.4.1 • Verified Security & Encrypted
           </p>
         </div>
       </main>
