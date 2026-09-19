@@ -223,7 +223,12 @@ const ELECTRICITY_PROVIDERS = [
   { name: 'KAEDCO', fullName: 'KADUNA ELECTRIC KAEDCO', icon: kadunaIcon },
   { name: 'KEDCO', fullName: 'KANO ELECTRIC KEDCO', icon: kedcoIcon },
   { name: 'PHED', fullName: 'PORT HARCOURT ELECTRIC PHED', icon: phedcIcon },
+  { name: 'BEDC', fullName: 'BENIN ELECTRIC BEDC', icon: aedcIcon },
+  { name: 'EEDC', fullName: 'ENUGU ELECTRIC EEDC', icon: aedcIcon },
+  { name: 'YEDC', fullName: 'YOLA ELECTRIC YEDC', icon: aedcIcon },
 ];
+
+const ELECTRICITY_AMOUNTS = [3000, 5000, 10000, 20000, 40000, 50000, 100000];
 
 const AIRTIME_SHORTCUTS = [100, 200, 300, 400, 500, 1000];
 const DEFAULT_AIRTIME_TYPES: AirtimeTypeItem[] = [
@@ -475,7 +480,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const showNetworkSelector = ['airtime', 'data', 'a2c'].includes(serviceType);
   const showProductDropdown = ['data', 'cable'].includes(serviceType);
   const showVerifyButton = ['electricity', 'cable'].includes(serviceType);
-  const amountEditable = ['electricity'].includes(serviceType);
+  const amountEditable = false;
   const showContactPicker = ['airtime', 'data'].includes(serviceType);
   const isA2C = serviceType === 'a2c';
 
@@ -944,7 +949,8 @@ export default function ServiceForm(props: ServiceFormProps) {
             fullName: d.name || (fallback ? fallback.fullName : d.slug),
             icon: resolvedImg || aedcIcon,
             meterTypes: (d.meter_types && d.meter_types.length > 0) ? d.meter_types : ['PrePaid', 'PostPaid'],
-            minAmount: d.min_amount || 500,
+            minAmount: d.min_amount || 3000,
+            preset_amounts: (d.preset_amounts && d.preset_amounts.length > 0) ? d.preset_amounts : (d.amounts || []),
           };
         }) : ELECTRICITY_PROVIDERS.map(p => ({
           id: p.name,
@@ -952,7 +958,8 @@ export default function ServiceForm(props: ServiceFormProps) {
           fullName: p.fullName,
           icon: p.icon,
           meterTypes: ['PrePaid', 'PostPaid'],
-          minAmount: 500,
+          minAmount: 3000,
+          preset_amounts: ELECTRICITY_AMOUNTS,
         }));
 
         const currentName = detectedOperator || activeList[0]?.name || 'AEDC';
@@ -1171,7 +1178,7 @@ export default function ServiceForm(props: ServiceFormProps) {
             <div className="flex items-center justify-between mt-2">
               <button
                 type="button"
-                disabled={isValidatingNumber || !targetNumber || !selectedProduct}
+                disabled={isValidatingNumber || !targetNumber || (!selectedProduct && serviceType !== 'electricity')}
                 onClick={handleValidateNumber}
                 className="text-xs text-sky-400 font-black hover:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
               >
@@ -1644,8 +1651,69 @@ export default function ServiceForm(props: ServiceFormProps) {
         );
       })()}
 
-      {/* ─── Amount Input (Electricity & A2C) ─── */}
-      {(amountEditable || isA2C) && (
+      {/* ─── Written Amount Selection for Electricity (Controlled Dynamically by Admin) ─── */}
+      {serviceType === 'electricity' && (() => {
+        const activeDisco = (dynamicDiscos && dynamicDiscos.length > 0)
+          ? dynamicDiscos.find(d => 
+              (d.code && d.code.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
+              (d.slug && d.slug.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
+              (d.name && d.name.toLowerCase().includes((detectedOperator || '').toLowerCase()))
+            ) || dynamicDiscos[0]
+          : null;
+
+        const elecAmounts = (activeDisco?.preset_amounts && activeDisco.preset_amounts.length > 0)
+          ? activeDisco.preset_amounts
+          : (activeDisco?.amounts && activeDisco.amounts.length > 0)
+            ? activeDisco.amounts
+            : (dynamicDiscos && dynamicDiscos[0]?.preset_amounts && dynamicDiscos[0].preset_amounts.length > 0)
+              ? dynamicDiscos[0].preset_amounts
+              : ELECTRICITY_AMOUNTS;
+
+        return (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                Select Package Amount
+              </label>
+              <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                <Zap className="w-3 h-3 text-amber-400" />
+                Instant Token
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              {elecAmounts.map((amt) => {
+                const isSelected = checkoutAmount === amt.toString();
+                return (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => {
+                      setCheckoutAmount(amt.toString());
+                    }}
+                    className={`py-3.5 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? 'border-amber-500 bg-amber-500/15 text-white ring-2 ring-amber-500/40 shadow-md scale-[1.02]'
+                        : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-slate-950 font-black rounded-full flex items-center justify-center shadow-md z-10 border-2 border-slate-900">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-amber-600 font-black' : 'text-amber-400 font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
+                      ₦{amt.toLocaleString('en-NG')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Amount Input (A2C Only) ─── */}
+      {isA2C && (
         <div className="space-y-2">
           <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
             {isA2C ? 'Airtime Amount (₦)' : 'Amount (₦)'}

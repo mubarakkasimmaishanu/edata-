@@ -215,6 +215,29 @@ export interface ReferralStep {
   desc: string;
 }
 
+export interface MarketerProfitShareData {
+  month_period: string;
+  month_label: string;
+  leadership_level: string;
+  tier_name: string;
+  tier_share_pct: number;
+  tier_share_label: string;
+  current_month_earned: number;
+  current_month_earned_formatted: string;
+  today_earned: number;
+  today_earned_formatted: string;
+  active_resellers_count: number;
+  total_reseller_transactions: number;
+  target_resellers_required: number;
+  target_met: boolean;
+  target_percent: number;
+  days_remaining: number;
+  settlement_date: string;
+  commission_wallet_balance: number;
+  commission_wallet_formatted: string;
+  status_label: string;
+}
+
 export interface ReferralConfig {
   banner_title: string;
   banner_subtitle: string;
@@ -230,6 +253,7 @@ export interface ReferralConfig {
   total_referrals_count: number;
   downlines: DownlineUser[];
   how_it_works: ReferralStep[];
+  profit_share?: MarketerProfitShareData;
 }
 
 
@@ -262,6 +286,9 @@ export interface ElectricityDisco {
   min_amount?: number;
   max_amount?: number;
   meter_types?: string[];
+  amounts?: number[];
+  preset_amounts?: number[];
+  is_manual?: boolean;
   image?: string | null;
   icon?: string | null;
   description?: string;
