@@ -1,9 +1,30 @@
+import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { api } from './api';
 import { AppVersionData } from '../types';
 
 export const FALLBACK_APP_VERSION = '2.4.0';
+
+/**
+ * Semver comparison utility.
+ * Returns -1 if a < b, 0 if a == b, 1 if a > b.
+ */
+export function compareSemver(v1: string, v2: string): number {
+  const clean1 = (v1 || '').replace(/^v/i, '').trim();
+  const clean2 = (v2 || '').replace(/^v/i, '').trim();
+  const parts1 = clean1.split('.').map(p => parseInt(p, 10) || 0);
+  const parts2 = clean2.split('.').map(p => parseInt(p, 10) || 0);
+  const maxLen = Math.max(parts1.length, parts2.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 < p2) return -1;
+    if (p1 > p2) return 1;
+  }
+  return 0;
+}
 
 /**
  * Retrieve the current installed application version via Capacitor.
@@ -13,22 +34,23 @@ export async function getInstalledAppVersion(): Promise<string> {
   try {
     const info = await App.getInfo();
     if (info && info.version) {
-      return info.version.trim();
+      return info.version.replace(/^v/i, '').trim();
     }
   } catch (err) {
     // In browser dev mode, App.getInfo() might fail or return mock data
   }
-  return FALLBACK_APP_VERSION;
+  return FALLBACK_APP_VERSION.replace(/^v/i, '').trim();
 }
 
 /**
  * Perform version handshake with the backend.
  * Evaluates minimum version, grace period deadline, and days to expire.
  */
-export async function checkAppUpdate(platform: string = 'android'): Promise<AppVersionData | null> {
+export async function checkAppUpdate(platform?: string): Promise<AppVersionData | null> {
   try {
+    const activePlatform = platform || (Capacitor.getPlatform() === 'ios' ? 'ios' : 'android');
     const version = await getInstalledAppVersion();
-    const res: any = await api.getAppConfig(platform, version, true);
+    const res: any = await api.getAppConfig(activePlatform, version, true);
     if (res && res.success && res.data) {
       return res.data as AppVersionData;
     }
@@ -70,7 +92,12 @@ export function snoozeUpdate(targetVersion: string): void {
  */
 export async function openStoreLink(url: string): Promise<void> {
   if (!url) return;
-  const cleanUrl = url.trim();
+  let cleanUrl = url.trim();
+
+  // Normalize market:// URI to official Play Store web URL for Capacitor Browser compatibility
+  if (cleanUrl.startsWith('market://details?id=')) {
+    cleanUrl = cleanUrl.replace('market://details?id=', 'https://play.google.com/store/apps/details?id=');
+  }
 
   // Try opening via Capacitor Browser for in-app store overlay / external browser
   try {

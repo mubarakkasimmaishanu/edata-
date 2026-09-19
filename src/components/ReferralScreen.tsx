@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { api } from '../services/api';
 import {
   ChevronLeft, Copy, Check, Share2, Gift, ArrowRight, Sparkles,
-  Users, Wallet, ShieldCheck, RefreshCw, Award
+  Users, Wallet, ShieldCheck, RefreshCw, Award, TrendingUp, Target, Clock, CheckCircle2
 } from 'lucide-react';
 import { formatMoney } from '../utils/formatters';
 
@@ -107,6 +107,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
       ];
 
   const downlines = referralConfig?.downlines || [];
+  const profitShare = referralConfig?.profit_share;
 
   return (
     <div className={`min-h-screen ${pageBg} flex flex-col max-w-lg mx-auto w-full pb-28 font-display`}>
@@ -142,6 +143,113 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4">
+        {/* ── Marketer Profit-Share Live Counter Card ── */}
+        {profitShare && (
+          <div className="relative overflow-hidden rounded-3xl p-5 border shadow-md bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white border-sky-900/40 space-y-4">
+            {/* Background Glow Effect */}
+            <div className="absolute -top-12 -right-12 w-36 h-36 bg-sky-500/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Top Bar: Tier Badge & Month */}
+            <div className="relative flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                <Award className="w-3.5 h-3.5 text-amber-400" />
+                <span>{profitShare.tier_name} ({profitShare.tier_share_label})</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400 font-mono flex items-center gap-1">
+                <Clock className="w-3 h-3 text-sky-400" />
+                {profitShare.month_label}
+              </span>
+            </div>
+
+            {/* Main Balance Display */}
+            <div className="relative">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block font-display">
+                Monthly Profit-Share Earnings
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-mono">
+                  {profitShare.current_month_earned_formatted}
+                </h2>
+                {profitShare.today_earned > 0 && (
+                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full font-mono border border-emerald-500/25">
+                    +{profitShare.today_earned_formatted} today
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-300 mt-1 font-medium">
+                Live automated share from all completed reseller orders in your leadership group.
+              </p>
+            </div>
+
+            {/* Stats Grid: Resellers & Orders */}
+            <div className="relative grid grid-cols-2 gap-2.5 pt-1">
+              <div className="rounded-2xl p-3 bg-white/5 border border-white/10 backdrop-blur-xs flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/20 flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Active Resellers</span>
+                  <span className="text-base font-black font-mono text-white">
+                    {profitShare.active_resellers_count}
+                    <span className="text-xs text-slate-400 font-normal"> / {profitShare.target_resellers_required} req.</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl p-3 bg-white/5 border border-white/10 backdrop-blur-xs flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/20 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Team Orders</span>
+                  <span className="text-base font-black font-mono text-white">
+                    {profitShare.total_reseller_transactions}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Target Progress Bar & Settlement Status */}
+            <div className="relative rounded-2xl p-3.5 bg-white/5 border border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <Target className="w-3.5 h-3.5 text-amber-400" />
+                  Monthly Target Progress
+                </span>
+                <span className="font-mono text-sky-300">{profitShare.target_percent}%</span>
+              </div>
+
+              {/* Progress Track */}
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/60">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    profitShare.target_met ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-sky-500 to-blue-500'
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(0, profitShare.target_percent))}%` }}
+                />
+              </div>
+
+              {/* Unlock / Settlement Info */}
+              <div className="flex items-center justify-between text-[11px] pt-0.5">
+                <span className={`font-semibold flex items-center gap-1 ${profitShare.target_met ? 'text-emerald-400' : 'text-amber-300'}`}>
+                  {profitShare.target_met ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <Target className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  )}
+                  {profitShare.target_met
+                    ? `Qualified for Payout (${profitShare.settlement_date})`
+                    : `${profitShare.active_resellers_count}/${profitShare.target_resellers_required} active downline resellers required`}
+                </span>
+                <span className="text-slate-400 font-mono text-[10px]">
+                  {profitShare.days_remaining}d left
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Native Hero Card ── */}
         <div className={`rounded-3xl p-5 border space-y-4 shadow-sm ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'}`}>
           <div className="flex items-center justify-between">

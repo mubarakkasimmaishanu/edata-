@@ -38,6 +38,7 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
     // backend can still gate per-user popups by looking at the token
     // when one is sent.
     '/popups',
+    '/app-config',
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));

@@ -7,7 +7,7 @@ import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from '
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
 import { AppVersionData } from './types';
-import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate } from './services/appUpdateService';
+import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate, getInstalledAppVersion, compareSemver } from './services/appUpdateService';
 import ForceUpdateScreen from './components/ForceUpdateScreen';
 import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
@@ -85,7 +85,14 @@ function MainApp() {
 
       setAppUpdateData(data);
 
-      const isForce = data.update_type === 'FORCE' || data.is_expired || data.days_to_expire <= 0;
+      // If client already has the latest updated version, dismiss all banners immediately
+      if (!data.update_required || data.update_type === 'NONE') {
+        setIsUpdateDismissed(true);
+        setIsBannerDismissed(true);
+        return;
+      }
+
+      const isForce = data.update_type === 'FORCE' || data.is_expired;
       if (isForce) {
         setIsUpdateDismissed(false);
       } else if (data.update_type === 'FLEXIBLE') {
@@ -883,16 +890,23 @@ function MainApp() {
   // interrupt the user, just quietly leave popups off.
   const fetchPopups = async () => {
     try {
-      const res: any = await api.getPopups(true);
+      const version = await getInstalledAppVersion();
+      const res: any = await api.getPopups(true, version);
       const list: PopupBannerType[] =
         res?.data?.popups
         || res?.popups
         || (Array.isArray(res?.data) ? res.data : [])
         || [];
       if (Array.isArray(list)) {
-        setPopups(list);
+        // Filter out popups that are out of bounds for the current client version
+        const filtered = list.filter(p => {
+          if (p.min_app_version && compareSemver(version, p.min_app_version) < 0) return false;
+          if (p.max_app_version && compareSemver(version, p.max_app_version) > 0) return false;
+          return true;
+        });
+        setPopups(filtered);
       }
-    } catch {
+    } catch  {
       // Endpoint unavailable → no popups this cycle; keep last-known list.
     }
   };
@@ -1269,7 +1283,7 @@ function MainApp() {
           ) : (
             <>
               {/* Grace Period Countdown Top Banner (WhatsApp/OPay style) */}
-              {appUpdateData && appUpdateData.update_type === 'FLEXIBLE' && appUpdateData.days_to_expire > 0 && !isBannerDismissed && (
+              {appUpdateData && appUpdateData.update_required && appUpdateData.update_type === 'FLEXIBLE' && appUpdateData.days_to_expire > 0 && !isBannerDismissed && (
                 <GracePeriodBanner
                   updateData={appUpdateData}
                   onOpenModal={() => setIsUpdateDismissed(false)}
@@ -1484,7 +1498,7 @@ function MainApp() {
             picks `activePopup` promotes the next qualifying popup after
             the current one is dismissed. */}
         {/* --- WhatsApp / OPay / Moniepoint Professional Force Update Gate --- */}
-        {appUpdateData && (appUpdateData.update_type === 'FORCE' || (!isUpdateDismissed && appUpdateData.update_type === 'FLEXIBLE')) && (
+        {appUpdateData && appUpdateData.update_required && (appUpdateData.update_type === 'FORCE' || (!isUpdateDismissed && appUpdateData.update_type === 'FLEXIBLE')) && (
           <ForceUpdateScreen
             updateData={appUpdateData}
             onSnooze={

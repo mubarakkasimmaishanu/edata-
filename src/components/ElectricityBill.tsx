@@ -56,7 +56,8 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     }
   }, [initialDisco]);
 
-  const [checkoutAmount, setCheckoutAmount] = useState('');
+  const ALLOWED_AMOUNTS = [3000, 5000, 10000, 20000, 40000, 50000, 100000];
+  const [checkoutAmount, setCheckoutAmount] = useState('3000');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showPinScreen, setShowPinScreen] = useState(false);
 
@@ -84,7 +85,7 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
   const currentServiceId = currentDiscoObj 
     ? currentDiscoObj.id 
     : (matchingElecProd ? parseInt(matchingElecProd.id, 10) : (selectedProduct ? parseInt(selectedProduct.id, 10) : 34));
-  const minPurchaseAmount = (currentDiscoObj && currentDiscoObj.min_amount) ? currentDiscoObj.min_amount : 500;
+  const minPurchaseAmount = (currentDiscoObj && currentDiscoObj.min_amount) ? currentDiscoObj.min_amount : 3000;
 
   const handleValidateMeter = async () => {
     if (!targetNumber || targetNumber.length < 6) {
@@ -118,8 +119,14 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
       toast.warning('Please enter a valid Meter Number.');
       return;
     }
-    if (isNaN(amountNum) || amountNum < minPurchaseAmount) {
-      toast.warning(`Minimum electricity payment is ₦${minPurchaseAmount.toLocaleString()}.`);
+    const validAmounts = (currentDiscoObj?.preset_amounts && currentDiscoObj.preset_amounts.length > 0)
+      ? currentDiscoObj.preset_amounts
+      : (currentDiscoObj?.amounts && currentDiscoObj.amounts.length > 0)
+        ? currentDiscoObj.amounts
+        : ALLOWED_AMOUNTS;
+
+    if (isNaN(amountNum) || !validAmounts.includes(amountNum)) {
+      toast.warning('Please select a valid electricity package amount.');
       return;
     }
     if (amountNum > currentUser.walletBalance) {
