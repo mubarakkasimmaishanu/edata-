@@ -548,8 +548,48 @@ export default function ServiceForm(props: ServiceFormProps) {
     serviceType === 'airtime' ? getAirtimeDiscountDetails(airtimeFaceValue) : { discountAmount: 0, discountPercent: 0 };
   const airtimePayableAmount = Math.max(0, airtimeFaceValue - airtimeDiscountAmount);
 
-  // For airtime, basePrice represents the actual payable amount deducted from balance
-  const basePrice = serviceType === 'airtime' ? airtimePayableAmount : parseFloat(checkoutAmount || '0');
+  // ── Dynamic Electricity DISCO & Admin-Configured Discount Resolution ──
+  const activeDiscoObj = React.useMemo(() => {
+    if (serviceType !== 'electricity') return null;
+    return (dynamicDiscos && dynamicDiscos.length > 0)
+      ? dynamicDiscos.find(d => 
+          (d.code && d.code.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
+          (d.slug && d.slug.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
+          (d.name && d.name.toLowerCase().includes((detectedOperator || '').toLowerCase()))
+        ) || dynamicDiscos[0]
+      : null;
+  }, [serviceType, dynamicDiscos, detectedOperator]);
+
+  // Helper to get specific fixed Naira discount and effective percentage for any given electricity amount
+  const getElectricityDiscountDetails = React.useCallback((amt: number) => {
+    if (!activeDiscoObj || amt <= 0) return { discountAmount: 0, discountPercent: 0 };
+    const fixedMap = activeDiscoObj.fixed_discounts || activeDiscoObj.amount_discounts || {};
+    const amtKey = String(amt);
+    if (fixedMap[amtKey] !== undefined && fixedMap[amtKey] !== null) {
+      const fixedDisc = Number(fixedMap[amtKey]);
+      const effPercent = amt > 0 ? (fixedDisc / amt) * 100 : 0;
+      return { discountAmount: fixedDisc, discountPercent: effPercent };
+    }
+    const defaultRate = activeDiscoObj.discount_percent;
+    if (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) {
+      const rate = Number(defaultRate);
+      const discAmt = Math.round(amt * (rate / 100) * 100) / 100;
+      return { discountAmount: discAmt, discountPercent: rate };
+    }
+    return { discountAmount: 0, discountPercent: 0 };
+  }, [activeDiscoObj]);
+
+  const electricityFaceValue = serviceType === 'electricity' ? parseFloat(checkoutAmount || '0') : 0;
+  const { discountAmount: electricityDiscountAmount, discountPercent: electricityDiscountPercent } =
+    serviceType === 'electricity' ? getElectricityDiscountDetails(electricityFaceValue) : { discountAmount: 0, discountPercent: 0 };
+  const electricityPayableAmount = Math.max(0, electricityFaceValue - electricityDiscountAmount);
+
+  // For airtime & electricity, basePrice represents the actual payable amount deducted from balance
+  const basePrice = serviceType === 'airtime' 
+    ? airtimePayableAmount 
+    : serviceType === 'electricity'
+      ? electricityPayableAmount
+      : parseFloat(checkoutAmount || '0');
   const finalPrice = Math.max(0, basePrice - promoDiscount);
 
   const handleSubmit = () => {
@@ -1653,13 +1693,7 @@ export default function ServiceForm(props: ServiceFormProps) {
 
       {/* ─── Written Amount Selection for Electricity (Controlled Dynamically by Admin) ─── */}
       {serviceType === 'electricity' && (() => {
-        const activeDisco = (dynamicDiscos && dynamicDiscos.length > 0)
-          ? dynamicDiscos.find(d => 
-              (d.code && d.code.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
-              (d.slug && d.slug.toLowerCase() === (detectedOperator || '').toLowerCase()) ||
-              (d.name && d.name.toLowerCase().includes((detectedOperator || '').toLowerCase()))
-            ) || dynamicDiscos[0]
-          : null;
+        const activeDisco = activeDiscoObj;
 
         const elecAmounts = (activeDisco?.preset_amounts && activeDisco.preset_amounts.length > 0)
           ? activeDisco.preset_amounts
@@ -1683,6 +1717,10 @@ export default function ServiceForm(props: ServiceFormProps) {
             <div className="grid grid-cols-3 gap-2.5">
               {elecAmounts.map((amt) => {
                 const isSelected = checkoutAmount === amt.toString();
+                const pillFace = amt;
+                const { discountAmount: pillDisc } = getElectricityDiscountDetails(amt);
+                const pillDiscounted = Math.max(0, pillFace - pillDisc);
+
                 return (
                   <button
                     key={amt}
@@ -1690,7 +1728,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     onClick={() => {
                       setCheckoutAmount(amt.toString());
                     }}
-                    className={`py-3.5 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
+                    className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer active:scale-95 ${
                       isSelected
                         ? 'border-amber-500 bg-amber-500/15 text-white ring-2 ring-amber-500/40 shadow-md scale-[1.02]'
                         : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700 text-slate-200')
@@ -1702,8 +1740,17 @@ export default function ServiceForm(props: ServiceFormProps) {
                       </div>
                     )}
                     <span className={`text-sm font-black font-mono tracking-tight ${isSelected ? (isLight ? 'text-amber-600 font-black' : 'text-amber-400 font-black') : (isLight ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold')}`}>
-                      ₦{amt.toLocaleString('en-NG')}
+                      ₦{pillFace.toLocaleString('en-NG')}
                     </span>
+                    {pillDisc > 0 && (
+                      <span className={`text-[9.5px] font-extrabold font-mono tracking-tight px-1.5 py-0.5 rounded-md ${
+                        isSelected 
+                          ? (isLight ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-emerald-500 text-slate-950 font-black')
+                          : (isLight ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30')
+                      }`}>
+                        Pay ₦{pillDiscounted.toLocaleString('en-NG')}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1828,6 +1875,24 @@ export default function ServiceForm(props: ServiceFormProps) {
             </>
           )}
 
+          {/* Electricity Specific Breakdown when Discounted */}
+          {serviceType === 'electricity' && electricityDiscountAmount > 0 && (
+            <>
+              <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
+                <span>Package Value</span>
+                <span className={`font-bold font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  ₦{electricityFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
+                <span>Electricity Discount (-₦{electricityDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{electricityDiscountPercent > 0 ? ` | ${electricityDiscountPercent % 1 === 0 ? electricityDiscountPercent.toFixed(0) : electricityDiscountPercent.toFixed(1)}% OFF` : ''})</span>
+                <span className="font-bold font-mono">
+                  -₦{electricityDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </>
+          )}
+
           {/* Promo Code Discount if applied */}
           {promoDiscount > 0 && (
             <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
@@ -1842,7 +1907,7 @@ export default function ServiceForm(props: ServiceFormProps) {
           <div className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-700/80'} pt-2.5 flex justify-between items-center`}>
             <div>
               <span className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display block`}>Total Amount</span>
-              {serviceType === 'airtime' && airtimeDiscountAmount > 0 && (
+              {((serviceType === 'airtime' && airtimeDiscountAmount > 0) || (serviceType === 'electricity' && electricityDiscountAmount > 0)) && (
                 <span className="text-[10.5px] text-slate-400 font-medium">To deduct from wallet</span>
               )}
             </div>
@@ -1852,7 +1917,12 @@ export default function ServiceForm(props: ServiceFormProps) {
                   ₦{airtimeFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               )}
-              <span className={`text-base font-black font-mono tabular-nums ${serviceType === 'airtime' && airtimeDiscountAmount > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {serviceType === 'electricity' && electricityDiscountAmount > 0 && (
+                <span className="text-xs font-bold font-mono text-slate-400 line-through">
+                  ₦{electricityFaceValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              )}
+              <span className={`text-base font-black font-mono tabular-nums ${((serviceType === 'airtime' && airtimeDiscountAmount > 0) || (serviceType === 'electricity' && electricityDiscountAmount > 0)) ? 'text-emerald-400' : 'text-rose-400'}`}>
                 -₦{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -1872,6 +1942,8 @@ export default function ServiceForm(props: ServiceFormProps) {
           <>Convert Airtime to Cash <ArrowRight className="w-4 h-4" /></>
         ) : (serviceType === 'airtime' && airtimeDiscountAmount > 0) ? (
           <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Get ₦{airtimeFaceValue.toLocaleString('en-NG')} Airtime) <ArrowRight className="w-4 h-4" /></>
+        ) : (serviceType === 'electricity' && electricityDiscountAmount > 0) ? (
+          <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (Get ₦{electricityFaceValue.toLocaleString('en-NG')} Token) <ArrowRight className="w-4 h-4" /></>
         ) : (
           <>Pay ₦{finalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })} <ArrowRight className="w-4 h-4" /></>
         )}

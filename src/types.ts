@@ -288,6 +288,10 @@ export interface ElectricityDisco {
   meter_types?: string[];
   amounts?: number[];
   preset_amounts?: number[];
+  discount_percent?: number | null;
+  amount_discounts?: Record<string, number> | null;
+  fixed_discounts?: Record<string, number> | null;
+  amount_discount_percents?: Record<string, number> | null;
   is_manual?: boolean;
   image?: string | null;
   icon?: string | null;
