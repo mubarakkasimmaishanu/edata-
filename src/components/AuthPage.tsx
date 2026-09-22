@@ -287,6 +287,19 @@ export default function AuthPage({
       return;
     }
 
+    const allowedDomains = [
+      'gmail.com', 'googlemail.com',
+      'hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.es', 'hotmail.de', 'hotmail.it', 'hotmail.com.ar',
+      'outlook.com', 'outlook.co.uk', 'outlook.fr', 'outlook.es', 'outlook.de', 'outlook.it', 'live.com', 'msn.com',
+      'yahoo.com', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.es', 'yahoo.de', 'yahoo.it', 'yahoo.ca', 'yahoo.com.ng', 'ymail.com', 'rocketmail.com'
+    ];
+    const emailParts = authEmail.trim().split('@');
+    const domain = emailParts.length > 1 ? emailParts[emailParts.length - 1].toLowerCase().trim() : '';
+    if (!domain || !allowedDomains.includes(domain)) {
+      toast.error('Please use a Gmail, Hotmail, Outlook, or Yahoo email address to register.');
+      return;
+    }
+
     try {
       const res = await api.signupRequest(authEmail, authPromo);
       if (res.success) {

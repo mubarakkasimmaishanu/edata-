@@ -113,6 +113,29 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     }
   };
 
+  // Helper to calculate electricity discount based on selected disco
+  const getElectricityDiscountDetails = (amt: number) => {
+    if (!currentDiscoObj || amt <= 0) return { discountAmount: 0, discountPercent: 0 };
+    const fixedMap = currentDiscoObj.fixed_discounts || currentDiscoObj.amount_discounts || {};
+    const amtKey = String(amt);
+    if (fixedMap[amtKey] !== undefined && fixedMap[amtKey] !== null) {
+      const fixedDisc = Number(fixedMap[amtKey]);
+      const effPercent = amt > 0 ? (fixedDisc / amt) * 100 : 0;
+      return { discountAmount: fixedDisc, discountPercent: effPercent };
+    }
+    const defaultRate = currentDiscoObj.discount_percent;
+    if (defaultRate !== undefined && defaultRate !== null && Number(defaultRate) > 0) {
+      const rate = Number(defaultRate);
+      const discAmt = Math.round(amt * (rate / 100) * 100) / 100;
+      return { discountAmount: discAmt, discountPercent: rate };
+    }
+    return { discountAmount: 0, discountPercent: 0 };
+  };
+
+  const faceAmount = parseFloat(checkoutAmount || '0');
+  const { discountAmount, discountPercent: electricityDiscountPercent } = getElectricityDiscountDetails(faceAmount);
+  const payableAmount = Math.max(0, faceAmount - discountAmount);
+
   const handleCheckoutInitiate = () => {
     const amountNum = parseFloat(checkoutAmount);
     if (!targetNumber || targetNumber.length < 6) {
@@ -129,7 +152,7 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
       toast.warning('Please select a valid electricity package amount.');
       return;
     }
-    if (amountNum > currentUser.walletBalance) {
+    if (payableAmount > currentUser.walletBalance) {
       toast.error('Insufficient wallet balance.');
       return;
     }
@@ -140,7 +163,7 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
     const target = customRecipient || targetNumber;
     const res = await api.purchase({
       service_id: currentServiceId,
-      amount: parseFloat(checkoutAmount),
+      amount: faceAmount,
       target_number: target,
       meter_type: meterType,
       transaction_pin: pinInput
@@ -156,8 +179,10 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
         mode="purchase"
         summary={{
           title: `${discoDisplayName} Token`,
-          subtitle: `${meterType} Meter Recharge`,
-          amount: parseFloat(checkoutAmount),
+          subtitle: discountAmount > 0
+            ? `Get ₦${faceAmount.toLocaleString()} Token (Save ₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })})`
+            : `${meterType} Meter Recharge`,
+          amount: payableAmount,
           recipient: targetNumber,
           provider: discoDisplayName,
           iconType: 'electricity',
@@ -165,10 +190,19 @@ export default function ElectricityBill({ currentUser, products, initialDisco, o
           commissionWallet: currentUser.commissionWallet,
           mainWallet: currentUser.mainWallet ?? currentUser.walletBalance,
           userCategory: currentUser.category,
-          details: [
+          details: discountAmount > 0 ? [
             ...(customerName ? [{ label: 'Meter Owner', value: customerName }] : []),
             { label: 'Meter Type', value: meterType },
             { label: 'Meter Number', value: targetNumber },
+            { label: 'Package Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'Electricity Discount', value: `-₦${discountAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}${electricityDiscountPercent > 0 ? ` (${electricityDiscountPercent % 1 === 0 ? electricityDiscountPercent.toFixed(0) : electricityDiscountPercent.toFixed(1)}% OFF)` : ''}` },
+            { label: 'Total To Pay', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+          ] : [
+            ...(customerName ? [{ label: 'Meter Owner', value: customerName }] : []),
+            { label: 'Meter Type', value: meterType },
+            { label: 'Meter Number', value: targetNumber },
+            { label: 'Package Value', value: `₦${faceAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
+            { label: 'Total To Pay', value: `₦${payableAmount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}` },
           ],
         }}
         onBack={() => setShowPinScreen(false)}

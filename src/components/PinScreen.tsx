@@ -171,7 +171,8 @@ export default function PinScreen({
     const formattedAmt = typeof transactionResult.amount === 'number'
       ? `₦${transactionResult.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
       : String(transactionResult.amount || '—');
-    const text = `eData Transaction Receipt\n------------------------\nService: ${transactionResult.serviceName}\nStatus: ${transactionResult.status.toUpperCase()}\nRecipient: ${transactionResult.recipient || 'N/A'}\nAmount Paid: ${formattedAmt}${transactionResult.airtimeValue ? `\nAirtime Value: ${transactionResult.airtimeValue}` : ''}\nReference: ${transactionResult.reference || 'N/A'}${transactionResult.token ? `\nToken: ${transactionResult.token}` : ''}${transactionResult.pin ? `\nPIN: ${transactionResult.pin}` : ''}\nDate: ${new Date().toLocaleString('en-NG')}\n------------------------\nThank you for choosing eData!`;
+    const valueLabel = summary?.iconType === 'electricity' ? 'Package Value' : 'Airtime Value';
+    const text = `eData Transaction Receipt\n------------------------\nService: ${transactionResult.serviceName}\nStatus: ${transactionResult.status.toUpperCase()}\nRecipient: ${transactionResult.recipient || 'N/A'}\nAmount Paid: ${formattedAmt}${transactionResult.airtimeValue ? `\n${valueLabel}: ${transactionResult.airtimeValue}` : ''}${transactionResult.discountRate ? `\nDiscount: ${transactionResult.discountRate}` : ''}\nReference: ${transactionResult.reference || 'N/A'}${transactionResult.token ? `\nToken: ${transactionResult.token}` : ''}${transactionResult.pin ? `\nPIN: ${transactionResult.pin}` : ''}\nDate: ${new Date().toLocaleString('en-NG')}\n------------------------\nThank you for choosing eData!`;
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({ title: 'eData Transaction Receipt', text });
@@ -390,8 +391,10 @@ export default function PinScreen({
           token: resData.token,
           pin: resData.pin,
           serial: resData.serial_number,
-          airtimeValue: resData.face_amount ? ('₦' + Number(resData.face_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })) : summary?.details?.find(d => d.label.toLowerCase().includes('airtime value'))?.value,
-          discountRate: summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
+          airtimeValue: resData.face_amount ? ('₦' + Number(resData.face_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })) : summary?.details?.find(d => d.label.toLowerCase().includes('airtime value') || d.label.toLowerCase().includes('package value'))?.value,
+          discountRate: (resData.discount !== undefined && resData.discount !== null && Number(resData.discount) > 0)
+            ? (`-₦${Number(resData.discount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`)
+            : summary?.details?.find(d => d.label.toLowerCase().includes('discount'))?.value,
           usedBonus: resData.used_bonus !== undefined ? Number(resData.used_bonus) : (bDeduct > 0 ? bDeduct : undefined),
           usedCommission: resData.used_commission !== undefined ? Number(resData.used_commission) : (cDeduct > 0 ? cDeduct : undefined),
           usedMain: resData.used_main !== undefined ? Number(resData.used_main) : (mDeduct > 0 ? mDeduct : undefined),
@@ -1353,11 +1356,21 @@ export default function PinScreen({
                   </div>
                 )}
 
-                {/* Airtime Value (if discounted) */}
+                {/* Airtime / Electricity Value (if discounted) */}
                 {transactionResult.airtimeValue && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
-                    <span className="text-slate-400 font-medium">Airtime Delivered</span>
+                    <span className="text-slate-400 font-medium">
+                      {summary?.iconType === 'electricity' ? 'Package Value' : 'Airtime Delivered'}
+                    </span>
                     <span className="font-mono font-bold text-white">{transactionResult.airtimeValue}</span>
+                  </div>
+                )}
+
+                {/* Discount Applied */}
+                {transactionResult.discountRate && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-200/50 dark:border-slate-800/60">
+                    <span className="text-slate-400 font-medium">Discount Applied</span>
+                    <span className="font-mono font-bold text-emerald-400">{transactionResult.discountRate}</span>
                   </div>
                 )}
 
