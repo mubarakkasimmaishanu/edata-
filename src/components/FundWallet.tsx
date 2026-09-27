@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, VirtualAccount } from '../types';
 import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
 import { useToast } from './Toast';
 import { api } from '../services/api';
 
@@ -12,7 +13,7 @@ interface FundWalletProps {
 
 export default function FundWallet({ currentUser, onBack, onRefreshWallet }: FundWalletProps) {
   const toast = useToast();
-  const [fundTab, setFundTab] = useState<'virtual' | 'katpay' | 'manual'>('virtual');
+  const [fundTab, setFundTab] = useState<'virtual' | 'online' | 'manual'>('virtual');
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
   const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string }>({
@@ -22,12 +23,14 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   });
   const [loading, setLoading] = useState(false);
 
-  // KatPay state
-  const [katpayAmount, setKatpayAmount] = useState('2000');
-  const grossKatpay = parseFloat(katpayAmount || '0') || 0;
-  const katpayFee = Math.round(grossKatpay * 0.01 * 100) / 100;
-  const netKatpayCredit = Math.max(0, Math.round((grossKatpay - katpayFee) * 100) / 100);
-  const [katpaySubmitting, setKatpaySubmitting] = useState(false);
+  // Online funding state (Paystack & KatPay)
+  const [gateway, setGateway] = useState<'paystack' | 'katpay'>('paystack');
+  const [onlineAmount, setOnlineAmount] = useState('2000');
+  const grossOnline = parseFloat(onlineAmount || '0') || 0;
+  const chargePercent = gateway === 'paystack' ? 0.015 : 0.01;
+  const onlineFee = Math.round(grossOnline * chargePercent * 100) / 100;
+  const netOnlineCredit = Math.max(0, Math.round((grossOnline - onlineFee) * 100) / 100);
+  const [onlineSubmitting, setOnlineSubmitting] = useState(false);
 
   // Manual funding state
   const [manualAmount, setManualAmount] = useState('2000');
@@ -67,27 +70,34 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
     }
   };
 
-  const handleKatpayCheckout = async (e: React.FormEvent) => {
+  const handleOnlineCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseFloat(katpayAmount);
+    const amountNum = parseFloat(onlineAmount);
     if (isNaN(amountNum) || amountNum < 100) {
       toast.warning('Minimum funding amount is ₦100.');
       return;
     }
-    setKatpaySubmitting(true);
+    setOnlineSubmitting(true);
     try {
-      const res = await api.initKatpay(amountNum);
-      if (res.success && (res.checkout_url || res.data?.checkout_url)) {
-        const checkoutUrl = res.checkout_url || res.data?.checkout_url;
-        toast.success('KatPay Gateway Initialized! Opening checkout window...');
-        window.open(checkoutUrl, '_system');
+      const res = gateway === 'paystack'
+        ? await api.initPaystack(amountNum)
+        : await api.initKatpay(amountNum);
+
+      const checkoutUrl = res.checkout_url || res.data?.checkout_url;
+      if (res.success && checkoutUrl) {
+        toast.success(`${gateway === 'paystack' ? 'Paystack' : 'KatPay'} Gateway Initialized! Opening checkout...`);
+        try {
+          await Browser.open({ url: checkoutUrl });
+        } catch {
+          window.open(checkoutUrl, '_system');
+        }
       } else {
-        toast.error(res.error || res.message || 'Failed to initialize KatPay payment.');
+        toast.error(res.error || res.message || `Failed to initialize ${gateway === 'paystack' ? 'Paystack' : 'KatPay'} payment.`);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Error connecting to KatPay payment gateway.');
+      toast.error(err.message || `Error connecting to ${gateway === 'paystack' ? 'Paystack' : 'KatPay'} payment gateway.`);
     } finally {
-      setKatpaySubmitting(false);
+      setOnlineSubmitting(false);
     }
   };
 
@@ -161,12 +171,12 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
             ⚡ Wallet Account
           </button>
           <button
-            onClick={() => setFundTab('katpay')}
+            onClick={() => setFundTab('online')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              fundTab === 'katpay' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+              fundTab === 'online' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            💳 KatPay Online
+            💳 Online Checkout
           </button>
           <button
             onClick={() => setFundTab('manual')}
@@ -330,28 +340,68 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           </div>
         )}
 
-        {/* Tab 2: KatPay Online Checkout */}
-        {fundTab === 'katpay' && (
-          <form onSubmit={handleKatpayCheckout} className="space-y-4">
+        {/* Tab 2: Online Payment Gateway Checkout */}
+        {fundTab === 'online' && (
+          <form onSubmit={handleOnlineCheckout} className="space-y-4">
             <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl space-y-2">
               <p className="text-xs text-sky-300 leading-relaxed">
-                Pay online using <strong>Debit Card, USSD, or Bank Transfer</strong> via KatPay Payment Gateway. Your wallet will be credited automatically.
+                Pay online using <strong>Debit Card, USSD, or Bank Transfer</strong>. Your wallet will be credited automatically upon payment.
               </p>
               <div className="pt-2 border-t border-sky-500/20 flex items-start gap-2 text-[11px] text-amber-300">
                 <Info className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
                 <span>
-                  A <strong>1% gateway transaction charge</strong> applies to online checkout funding.
+                  {gateway === 'paystack'
+                    ? 'A 1.5% transaction charge applies to Paystack checkout.'
+                    : 'A 1% transaction charge applies to KatPay checkout.'}
                 </span>
               </div>
             </div>
 
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-4">
+              {/* Payment Gateway Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">Select Payment Gateway</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGateway('paystack')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      gateway === 'paystack'
+                        ? 'bg-emerald-500/15 border-emerald-400 text-white ring-1 ring-emerald-400'
+                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-white font-display">Paystack</span>
+                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">Active</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">Card, USSD & Bank • 1.5% fee</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGateway('katpay')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      gateway === 'katpay'
+                        ? 'bg-sky-500/15 border-sky-400 text-white ring-1 ring-sky-400'
+                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-white font-display">KatPay</span>
+                      <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">Maintenance</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">Instant Transfer • 1% fee</p>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">Amount to Pay (₦)</label>
                 <input
                   type="number"
-                  value={katpayAmount}
-                  onChange={(e) => setKatpayAmount(e.target.value)}
+                  value={onlineAmount}
+                  onChange={(e) => setOnlineAmount(e.target.value)}
                   placeholder="2000"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-base font-mono font-bold focus:outline-none focus:border-sky-500"
                   required
@@ -364,9 +414,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                   <button
                     key={amt}
                     type="button"
-                    onClick={() => setKatpayAmount(String(amt))}
+                    onClick={() => setOnlineAmount(String(amt))}
                     className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      katpayAmount === String(amt)
+                      onlineAmount === String(amt)
                         ? 'bg-sky-500/20 border-sky-400 text-sky-300'
                         : 'bg-slate-900/60 border-slate-700 text-slate-300 hover:border-slate-600'
                     }`}
@@ -376,36 +426,36 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                 ))}
               </div>
 
-              {/* 1% Charge Calculation Breakdown Card */}
+              {/* Fee Calculation Breakdown Card */}
               <div className="p-3.5 bg-slate-950/80 border border-slate-700/80 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between items-center text-slate-300">
                   <span>Payment Amount:</span>
-                  <span className="font-mono font-bold text-white">₦{grossKatpay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold text-white">₦{grossOnline.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center text-amber-400">
                   <span className="flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5" /> 1% Transaction Charge:
+                    <Info className="w-3.5 h-3.5" /> {(chargePercent * 100).toFixed(1)}% Transaction Charge:
                   </span>
-                  <span className="font-mono font-bold">-₦{katpayFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="font-mono font-bold">-₦{onlineFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-emerald-400 font-bold">
                   <span>Net Wallet Credit:</span>
-                  <span className="text-sm font-mono tracking-wider">₦{netKatpayCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-sm font-mono tracking-wider">₦{netOnlineCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
 
               <button
                 type="submit"
-                disabled={katpaySubmitting}
-                className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={onlineSubmitting}
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-sky-600 hover:from-emerald-600 hover:to-sky-700 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-display"
               >
-                {katpaySubmitting ? (
+                {onlineSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                    <span>Connecting KatPay Gateway...</span>
+                    <span>Connecting {gateway === 'paystack' ? 'Paystack' : 'KatPay'} Gateway...</span>
                   </>
                 ) : (
-                  <span>Pay ₦{grossKatpay.toLocaleString()} with KatPay (Net: ₦{netKatpayCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                  <span>Pay ₦{grossOnline.toLocaleString()} with {gateway === 'paystack' ? 'Paystack' : 'KatPay'} (Net: ₦{netOnlineCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
                 )}
               </button>
             </div>

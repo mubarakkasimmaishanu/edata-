@@ -178,6 +178,13 @@ export const api = {
     });
   },
 
+  async initPaystack(amount: number) {
+    return request('/paystack-init', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+  },
+
   async generateVirtualAccount() {
     return request('/katpay-generate-virtual-account', {
       method: 'POST',
