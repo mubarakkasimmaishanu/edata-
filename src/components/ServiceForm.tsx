@@ -641,21 +641,110 @@ export default function ServiceForm(props: ServiceFormProps) {
     return NETWORK_PROVIDERS;
   }, [products, serviceType]);
 
-  // Filter active cable providers dynamically
+  // Filter active cable providers dynamically (100% dynamic mirror from backend API)
   const availableCableProviders = React.useMemo(() => {
     if (dynamicCableProviders && dynamicCableProviders.length > 0) {
-      const dynNames = new Set(dynamicCableProviders.map(c => c.name.toUpperCase()));
-      const filtered = CABLE_PROVIDERS.filter(c => dynNames.has(c.name.toUpperCase()));
-      if (filtered.length > 0) return filtered;
+      return dynamicCableProviders.map(c => {
+        const rawName = c.name || c.slug || c.code || '';
+        const fallback = CABLE_PROVIDERS.find(cp =>
+          rawName.toLowerCase().includes(cp.name.toLowerCase()) ||
+          cp.name.toLowerCase().includes(rawName.toLowerCase()) ||
+          (c.slug && c.slug.toLowerCase().includes(cp.name.toLowerCase()))
+        );
+        const resolvedImg = c.image ? resolveImageUrl(c.image) : (fallback ? fallback.icon : null);
+        let shortName = c.code || c.slug || rawName;
+        if (rawName.toUpperCase().includes('DSTV')) shortName = 'DSTV';
+        else if (rawName.toUpperCase().includes('GOTV')) shortName = 'GOTV';
+        else if (rawName.toUpperCase().includes('STARTIMES')) shortName = 'STARTIMES';
+        else if (rawName.toUpperCase().includes('SHOWMAX')) shortName = 'SHOWMAX';
+
+        return {
+          id: c.id,
+          name: shortName,
+          fullName: rawName,
+          code: c.code || c.slug || shortName,
+          slug: c.slug || shortName.toLowerCase(),
+          icon: resolvedImg || (fallback ? fallback.icon : dstvIcon),
+          activeRing: fallback ? fallback.activeRing : 'ring-sky-400/60 border-sky-400 bg-sky-500/10',
+          providerObj: c,
+        };
+      });
     }
+
     const cablePlans = products ? products.filter(p => ((p.category as string) === 'Cable' || p.category === 'Cable TV') && p.active !== false) : [];
     if (cablePlans.length > 0) {
-      const activeCableOps = new Set(cablePlans.map(p => (p.operator || '').toUpperCase()));
-      const filtered = CABLE_PROVIDERS.filter(c => activeCableOps.has(c.name.toUpperCase()));
-      if (filtered.length > 0) return filtered;
+      const activeCableOps = Array.from(new Set(cablePlans.map(p => (p.operator || '').trim()))).filter(Boolean);
+      if (activeCableOps.length > 0) {
+        return activeCableOps.map(opName => {
+          const fallback = CABLE_PROVIDERS.find(cp =>
+            opName.toLowerCase().includes(cp.name.toLowerCase()) ||
+            cp.name.toLowerCase().includes(opName.toLowerCase())
+          );
+          return {
+            id: opName,
+            name: opName,
+            fullName: opName,
+            code: opName,
+            slug: opName.toLowerCase(),
+            icon: fallback ? fallback.icon : dstvIcon,
+            activeRing: fallback ? fallback.activeRing : 'ring-sky-400/60 border-sky-400 bg-sky-500/10',
+            providerObj: null,
+          };
+        });
+      }
     }
-    return CABLE_PROVIDERS;
+    return CABLE_PROVIDERS.map(cp => ({
+      id: cp.name,
+      name: cp.name,
+      fullName: cp.name,
+      code: cp.name,
+      slug: cp.name.toLowerCase(),
+      icon: cp.icon,
+      activeRing: cp.activeRing,
+      providerObj: null,
+    }));
   }, [dynamicCableProviders, products]);
+
+  // Unified dynamic cable packages for currently selected cable provider
+  const availableCablePackages = React.useMemo(() => {
+    if (serviceType !== 'cable') return [];
+    const currentOp = detectedOperator || 'DSTV';
+    const matchedProv = dynamicCableProviders?.find(p => 
+      p.name.toLowerCase() === currentOp.toLowerCase() || 
+      (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase()) ||
+      p.name.toLowerCase().includes(currentOp.toLowerCase()) ||
+      currentOp.toLowerCase().includes(p.name.toLowerCase()) ||
+      (p.code && p.code.toLowerCase() === currentOp.toLowerCase())
+    );
+
+    if (matchedProv && matchedProv.plans && matchedProv.plans.length > 0) {
+      return matchedProv.plans.map(pl => ({
+        id: pl.id.toString(),
+        serviceTypeId: pl.service_type_id,
+        service_type_id: pl.service_type_id,
+        name: pl.plan_name || pl.name,
+        category: 'Cable TV' as const,
+        operator: matchedProv.name,
+        description: pl.plan_name || pl.name || 'Cable TV Package',
+        priceNormal: Number(pl.price || pl.priceNormal || pl.selling_price),
+        priceReferred: Number(pl.referred_price || pl.price || pl.selling_price),
+        pricePremium: Number(pl.premium_price || pl.price || pl.selling_price),
+        active: true,
+        bundle_id: pl.bundle_id,
+      }));
+    }
+
+    return products.filter(p => {
+      const matchCat = (p.category as string) === 'Cable' || p.category === 'Cable TV';
+      const matchOp = currentOp ? (
+        p.operator?.toLowerCase() === currentOp.toLowerCase() || 
+        (matchedProv && p.service_type_id == matchedProv.id) ||
+        p.operator?.toLowerCase().includes(currentOp.toLowerCase()) ||
+        currentOp.toLowerCase().includes((p.operator || '').toLowerCase())
+      ) : true;
+      return matchCat && p.active && matchOp;
+    });
+  }, [serviceType, detectedOperator, dynamicCableProviders, products]);
 
   React.useEffect(() => {
     if (availableNetworks.length > 0 && detectedOperator && showNetworkSelector) {
@@ -668,12 +757,26 @@ export default function ServiceForm(props: ServiceFormProps) {
 
   React.useEffect(() => {
     if (serviceType === 'cable' && availableCableProviders.length > 0 && detectedOperator) {
-      const exists = availableCableProviders.some(c => c.name.toLowerCase() === detectedOperator.toLowerCase());
+      const exists = availableCableProviders.some(c => 
+        c.name.toLowerCase() === detectedOperator.toLowerCase() ||
+        (c.fullName && c.fullName.toLowerCase() === detectedOperator.toLowerCase()) ||
+        (c.code && c.code.toLowerCase() === detectedOperator.toLowerCase())
+      );
       if (!exists) {
         setDetectedOperator(availableCableProviders[0].name);
       }
     }
   }, [serviceType, availableCableProviders, detectedOperator, setDetectedOperator]);
+
+  React.useEffect(() => {
+    if (serviceType === 'cable' && availableCablePackages.length > 0) {
+      const match = selectedProduct && availableCablePackages.some(p => String(p.id) === String(selectedProduct.id));
+      if (!match) {
+        setSelectedProduct(availableCablePackages[0]);
+        setCheckoutAmount(getDynamicPrice(availableCablePackages[0]).toString());
+      }
+    }
+  }, [serviceType, availableCablePackages, selectedProduct, setSelectedProduct, setCheckoutAmount, getDynamicPrice]);
 
   return (
     <div className={`space-y-4 animate-fade-in transition-all rounded-3xl ${
@@ -736,7 +839,7 @@ export default function ServiceForm(props: ServiceFormProps) {
         </div>
       )}
 
-      {/* ─── 1b. Cable TV Provider Selector ─── */}
+      {/* ─── 1b. Cable TV Provider Selector (100% Dynamic from Backend) ─── */}
       {serviceType === 'cable' && (
         <div className="space-y-3">
           <div>
@@ -744,26 +847,54 @@ export default function ServiceForm(props: ServiceFormProps) {
               Choose Provider
             </label>
             <div className={`grid gap-2.5 ${
-              availableCableProviders.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'
+              availableCableProviders.length <= 2 ? 'grid-cols-2' : availableCableProviders.length === 3 ? 'grid-cols-3' : 'grid-cols-4'
             }`}>
               {availableCableProviders.map((net) => {
-                const currentOp = detectedOperator || 'DSTV';
-                const isSelected = currentOp.toLowerCase() === net.name.toLowerCase();
+                const currentOp = detectedOperator || (availableCableProviders[0]?.name || 'DSTV');
+                const isSelected = currentOp.toLowerCase() === net.name.toLowerCase() ||
+                  currentOp.toLowerCase() === (net.code || '').toLowerCase() ||
+                  currentOp.toLowerCase() === (net.slug || '').toLowerCase() ||
+                  (net.fullName && currentOp.toLowerCase() === net.fullName.toLowerCase());
                 return (
                   <button
-                    key={net.name}
+                    key={net.name + '-' + (net.id || '')}
                     type="button"
                     onClick={() => {
                       setDetectedOperator(net.name);
                       setSelectedCategory(cat);
-                      const matchingPlans = products.filter(p => 
-                        ((p.category as string) === 'Cable' || p.category === 'Cable TV') &&
-                        p.active &&
-                        p.operator?.toLowerCase() === net.name.toLowerCase()
-                      );
-                      if (matchingPlans.length > 0) {
-                        setSelectedProduct(matchingPlans[0]);
-                        setCheckoutAmount(getDynamicPrice(matchingPlans[0]).toString());
+                      let firstPlan: ProductItem | null = null;
+                      if (net.providerObj && net.providerObj.plans && net.providerObj.plans.length > 0) {
+                        const pl = net.providerObj.plans[0];
+                        firstPlan = {
+                          id: pl.id.toString(),
+                          serviceTypeId: pl.service_type_id,
+                          service_type_id: pl.service_type_id,
+                          name: pl.plan_name || pl.name,
+                          category: 'Cable TV' as const,
+                          operator: net.name,
+                          description: pl.plan_name || pl.name || 'Cable TV Package',
+                          priceNormal: Number(pl.price || pl.priceNormal || pl.selling_price),
+                          priceReferred: Number(pl.referred_price || pl.price || pl.selling_price),
+                          pricePremium: Number(pl.premium_price || pl.price || pl.selling_price),
+                          active: true,
+                          bundle_id: pl.bundle_id,
+                        };
+                      } else {
+                        const matchingPlans = products.filter(p => 
+                          ((p.category as string) === 'Cable' || p.category === 'Cable TV') &&
+                          p.active &&
+                          (p.operator?.toLowerCase() === net.name.toLowerCase() ||
+                           p.operator?.toLowerCase() === (net.code || '').toLowerCase() ||
+                           p.operator?.toLowerCase() === (net.fullName || '').toLowerCase() ||
+                           (net.fullName && p.operator && net.fullName.toLowerCase().includes(p.operator.toLowerCase())))
+                        );
+                        if (matchingPlans.length > 0) {
+                          firstPlan = matchingPlans[0];
+                        }
+                      }
+                      if (firstPlan) {
+                        setSelectedProduct(firstPlan);
+                        setCheckoutAmount(getDynamicPrice(firstPlan).toString());
                       }
                     }}
                     className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative cursor-pointer ${
@@ -784,7 +915,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                         className="w-full h-full object-contain rounded-xl"
                       />
                     </div>
-                    <span className="text-[11.5px] font-black text-white tracking-wide font-display">
+                    <span className="text-[11.5px] font-black text-white tracking-wide font-display text-center truncate w-full px-0.5">
                       {net.name}
                     </span>
                   </button>
@@ -1608,35 +1739,7 @@ export default function ServiceForm(props: ServiceFormProps) {
           {/* Cable TV Dropdown (100% Dynamic Admin Packages) */}
           {serviceType === 'cable' && (() => {
             const currentOp = detectedOperator || 'DSTV';
-            const matchedProv = dynamicCableProviders.find(p => 
-              p.name.toLowerCase() === currentOp.toLowerCase() || 
-              (p.slug && p.slug.toLowerCase() === currentOp.toLowerCase())
-            );
-
-            // Extract packages either directly from provider's plans or from global products list
-            let cablePackages: ProductItem[] = [];
-            if (matchedProv && matchedProv.plans && matchedProv.plans.length > 0) {
-              cablePackages = matchedProv.plans.map(pl => ({
-                id: pl.id.toString(),
-                serviceTypeId: pl.service_type_id,
-                service_type_id: pl.service_type_id,
-                name: pl.plan_name || pl.name,
-                category: 'Cable TV' as const,
-                operator: matchedProv.name,
-                description: pl.plan_name || pl.name || 'Cable TV Package',
-                priceNormal: Number(pl.price || pl.priceNormal || pl.selling_price),
-                priceReferred: Number(pl.referred_price || pl.price || pl.selling_price),
-                pricePremium: Number(pl.premium_price || pl.price || pl.selling_price),
-                active: true,
-                bundle_id: pl.bundle_id,
-              }));
-            } else {
-              cablePackages = products.filter(p => {
-                const matchCat = (p.category as string) === 'Cable' || p.category === 'Cable TV';
-                const matchOp = currentOp ? (p.operator?.toLowerCase() === currentOp.toLowerCase() || (matchedProv && p.service_type_id == matchedProv.id)) : true;
-                return matchCat && p.active && matchOp;
-              });
-            }
+            const cablePackages = availableCablePackages;
 
             return (
               <div className="space-y-1.5">
@@ -1652,9 +1755,9 @@ export default function ServiceForm(props: ServiceFormProps) {
                 </div>
                 <div className="relative">
                   <select
-                    value={selectedProduct?.id || ''}
+                    value={selectedProduct ? String(selectedProduct.id) : ''}
                     onChange={(e) => {
-                      const prod = cablePackages.find(p => p.id === e.target.value) || products.find(p => p.id === e.target.value);
+                      const prod = cablePackages.find(p => String(p.id) === String(e.target.value)) || products.find(p => String(p.id) === String(e.target.value));
                       if (prod) {
                         setSelectedProduct(prod);
                         setCheckoutAmount(getDynamicPrice(prod).toString());
@@ -1666,7 +1769,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       <option value="" disabled className="bg-slate-800 text-slate-400">No active packages for {currentOp}</option>
                     ) : (
                       cablePackages.map(p => (
-                        <option key={p.id} value={p.id} className="bg-slate-800 text-white">
+                        <option key={String(p.id)} value={String(p.id)} className="bg-slate-800 text-white">
                           {p.name} — ₦{getDynamicPrice(p).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                         </option>
                       ))

@@ -68,14 +68,14 @@ export default function CableTV({ currentUser, products, initialProvider, initia
                   name: targetPlan.plan_name || targetPlan.name,
                   category: 'Cable TV',
                   operator: targetProv.name,
-                  priceNormal: Number(targetPlan.price || targetPlan.priceNormal || targetPlan.selling_price),
-                  priceReferred: Number(targetPlan.referred_price || targetPlan.price || targetPlan.selling_price),
-                  pricePremium: Number(targetPlan.premium_price || targetPlan.price || targetPlan.selling_price),
+                  priceNormal: Number(targetPlan.selling_price || targetPlan.priceNormal || targetPlan.price),
+                  priceReferred: Number(targetPlan.referred_price || targetPlan.priceReferred || targetPlan.selling_price || targetPlan.price),
+                  pricePremium: Number(targetPlan.premium_price || targetPlan.pricePremium || targetPlan.selling_price || targetPlan.price),
                   active: true,
                   bundle_id: targetPlan.bundle_id,
                 };
                 setSelectedProduct(prodItem);
-                setCheckoutAmount(prodItem.priceNormal.toString());
+                setCheckoutAmount(getDynamicPrice(prodItem).toString());
               }
             }
           }
@@ -111,19 +111,24 @@ export default function CableTV({ currentUser, products, initialProvider, initia
   const [promoError, setPromoError] = useState('');
 
   const getDynamicPrice = (p: ProductItem) => {
-    if ((currentUser as any).user_level === 'premium' && p.pricePremium) {
-      return p.pricePremium;
+    const isPremium = currentUser.category === 'Premium User' || (currentUser as any).user_level == 2 || (currentUser as any).user_level === 'premium';
+    const isReferred = currentUser.category === 'Referred User' || (currentUser as any).user_level == 1 || (currentUser as any).user_level === 'referred';
+
+    if (isPremium && p.pricePremium !== undefined && p.pricePremium !== null && Number(p.pricePremium) > 0) {
+      return Number(p.pricePremium);
     }
-    if ((currentUser as any).user_level === 'referred' && p.priceReferred) {
-      return p.priceReferred;
+    if (isReferred && p.priceReferred !== undefined && p.priceReferred !== null && Number(p.priceReferred) > 0) {
+      return Number(p.priceReferred);
     }
-    return p.priceNormal || p.price;
+    return Number(p.priceNormal || p.price || 0);
   };
 
   const getSelectedProviderObj = () => {
     return dynamicCableProviders.find(p => 
       p.name.toLowerCase() === detectedOperator.toLowerCase() || 
-      (p.slug && p.slug.toLowerCase() === detectedOperator.toLowerCase())
+      (p.slug && p.slug.toLowerCase() === detectedOperator.toLowerCase()) ||
+      p.name.toLowerCase().includes(detectedOperator.toLowerCase()) ||
+      detectedOperator.toLowerCase().includes(p.name.toLowerCase())
     ) || null;
   };
 
