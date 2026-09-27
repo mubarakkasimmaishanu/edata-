@@ -404,7 +404,11 @@ function MainApp() {
         else if (combined.includes('airtel')) operatorName = 'Airtel';
         else if (combined.includes('glo')) operatorName = 'Glo';
         else if (combined.includes('9mobile') || combined.includes('etisalat')) operatorName = '9mobile';
-        else operatorName = plan.operator || 'MTN';
+        else if (combined.includes('dstv')) operatorName = 'DSTV';
+        else if (combined.includes('gotv')) operatorName = 'GOTV';
+        else if (combined.includes('startimes')) operatorName = 'STARTIMES';
+        else if (combined.includes('showmax')) operatorName = 'SHOWMAX';
+        else operatorName = plan.operator || (parentSrv ? parentSrv.name : 'MTN');
 
         let planCat: any = 'Data';
         const catId = Number(plan.category_id || (parentSrv ? parentSrv.category_id : 2));
