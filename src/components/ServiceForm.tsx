@@ -413,6 +413,8 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
   const [dataSearchQuery, setDataSearchQuery] = React.useState<string>('');
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
+  const [isCableModalOpen, setIsCableModalOpen] = React.useState<boolean>(false);
+  const [cableSearchQuery, setCableSearchQuery] = React.useState<string>('');
   const [isManuallySelected, setIsManuallySelected] = React.useState<boolean>(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState<boolean>(false);
   const [manualContactInput, setManualContactInput] = React.useState<string>('');
@@ -438,6 +440,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   // LIFO order in the handler stack matches on-screen z-order, so if
   // both were somehow open the topmost would close first.
   useBackHandler(isPackageModalOpen, () => setIsPackageModalOpen(false));
+  useBackHandler(isCableModalOpen, () => setIsCableModalOpen(false));
   useBackHandler(isContactModalOpen, () => setIsContactModalOpen(false));
 
   const handleSelectContactNumber = (phone: string) => {
@@ -900,7 +903,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative cursor-pointer ${
                       isSelected
                         ? `${net.activeRing} ring-2 scale-[1.02] shadow-md shadow-sky-500/20`
-                        : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
+                        : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700')
                     }`}
                   >
                     {isSelected && (
@@ -908,14 +911,14 @@ export default function ServiceForm(props: ServiceFormProps) {
                         <Check className="w-3 h-3 text-white stroke-[3]" />
                       </div>
                     )}
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-2xs p-1">
+                    <div className={`w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-700/80'} border shadow-2xs p-1`}>
                       <img
                         src={net.icon}
                         alt={net.name}
                         className="w-full h-full object-contain rounded-xl"
                       />
                     </div>
-                    <span className="text-[11.5px] font-black text-white tracking-wide font-display text-center truncate w-full px-0.5">
+                    <span className={`text-[11.5px] font-black tracking-wide font-display text-center truncate w-full px-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {net.name}
                     </span>
                   </button>
@@ -1016,7 +1019,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       className={`py-3.5 px-1 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all relative cursor-pointer ${
                         isSelected
                           ? `${exam.activeRing} ring-2 scale-[1.02] shadow-md shadow-sky-500/20`
-                          : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700'
+                          : (isLight ? 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-xs' : 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-700')
                       }`}
                     >
                       {isSelected && (
@@ -1026,7 +1029,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                       )}
                       
                       {exam.icon ? (
-                        <div className="w-13 h-13 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-2xs p-1">
+                        <div className={`w-13 h-13 rounded-2xl overflow-hidden flex items-center justify-center ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-700/80'} border shadow-2xs p-1`}>
                           <img
                             src={exam.icon}
                             alt={exam.name}
@@ -1039,7 +1042,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                         </div>
                       )}
 
-                      <span className="text-[11.5px] font-black text-white tracking-wide font-display text-center truncate w-full px-0.5">
+                      <span className={`text-[11.5px] font-black tracking-wide font-display text-center truncate w-full px-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                         {exam.name}
                       </span>
                     </button>
@@ -1056,11 +1059,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                 </label>
                 {selectedProduct && (
                   <span className="text-[11px] text-slate-400 font-mono">
-                    Total: <strong className="text-white">₦{(getDynamicPrice(selectedProduct) * examQuantity).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong>
+                    Total: <strong className={isLight ? 'text-slate-900' : 'text-white'}>₦{(getDynamicPrice(selectedProduct) * examQuantity).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong>
                   </span>
                 )}
               </div>
-              <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-2.5 flex items-center justify-between shadow-md">
+              <div className={`${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-800/90 border-slate-700/80 shadow-md'} border rounded-2xl p-2.5 flex items-center justify-between`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1071,13 +1074,13 @@ export default function ServiceForm(props: ServiceFormProps) {
                     setCheckoutAmount((unitPrice * newQty).toString());
                   }}
                   disabled={examQuantity <= 1}
-                  className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40 font-black flex items-center justify-center transition-colors active:scale-95 text-lg cursor-pointer"
+                  className={`w-10 h-10 rounded-xl ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-slate-700 hover:bg-slate-600 text-white'} disabled:opacity-40 font-black flex items-center justify-center transition-colors active:scale-95 text-lg cursor-pointer`}
                 >
                   -
                 </button>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-white font-mono tabular-nums">
+                  <span className={`text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'} font-mono tabular-nums`}>
                     {examQuantity}
                   </span>
                   <span className="text-xs font-bold text-slate-400">
@@ -1161,82 +1164,90 @@ export default function ServiceForm(props: ServiceFormProps) {
                 <button
                   type="button"
                   onClick={() => setDiscoOpen(!discoOpen)}
-                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white flex items-center justify-between shadow-md font-semibold cursor-pointer"
+                  className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900 shadow-sm' : 'bg-slate-800/90 border-slate-700/80 text-white shadow-md'} border rounded-2xl px-4 py-3.5 text-sm flex items-center justify-between font-semibold cursor-pointer`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                    <div className={`w-8 h-8 rounded-xl overflow-hidden ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-700'} border flex items-center justify-center p-0.5 shrink-0`}>
                       <img src={selectedDisco?.icon} alt={selectedDisco?.name} className="w-full h-full object-contain rounded-lg" />
                     </div>
-                    <span className="font-black text-white text-xs font-mono tracking-tight">{selectedDisco?.fullName}</span>
+                    <span className={`font-black ${isLight ? 'text-slate-900' : 'text-white'} text-xs font-mono tracking-tight`}>{selectedDisco?.fullName}</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${discoOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown Options List */}
+                {/* Dropdown Options List with Outside-Click Backdrop */}
                 {discoOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-30 max-h-60 overflow-y-auto p-1.5 space-y-1 animate-scale-in">
-                    {activeList.map((disco) => {
-                      const isSelected = (detectedOperator || activeList[0]?.name).toLowerCase() === disco.name.toLowerCase();
-                      return (
-                        <button
-                          key={disco.name + disco.id}
-                          type="button"
-                          onClick={() => {
-                            setDetectedOperator(disco.name);
-                            setSelectedCategory('Electricity');
-                            const matchProd = products.find(p =>
-                              (p.category as string) === 'Electricity' &&
-                              p.active &&
-                              (p.operator?.toLowerCase().includes(disco.name.toLowerCase()) || p.name.toLowerCase().includes(disco.name.toLowerCase()))
-                            );
-                            if (matchProd) setSelectedProduct(matchProd);
-                            setDiscoOpen(false);
-                          }}
-                          className={`w-full p-2.5 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
-                            isSelected ? 'bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30' : 'hover:bg-slate-700/60 text-slate-200 font-medium'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shrink-0">
-                              <img src={disco.icon} alt={disco.name} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-md" />
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setDiscoOpen(false)} />
+                    <div className={`absolute top-full left-0 right-0 mt-2 ${isLight ? 'bg-white border-slate-200 shadow-xl' : 'bg-slate-800 border-slate-700 shadow-2xl'} border rounded-2xl z-40 max-h-60 overflow-y-auto p-1.5 space-y-1 animate-scale-in`}>
+                      {activeList.map((disco) => {
+                        const isSelected = (detectedOperator || activeList[0]?.name).toLowerCase() === disco.name.toLowerCase();
+                        return (
+                          <button
+                            key={disco.name + disco.id}
+                            type="button"
+                            onClick={() => {
+                              setDetectedOperator(disco.name);
+                              setSelectedCategory('Electricity');
+                              const matchProd = products.find(p =>
+                                (p.category as string) === 'Electricity' &&
+                                p.active &&
+                                (p.operator?.toLowerCase().includes(disco.name.toLowerCase()) || p.name.toLowerCase().includes(disco.name.toLowerCase()))
+                              );
+                              if (matchProd) setSelectedProduct(matchProd);
+                              setDiscoOpen(false);
+                            }}
+                            className={`w-full p-2.5 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                              isSelected
+                                ? (isLight ? 'bg-sky-50 text-sky-900 font-bold border border-sky-300' : 'bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30')
+                                : (isLight ? 'hover:bg-slate-100 text-slate-800 font-medium' : 'hover:bg-slate-700/60 text-slate-200 font-medium')
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-7 h-7 rounded-lg overflow-hidden ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-700'} border flex items-center justify-center p-0.5 shrink-0`}>
+                                <img src={disco.icon} alt={disco.name} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-md" />
+                              </div>
+                              <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{disco.fullName}</span>
                             </div>
-                            <span className="text-xs font-semibold">{disco.fullName}</span>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-sky-400" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            {isSelected && <Check className="w-4 h-4 text-sky-500" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Dynamic Meter Type Dropdown */}
+            {/* Dynamic Meter Type Selector (Segmented 2-tab button: Zero dropdown bug) */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block font-display">
                 Meter Type
               </label>
-              <div className="relative">
-                <select
-                  value={activeMeterType}
-                  onChange={(e) => {
-                    const val = e.target.value as 'PrePaid' | 'PostPaid';
-                    setMeterType(val);
-                    if (onMeterTypeChange) onMeterTypeChange(val);
-                  }}
-                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-sm text-white font-bold appearance-none pr-10 shadow-md cursor-pointer"
-                >
-                  {availableMeterTypes.map((mt) => {
-                    const normalized = mt.toLowerCase().includes('post') ? 'PostPaid' : 'PrePaid';
-                    const displayLabel = mt.toLowerCase().includes('post') ? 'PostPaid Meter' : 'PrePaid Meter';
-                    return (
-                      <option key={mt} value={normalized} className="bg-slate-800 text-white">
-                        {displayLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <div className={`grid grid-cols-2 gap-2 p-1.5 rounded-2xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/80 border-slate-700/80'}`}>
+                {availableMeterTypes.map((mt) => {
+                  const normalized = mt.toLowerCase().includes('post') ? 'PostPaid' : 'PrePaid';
+                  const isSelected = activeMeterType.toLowerCase() === normalized.toLowerCase();
+                  const displayLabel = mt.toLowerCase().includes('post') ? 'PostPaid Meter' : 'PrePaid Meter';
+                  return (
+                    <button
+                      key={mt}
+                      type="button"
+                      onClick={() => {
+                        setMeterType(normalized);
+                        if (onMeterTypeChange) onMeterTypeChange(normalized);
+                      }}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isSelected
+                          ? (isLight ? 'bg-white text-sky-600 shadow-sm border border-slate-200' : 'bg-sky-500 text-white shadow-md shadow-sky-500/20')
+                          : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {displayLabel}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1330,7 +1341,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }, 300);
                 }
               }}
-              className={`w-full bg-slate-800/90 border rounded-2xl pl-10 pr-20 py-3.5 text-sm text-white placeholder-slate-400 font-mono font-semibold focus:outline-none focus:ring-4 shadow-md transition-colors ${
+              className={`w-full ${isLight ? 'bg-white text-slate-900 placeholder:text-slate-400' : 'bg-slate-800/90 text-white placeholder-slate-400'} border rounded-2xl pl-10 pr-20 py-3.5 text-sm font-mono font-semibold focus:outline-none focus:ring-4 shadow-md transition-colors ${
                 showNetworkSelector && targetNumber && targetNumber.length > 0 && targetNumber.length < 11 && !detectedOperator
                   ? 'border-amber-500/60 focus:border-amber-400 focus:ring-amber-500/20'
                   : `${activeNetworkTheme.inputBorder} ${activeNetworkTheme.inputFocusBorder} ${activeNetworkTheme.inputRing}`
@@ -1736,10 +1747,16 @@ export default function ServiceForm(props: ServiceFormProps) {
             );
           })()}
 
-          {/* Cable TV Dropdown (100% Dynamic Admin Packages) */}
+          {/* Cable TV Custom Modal Picker (100% Dynamic Admin Packages & 100% Visible in Both Themes) */}
           {serviceType === 'cable' && (() => {
             const currentOp = detectedOperator || 'DSTV';
             const cablePackages = availableCablePackages;
+
+            const filteredPackages = cablePackages.filter(p => {
+              if (!cableSearchQuery.trim()) return true;
+              const q = cableSearchQuery.toLowerCase();
+              return p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q));
+            });
 
             return (
               <div className="space-y-1.5">
@@ -1753,30 +1770,162 @@ export default function ServiceForm(props: ServiceFormProps) {
                     </span>
                   )}
                 </div>
-                <div className="relative">
-                  <select
-                    value={selectedProduct ? String(selectedProduct.id) : ''}
-                    onChange={(e) => {
-                      const prod = cablePackages.find(p => String(p.id) === String(e.target.value)) || products.find(p => String(p.id) === String(e.target.value));
-                      if (prod) {
-                        setSelectedProduct(prod);
-                        setCheckoutAmount(getDynamicPrice(prod).toString());
-                      }
-                    }}
-                    className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl px-4 py-3.5 text-xs font-black text-white appearance-none pr-10 shadow-md cursor-pointer focus:border-sky-400 focus:outline-none"
+
+                {/* Main Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsCableModalOpen(true)}
+                  className={`w-full ${
+                    isLight
+                      ? 'bg-white border-slate-300 text-slate-900 shadow-sm hover:border-sky-400'
+                      : 'bg-slate-900 border-slate-700/80 text-white shadow-md hover:border-sky-500'
+                  } border rounded-2xl px-4 py-3.5 flex items-center justify-between text-xs font-bold transition-all cursor-pointer active:scale-[0.99]`}
+                >
+                  <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
+                    <Tv className="w-4 h-4 shrink-0 text-sky-400" />
+                    <span className={`truncate ${selectedProduct ? (isLight ? 'text-slate-900 font-black' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
+                      {selectedProduct
+                        ? `${selectedProduct.name} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                        : `Select ${currentOp} Package`}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 shrink-0 ml-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
+                </button>
+
+                {/* Cable Package Modal */}
+                {isCableModalOpen && (
+                  <div
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+                    onClick={() => setIsCableModalOpen(false)}
                   >
-                    {cablePackages.length === 0 ? (
-                      <option value="" disabled className="bg-slate-800 text-slate-400">No active packages for {currentOp}</option>
-                    ) : (
-                      cablePackages.map(p => (
-                        <option key={String(p.id)} value={String(p.id)} className="bg-slate-800 text-white">
-                          {p.name} — ₦{getDynamicPrice(p).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
+                    <div
+                      className={`border rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scale-in cursor-default ${
+                        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181d24] border-slate-700/90 text-white'
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Modal Header */}
+                      <div className={`p-4 border-b flex items-center justify-between ${
+                        isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-[#202732] border-slate-700/80'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-4 bg-sky-500 rounded-full" />
+                          <h3 className={`text-sm font-black font-display m-0 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            Select {currentOp} Package
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsCableModalOpen(false)}
+                          className={`w-7 h-7 rounded-xl ${
+                            isLight ? 'bg-slate-200 text-slate-700 hover:text-black' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          } font-bold flex items-center justify-center transition-colors cursor-pointer text-xs`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Search Bar */}
+                      <div className={`p-3 border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#1a202a] border-slate-700/80'}`}>
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Search package (e.g. Compact, Max, Padi)..."
+                            value={cableSearchQuery}
+                            onChange={(e) => setCableSearchQuery(e.target.value)}
+                            className={`w-full ${
+                              isLight
+                                ? 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
+                                : 'bg-slate-900 border-slate-700/80 text-white placeholder:text-slate-400'
+                            } border rounded-xl pl-9 pr-7 py-2 text-xs focus:outline-none focus:border-sky-400 font-medium`}
+                          />
+                          {cableSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setCableSearchQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white font-bold px-1"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Modal Body List */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
+                        {filteredPackages.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-slate-400 font-bold">
+                            {cablePackages.length === 0
+                              ? `No active packages found for ${currentOp}.`
+                              : 'No matching packages found.'}
+                          </div>
+                        ) : (
+                          filteredPackages.map((p) => {
+                            const isSelected = selectedProduct && String(selectedProduct.id) === String(p.id);
+                            const dynamicPrice = getDynamicPrice(p);
+
+                            return (
+                              <div
+                                key={String(p.id)}
+                                onClick={() => {
+                                  setSelectedProduct(p);
+                                  setCheckoutAmount(dynamicPrice.toString());
+                                  setIsCableModalOpen(false);
+                                }}
+                                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                  isSelected
+                                    ? (isLight
+                                        ? 'bg-sky-50 border-sky-400 ring-2 ring-sky-300/40'
+                                        : 'bg-sky-500/15 border-sky-500 ring-2 ring-sky-500/30')
+                                    : (isLight
+                                        ? 'bg-slate-50/80 hover:bg-slate-100/90 border-slate-200'
+                                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800')
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-xs font-black truncate ${
+                                      isSelected
+                                        ? (isLight ? 'text-sky-950 font-black' : 'text-sky-300 font-black')
+                                        : (isLight ? 'text-slate-900 font-bold' : 'text-slate-100 font-bold')
+                                    }`}>
+                                      {p.name}
+                                    </span>
+                                  </div>
+                                  {p.description && p.description !== p.name && (
+                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                      {p.description}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className={`text-xs font-black font-mono px-2.5 py-1 rounded-xl border ${
+                                    isSelected
+                                      ? (isLight
+                                          ? 'bg-sky-500 text-white border-sky-600 shadow-xs'
+                                          : 'bg-sky-500 text-slate-950 border-sky-400 font-black')
+                                      : (isLight
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                          : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
+                                  }`}>
+                                    ₦{dynamicPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {isSelected && (
+                                    <div className="w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0">
+                                      <Check className="w-3 h-3 stroke-[3]" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -2104,21 +2253,25 @@ export default function ServiceForm(props: ServiceFormProps) {
       {/* ── Contact Selector Fallback Modal ── */}
       {isContactModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in cursor-pointer"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in cursor-pointer"
           onClick={() => setIsContactModalOpen(false)}
         >
           <div 
-            className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 cursor-default"
+            className={`border rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 cursor-default animate-scale-in ${
+              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700/80 text-white'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-white flex items-center gap-2 font-display">
+              <h3 className={`text-base font-black flex items-center gap-2 font-display ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 <Phone className="w-4 h-4 text-sky-400" /> Select Recipient Contact
               </h3>
               <button
                 type="button"
                 onClick={() => setIsContactModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className={`p-1 rounded-lg transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2137,13 +2290,17 @@ export default function ServiceForm(props: ServiceFormProps) {
                     handleSelectContactNumber(userPhone);
                     toast.success(`Selected my phone number: ${normalizePhoneNumber(userPhone)}`);
                   }}
-                  className="w-full flex items-center gap-3 p-3 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer"
+                  className={`w-full flex items-center gap-3 p-3 border rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer ${
+                    isLight
+                      ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                      : 'bg-slate-800/90 hover:bg-slate-800 border-slate-700/80'
+                  }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">
+                  <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base shrink-0">
                     👤
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Use My Phone Number</div>
+                    <div className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Use My Phone Number</div>
                     <div className="text-[10px] text-slate-400 font-mono">{normalizePhoneNumber(userPhone)}</div>
                   </div>
                 </button>
@@ -2166,27 +2323,35 @@ export default function ServiceForm(props: ServiceFormProps) {
                   }
                   toast.warning('Clipboard does not contain a valid 11-digit phone number.');
                 }}
-                className="w-full flex items-center gap-3 p-3 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer"
+                className={`w-full flex items-center gap-3 p-3 border rounded-2xl text-left transition-all active:scale-[0.98] cursor-pointer ${
+                  isLight
+                    ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                    : 'bg-slate-800/90 hover:bg-slate-800 border-slate-700/80'
+                }`}
               >
-                <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base shrink-0">
                   📋
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">Paste from Clipboard</div>
+                  <div className={`text-xs font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Paste from Clipboard</div>
                   <div className="text-[10px] text-slate-400">Auto-fill copied 11-digit phone number</div>
                 </div>
               </button>
 
               {/* Enter Phone Number Input */}
               <div className="space-y-2 pt-1">
-                <label className="text-[11px] font-bold text-slate-300">Or Type Recipient Number:</label>
+                <label className={`text-[11px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Or Type Recipient Number:</label>
                 <div className="flex gap-2">
                   <input
                     type="tel"
                     placeholder="e.g. 08142233864"
                     value={manualContactInput}
                     onChange={(e) => setManualContactInput(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono font-semibold focus:outline-none focus:border-sky-400"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold focus:outline-none focus:border-sky-400 ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
+                        : 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
+                    }`}
                   />
                   <button
                     type="button"

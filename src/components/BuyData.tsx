@@ -8,6 +8,7 @@ import { ChevronLeft, Wifi } from 'lucide-react';
 import { openContactPicker } from '../utils/contactPicker';
 import { isValidPhoneNumber } from '../utils/phoneValidation';
 import { useBackHandler } from '../utils/backHandler';
+import { useTheme } from '../context/ThemeContext';
 
 interface BuyDataProps {
   currentUser: UserProfile;
@@ -20,6 +21,8 @@ interface BuyDataProps {
 }
 
 export default function BuyData({ currentUser, products, planTypes, initialNetwork, initialPlanId, onBack, onSuccess }: BuyDataProps) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState(currentUser.phone || '');
   const [detectedOperator, setDetectedOperator] = useState(initialNetwork || '');
@@ -154,13 +157,13 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
+    <div className={`min-h-screen ${isLight ? 'bg-[#f4f7fb] text-slate-900' : 'bg-slate-900 text-slate-100'} flex flex-col max-w-lg mx-auto w-full pb-28`}>
       {/* ── Top Header ── */}
-      <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
+      <div className={`sticky top-0 z-30 ${isLight ? 'bg-white/95 border-slate-200 shadow-xs' : 'bg-slate-900/90 border-slate-800 shadow-md'} backdrop-blur-2xl border-b px-4 py-3.5 flex items-center justify-between safe-top`}>
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-slate-800 rounded-2xl text-slate-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+            className={`p-1.5 ${isLight ? 'hover:bg-slate-100 text-slate-600 hover:text-slate-900' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} rounded-2xl transition-all active:scale-95 cursor-pointer`}
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
@@ -168,13 +171,13 @@ export default function BuyData({ currentUser, products, planTypes, initialNetwo
             <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
               <Wifi className="w-4.5 h-4.5" />
             </div>
-            <h1 className="text-base font-black text-white font-display">Buy Data Bundle</h1>
+            <h1 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display`}>Buy Data Bundle</h1>
           </div>
         </div>
 
-        <div className="wallet-chip bg-sky-500/20 border border-sky-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-          <span className="wallet-chip-label text-[9px] font-black uppercase text-sky-400 tracking-wider font-display">Wallet:</span>
-          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+        <div className={`wallet-chip ${isLight ? 'bg-sky-50 border-sky-200' : 'bg-sky-500/20 border-sky-500/30'} border px-3 py-1 rounded-full flex items-center gap-1.5`}>
+          <span className={`wallet-chip-label text-[9px] font-black uppercase ${isLight ? 'text-sky-600' : 'text-sky-400'} tracking-wider font-display`}>Wallet:</span>
+          <span className={`wallet-chip-amount text-xs font-black ${isLight ? 'text-sky-800' : 'text-sky-200'} font-mono`}>₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
 

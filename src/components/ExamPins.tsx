@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import PinScreen from './PinScreen';
 import { ChevronLeft, BookOpen, Check, Copy, CheckCircle2, Sparkles } from 'lucide-react';
 import { useBackHandler } from '../utils/backHandler';
+import { useTheme } from '../context/ThemeContext';
 
 interface ExamPinsProps {
   currentUser: UserProfile;
@@ -21,6 +22,8 @@ export interface PurchasedExamCard {
 }
 
 export default function ExamPins({ currentUser, products, initialProvider, onBack, onSuccess }: ExamPinsProps) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const toast = useToast();
   const [targetNumber, setTargetNumber] = useState('1'); // Quantity
   
@@ -239,13 +242,13 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col max-w-lg mx-auto w-full pb-28">
+    <div className={`min-h-screen ${isLight ? 'bg-[#f4f7fb] text-slate-900' : 'bg-slate-900 text-slate-100'} flex flex-col max-w-lg mx-auto w-full pb-28`}>
       {/* ── Top Header ── */}
-      <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
+      <div className={`sticky top-0 z-30 ${isLight ? 'bg-white/95 border-slate-200 shadow-xs' : 'bg-slate-900/90 border-slate-800 shadow-md'} backdrop-blur-2xl border-b px-4 py-3.5 flex items-center justify-between safe-top`}>
         <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-slate-800 rounded-2xl text-slate-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+            className={`p-1.5 ${isLight ? 'hover:bg-slate-100 text-slate-600 hover:text-slate-900' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} rounded-2xl transition-all active:scale-95 cursor-pointer`}
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
@@ -253,13 +256,13 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
             <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
               <BookOpen className="w-4.5 h-4.5" />
             </div>
-            <h1 className="text-base font-black text-white font-display">Exam Result Pins</h1>
+            <h1 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display`}>Exam Result Pins</h1>
           </div>
         </div>
 
-        <div className="wallet-chip bg-sky-500/20 border border-sky-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-          <span className="wallet-chip-label text-[9px] font-black uppercase text-sky-400 tracking-wider font-display">Wallet:</span>
-          <span className="wallet-chip-amount text-xs font-black text-sky-200 font-mono">₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+        <div className={`wallet-chip ${isLight ? 'bg-sky-50 border-sky-200' : 'bg-sky-500/20 border-sky-500/30'} border px-3 py-1 rounded-full flex items-center gap-1.5`}>
+          <span className={`wallet-chip-label text-[9px] font-black uppercase ${isLight ? 'text-sky-600' : 'text-sky-400'} tracking-wider font-display`}>Wallet:</span>
+          <span className={`wallet-chip-amount text-xs font-black ${isLight ? 'text-sky-800' : 'text-sky-200'} font-mono`}>₦{(currentUser.mainWallet ?? currentUser.walletBalance).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
 
@@ -296,14 +299,14 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
 
       {/* ─── Instant Scratch Card Voucher Receipt Modal ─── */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-5 w-full max-w-sm shadow-2xl space-y-4 animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className={`${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700/80 text-white'} border rounded-3xl p-5 w-full max-w-sm shadow-2xl space-y-4 animate-scale-in`}>
             {/* Header Badge */}
             <div className="text-center space-y-1.5 pt-1">
               <div className="w-13 h-13 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
                 <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
               </div>
-              <h3 className="text-base font-black text-white font-display">
+              <h3 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'} font-display`}>
                 Purchase Successful!
               </h3>
               <p className="text-[11px] text-slate-400 font-medium">
@@ -318,7 +321,7 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
                 return (
                   <div
                     key={idx}
-                    className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-3 space-y-2 shadow-md relative overflow-hidden"
+                    className={`${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/90 border-slate-700/80'} border rounded-2xl p-3 space-y-2 shadow-md relative overflow-hidden`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-purple-400 font-display flex items-center gap-1">
@@ -327,17 +330,17 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
                       </span>
                       {card.serial && card.serial !== 'N/A' && (
                         <span className="text-[10px] text-slate-400 font-mono">
-                          SN: <strong className="text-slate-300">{card.serial}</strong>
+                          SN: <strong className={isLight ? 'text-slate-700' : 'text-slate-300'}>{card.serial}</strong>
                         </span>
                       )}
                     </div>
 
-                    <div className="bg-slate-900/90 border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-700/60'} border rounded-xl p-2.5 flex items-center justify-between`}>
                       <div className="space-y-0.5">
                         <span className="text-[9px] uppercase font-black tracking-wider text-slate-400 block font-display">
                           Voucher PIN
                         </span>
-                        <span className="text-base font-black font-mono tracking-widest text-emerald-400 tabular-nums select-all">
+                        <span className="text-base font-black font-mono tracking-widest text-emerald-500 tabular-nums select-all">
                           {card.pin}
                         </span>
                       </div>
@@ -346,8 +349,8 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
                         onClick={() => handleCopyCardPin(card.pin, idx)}
                         className={`p-2 rounded-xl text-xs font-black flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${
                           isCopied
-                            ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30'
-                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                            ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+                            : (isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700')
                         }`}
                       >
                         {isCopied ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Copy className="w-3.5 h-3.5" />}
@@ -360,9 +363,9 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
             </div>
 
             {/* Reference & Info */}
-            <div className="bg-slate-800/50 rounded-xl p-2.5 flex items-center justify-between text-[11px] text-slate-400 font-mono border border-slate-700/40">
+            <div className={`${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/50 border-slate-700/40'} rounded-xl p-2.5 flex items-center justify-between text-[11px] text-slate-400 font-mono border`}>
               <span>Reference:</span>
-              <span className="text-slate-200 font-bold">{purchaseReference || 'N/A'}</span>
+              <span className={`${isLight ? 'text-slate-800' : 'text-slate-200'} font-bold`}>{purchaseReference || 'N/A'}</span>
             </div>
 
             {/* Action Buttons */}
@@ -371,7 +374,7 @@ export default function ExamPins({ currentUser, products, initialProvider, onBac
                 <button
                   type="button"
                   onClick={handleCopyAll}
-                  className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-98 cursor-pointer font-display"
+                  className={`w-full ${isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800' : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-white'} border font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-98 cursor-pointer font-display`}
                 >
                   {copiedAll ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-sky-400" />}
                   <span>{copiedAll ? 'All Cards Copied!' : 'Copy All Cards'}</span>
