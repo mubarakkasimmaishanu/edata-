@@ -33,7 +33,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const [onlineSubmitting, setOnlineSubmitting] = useState(false);
 
   // Manual funding state
-  const [manualAmount, setManualAmount] = useState('2000');
+  const [manualAmount, setManualAmount] = useState('20000');
   const [manualRef, setManualRef] = useState('');
   const [manualSender, setManualSender] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -111,8 +111,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
   const handleManualFundingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(manualAmount);
-    if (isNaN(amountNum) || amountNum < 100) {
-      toast.warning('Minimum amount for Fund Through Admin is ₦100.');
+    if (isNaN(amountNum) || amountNum < 20000) {
+      toast.warning('Minimum amount for Fund Through Admin is ₦20,000. Redirecting to instant automated funding for smaller amounts...');
+      setFundTab('virtual');
       return;
     }
     if (!manualRef || !manualSender) {
@@ -265,7 +266,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                           fetchFundData();
                           toast.success('Wallet Account request processed. Refreshing details...');
                         } else {
-                          toast.warning(errMsg || 'Automated account generation is temporarily unavailable. Please use Online Checkout or Fund Through Admin below.');
+                          toast.info('Virtual Account request queued. Using default bank account details below.');
                         }
                       } catch (err: any) {
                         toast.error(err?.message || 'Unable to generate virtual account right now.');
@@ -281,11 +282,8 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
 
                 {/* Secondary manual bank option if present */}
                 {manualBank && manualBank.account_number && (
-                  <div className="pt-3 border-t border-slate-700/60 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Manual Bank Deposit Account</span>
-                      <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">Proof Required</span>
-                    </div>
+                  <div className="pt-3 border-t border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Alternative Bank Transfer Account</span>
                     <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-between">
                       <div className="text-left">
                         <span className="text-[10px] text-sky-400 font-bold uppercase">{manualBank.bank_name}</span>
@@ -300,16 +298,6 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                         {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300 leading-snug">
-                      ⚠️ <strong>Important:</strong> Transfers to this account require admin manual verification. After transfer, click below to submit payment proof for fast wallet crediting.
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFundTab('manual')}
-                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      🏛️ Submit Proof for this Transfer
-                    </button>
                   </div>
                 )}
               </div>
@@ -468,8 +456,8 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Manual Deposit Account</h3>
-                <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-0.5 rounded-full font-bold font-display">
-                  Admin Verified
+                <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-bold font-display">
+                  Min of ₦20,000
                 </span>
               </div>
               <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
@@ -483,19 +471,19 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs text-slate-400">Deposit Amount (₦)</label>
-                  <span className="text-[11px] font-bold text-sky-400 font-display">Min ₦100</span>
+                  <span className="text-[11px] font-extrabold text-amber-400 font-display">Min of ₦20,000</span>
                 </div>
                 <input
                   type="number"
                   value={manualAmount}
                   onChange={(e) => setManualAmount(e.target.value)}
-                  placeholder="1000"
-                  min="100"
+                  placeholder="20000"
+                  min="20000"
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm font-mono font-bold focus:outline-none focus:border-sky-500"
                   required
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Enter the exact amount transferred to the bank account above.
+                  Amounts under ₦20,000 will automatically redirect to instant automated funding options.
                 </p>
               </div>
 
