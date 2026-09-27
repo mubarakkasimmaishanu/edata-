@@ -409,6 +409,7 @@ export default function ServiceForm(props: ServiceFormProps) {
   const [examQuantity, setExamQuantity] = React.useState<number>(1);
   const [meterType, setMeterType] = React.useState<'PrePaid' | 'PostPaid'>('PrePaid');
   const [discoOpen, setDiscoOpen] = React.useState<boolean>(false);
+  const [airtimeTypeOpen, setAirtimeTypeOpen] = React.useState<boolean>(false);
   const [dataTypeFilter, setDataTypeFilter] = React.useState<string>('ALL');
   const [dataSearchQuery, setDataSearchQuery] = React.useState<string>('');
   const [isPackageModalOpen, setIsPackageModalOpen] = React.useState<boolean>(false);
@@ -1247,31 +1248,79 @@ export default function ServiceForm(props: ServiceFormProps) {
             Plan Type
           </label>
           <div className="relative">
-            <select
-              value={selectedAirtimeType || 'VTU Direct'}
-              onChange={(e) => {
-                const newTypeName = e.target.value;
-                if (setSelectedAirtimeType) {
-                  setSelectedAirtimeType(newTypeName);
-                }
-                const matched = (airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).find(
-                  (t) => t.name.toLowerCase() === newTypeName.toLowerCase()
-                );
-                const availAmounts = (matched?.amounts && matched.amounts.length > 0) ? matched.amounts : AIRTIME_SHORTCUTS;
-                const curAmtNum = parseInt(checkoutAmount, 10);
-                if (!availAmounts.includes(curAmtNum)) {
-                  setCheckoutAmount(availAmounts[0].toString());
-                }
-              }}
-              className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-800/90 border-slate-700/80 text-white'} border rounded-2xl px-4 py-3.5 text-xs font-bold appearance-none pr-10 shadow-md cursor-pointer focus:outline-none ${activeNetworkTheme.inputFocusBorder}`}
+            <button
+              type="button"
+              onClick={() => setAirtimeTypeOpen(!airtimeTypeOpen)}
+              className={`w-full ${isLight ? 'bg-white border-slate-300 text-slate-900 shadow-sm' : 'bg-slate-900 border-slate-700 text-white shadow-md'} border rounded-2xl px-4 py-3.5 flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${activeNetworkTheme.inputFocusBorder}`}
             >
-              {(airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).map((typeItem) => (
-                <option key={typeItem.name} value={typeItem.name} className={isLight ? 'bg-white text-slate-900' : 'bg-slate-800 text-white'}>
-                  {typeItem.name} {typeItem.code && typeItem.code !== typeItem.name ? `(${typeItem.code})` : ''}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <div className="flex items-center gap-2.5">
+                <Tag className={`w-4 h-4 shrink-0 ${activeNetworkTheme.accentColor}`} />
+                <span className="font-extrabold text-sm tracking-tight">
+                  {selectedAirtimeType || 'VTU Direct'}
+                </span>
+                {currentAirtimeType?.code && currentAirtimeType.code !== currentAirtimeType.name && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-sky-400 border border-slate-700'}`}>
+                    {currentAirtimeType.code}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${airtimeTypeOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Custom Dropdown Menu with Razor-Sharp Contrast */}
+            {airtimeTypeOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setAirtimeTypeOpen(false)} 
+                />
+                <div className={`absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl shadow-2xl border p-1.5 space-y-1 max-h-64 overflow-y-auto animate-scale-in ${isLight ? 'bg-white border-slate-200 text-slate-900 shadow-slate-200' : 'bg-slate-950 border-slate-700 text-white shadow-black/80'}`}>
+                  {(airtimeTypes && airtimeTypes.length > 0 ? airtimeTypes : DEFAULT_AIRTIME_TYPES).map((typeItem) => {
+                    const isSelected = (selectedAirtimeType || 'VTU Direct').toLowerCase() === typeItem.name.toLowerCase();
+                    return (
+                      <button
+                        key={typeItem.name}
+                        type="button"
+                        onClick={() => {
+                          const newTypeName = typeItem.name;
+                          if (setSelectedAirtimeType) {
+                            setSelectedAirtimeType(newTypeName);
+                          }
+                          const availAmounts = (typeItem?.amounts && typeItem.amounts.length > 0) ? typeItem.amounts : AIRTIME_SHORTCUTS;
+                          const curAmtNum = parseInt(checkoutAmount, 10);
+                          if (!availAmounts.includes(curAmtNum)) {
+                            setCheckoutAmount(availAmounts[0].toString());
+                          }
+                          setAirtimeTypeOpen(false);
+                        }}
+                        className={`w-full p-3 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? (isLight ? 'bg-sky-50 border border-sky-300 text-sky-950 font-black' : 'bg-sky-500/25 border border-sky-400/50 text-white font-black')
+                            : (isLight ? 'hover:bg-slate-100 text-slate-900 font-bold' : 'hover:bg-slate-800 text-slate-100 font-bold')
+                        }`}
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black tracking-tight">{typeItem.name}</span>
+                            {typeItem.code && typeItem.code !== typeItem.name && (
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${isSelected ? 'bg-sky-500 text-white' : (isLight ? 'bg-slate-200 text-slate-800' : 'bg-slate-800 text-sky-300')}`}>
+                                {typeItem.code}
+                              </span>
+                            )}
+                          </div>
+                          {typeItem.description && (
+                            <span className={`text-[10px] ${isSelected ? (isLight ? 'text-sky-800 font-medium' : 'text-sky-300 font-medium') : (isLight ? 'text-slate-600 font-normal' : 'text-slate-400 font-normal')}`}>
+                              {typeItem.description}
+                            </span>
+                          )}
+                        </div>
+                        {isSelected && <Check className={`w-4 h-4 shrink-0 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
