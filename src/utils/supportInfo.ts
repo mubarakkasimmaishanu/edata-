@@ -14,6 +14,11 @@ export interface SupportInfo {
   email: string;
   address: string;
   whatsapp: string;
+  chatwoot?: {
+    enabled: boolean;
+    baseUrl: string;
+    websiteToken: string;
+  };
 }
 
 const CACHE_KEY = 'edata_cached_support_info';
@@ -26,6 +31,11 @@ export const EMPTY_SUPPORT: SupportInfo = {
   email: '',
   address: '',
   whatsapp: '',
+  chatwoot: {
+    enabled: true,
+    baseUrl: 'https://chat.edata.com.ng',
+    websiteToken: '5b84b0982ffc4c0dbd189236',
+  },
 };
 
 export function readCachedSupportInfo(): SupportInfo {
@@ -38,6 +48,11 @@ export function readCachedSupportInfo(): SupportInfo {
       email: typeof parsed.email === 'string' ? parsed.email : '',
       address: typeof parsed.address === 'string' ? parsed.address : '',
       whatsapp: typeof parsed.whatsapp === 'string' ? parsed.whatsapp : '',
+      chatwoot: parsed.chatwoot && typeof parsed.chatwoot === 'object' ? {
+        enabled: parsed.chatwoot.enabled !== false,
+        baseUrl: parsed.chatwoot.baseUrl || 'https://chat.edata.com.ng',
+        websiteToken: parsed.chatwoot.websiteToken || '5b84b0982ffc4c0dbd189236',
+      } : EMPTY_SUPPORT.chatwoot,
     };
   } catch {
     return EMPTY_SUPPORT;
@@ -59,11 +74,17 @@ export async function fetchSupportInfo(): Promise<SupportInfo> {
   try {
     const res: any = await api.getSupportInfo();
     if (res?.success && res?.data) {
+      const cw = res.data.chatwoot;
       const info: SupportInfo = {
         phone: typeof res.data.phone === 'string' ? res.data.phone : '',
         email: typeof res.data.email === 'string' ? res.data.email : '',
         address: typeof res.data.address === 'string' ? res.data.address : '',
         whatsapp: typeof res.data.whatsapp === 'string' ? res.data.whatsapp : '',
+        chatwoot: cw ? {
+          enabled: cw.enabled !== false,
+          baseUrl: cw.base_url || 'https://chat.edata.com.ng',
+          websiteToken: cw.website_token || '5b84b0982ffc4c0dbd189236',
+        } : EMPTY_SUPPORT.chatwoot,
       };
       writeCachedSupportInfo(info);
       return info;

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, MessageCircle, Phone, Mail, ChevronDown, MapPin } from 'lucide-react';
+import { ChevronLeft, MessageCircle, Phone, Mail, ChevronDown, MapPin, MessageSquare, ChevronRight } from 'lucide-react';
 import {
   fetchSupportInfo,
   readCachedSupportInfo,
   SupportInfo,
 } from '../utils/supportInfo';
+import { openChatwoot } from '../services/chatwootService';
 
 interface HelpSupportProps {
   onBack: () => void;
@@ -65,6 +66,36 @@ export default function HelpSupport({ onBack }: HelpSupportProps) {
       </header>
 
       <main className="flex-1 px-4 py-5 space-y-6">
+        {/* Chatwoot Live Chat Hero Card */}
+        {support.chatwoot?.enabled !== false && (
+          <button
+            onClick={() => openChatwoot()}
+            className="w-full p-4 bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-sky-600/20 hover:from-blue-600/30 hover:to-sky-600/30 border border-blue-500/30 rounded-2xl flex items-center justify-between text-left transition-all cursor-pointer group shadow-lg shadow-blue-500/5"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <MessageSquare className="w-6 h-6" />
+                <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-slate-900"></span>
+                </span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">Live Chat with Support</h3>
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                    Online
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">Chat in real-time with an active support agent</p>
+              </div>
+            </div>
+            <div className="p-2 text-blue-400 group-hover:text-blue-300 group-hover:translate-x-0.5 transition-all">
+              <ChevronRight className="w-5 h-5" />
+            </div>
+          </button>
+        )}
+
         {/* Contact Action Cards — each tile only renders when the admin
             has supplied the corresponding value. Hiding a channel is
             better than showing a dead/incorrect one on low-network. */}

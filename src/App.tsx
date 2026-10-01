@@ -12,6 +12,7 @@ import ForceUpdateScreen from './components/ForceUpdateScreen';
 import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
+import { initChatwoot, syncChatwootUser, clearChatwootIdentity } from './services/chatwootService';
 
 // Eager: always visible on cold start OR needed instantly (no route wait
 // is acceptable). Dashboard is the entry point, BottomNav sits over every
@@ -195,6 +196,27 @@ function MainApp() {
   const currentUserRef = useRef<UserProfile>(currentUser);
   useEffect(() => {
     currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // --- Chatwoot Customer Support Live Chat Initialization & Sync ---
+  useEffect(() => {
+    initChatwoot({ hideBubble: true });
+  }, []);
+
+  useEffect(() => {
+    if (currentUser && currentUser.id && currentUser.email) {
+      syncChatwootUser({
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        phone: currentUser.phone,
+        avatar: currentUser.avatar,
+        balance: currentUser.balance,
+        role: currentUser.role,
+      });
+    } else {
+      clearChatwootIdentity();
+    }
   }, [currentUser]);
   const [apiStatus, setApiStatus] = useState<'connected' | 'offline'>('offline');
   const [lastSynced, setLastSynced] = useState<string>('Never');
@@ -1088,6 +1110,7 @@ function MainApp() {
     });
     dismissedPopupsRef.current.clear();
     sessionDismissedPopupsRef.current.clear();
+    clearChatwootIdentity();
     setActivePopup(null);
     setPopups([]);
     setCurrentUser(DEFAULT_USER);
