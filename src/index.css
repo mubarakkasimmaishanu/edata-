@@ -759,4 +759,9 @@ button, a, input, select, textarea, [role="button"] {
   font-style: normal;
 }
 
+/* Chatwoot Live Support Widget Mobile Container Styling */
+.woot-widget-holder {
+  z-index: 99999 !important;
+}
+
 
