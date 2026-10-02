@@ -49,6 +49,11 @@ export function runBackHandlers(): boolean {
   if (typeof window !== 'undefined' && window.$chatwoot?.isOpen?.()) {
     try {
       window.$chatwoot.toggle('close');
+      const isDark = document.documentElement.classList.contains('dark');
+      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+        StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: isDark ? '#0f172a' : '#ffffff' }).catch(() => {});
+      }).catch(() => {});
       return true;
     } catch {
       // Fall through to app handler stack

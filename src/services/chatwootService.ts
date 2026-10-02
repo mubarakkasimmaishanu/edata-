@@ -107,8 +107,23 @@ export function syncChatwootUser(user?: {
   }
 }
 
+export function restoreAppStatusBar() {
+  if (typeof window === 'undefined') return;
+  const isDark = document.documentElement.classList.contains('dark');
+  import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+    StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: isDark ? '#0f172a' : '#ffffff' }).catch(() => {});
+  }).catch(() => {});
+}
+
 export function openChatwoot() {
   if (typeof window === 'undefined') return;
+
+  // Adapt status bar for Chatwoot overlay (crisp white header with dark icons)
+  import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+    StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
+  }).catch(() => {});
 
   if (window.$chatwoot) {
     window.$chatwoot.toggle('open');
@@ -128,6 +143,7 @@ export function openChatwoot() {
 export function closeChatwoot() {
   if (typeof window === 'undefined') return;
   window.$chatwoot?.toggle('close');
+  restoreAppStatusBar();
 }
 
 export function clearChatwootIdentity() {
@@ -136,3 +152,16 @@ export function clearChatwootIdentity() {
     window.$chatwoot.deleteUserIdentity();
   }
 }
+
+// Global listener for Chatwoot postMessages (e.g. user taps close 'X' button inside widget)
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event) => {
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (data?.event === 'chatwoot-widget:close' || data?.event === 'chatwoot:closed') {
+        restoreAppStatusBar();
+      }
+    } catch {}
+  });
+}
+
