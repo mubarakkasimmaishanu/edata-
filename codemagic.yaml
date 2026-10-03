@@ -4,7 +4,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      node: 20.x
+      node: lts
       xcode: latest
       cocoapods: default
       vars:
@@ -23,9 +23,6 @@ workflows:
       - name: Install Node Dependencies
         script: |
           npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-      - name: Generate Branding Assets
-        script: |
-          python3 scripts/generate_ios_assets.py
       - name: Build Web Application
         script: |
           npm run build
@@ -58,9 +55,16 @@ workflows:
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY=""
+            
+            mkdir -p build/Payload
+            cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/App.app
+            cd build
+            zip -r eData-Release-unsigned.ipa Payload
+            echo "Successfully packaged eData-Release-unsigned.ipa!"
           fi
     artifacts:
       - build/ios/ipa/*.ipa
+      - ios/App/build/*.ipa
       - ios/App/build/**/*.xcarchive
       - /tmp/xcodebuild_logs/*.log
     publishing:
