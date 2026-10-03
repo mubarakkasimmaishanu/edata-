@@ -33,17 +33,22 @@ workflows:
         script: |
           cd ios/App
           pod install --repo-update
-      - name: Configure Code Signing / Ad-hoc / TestFlight
+      - name: Set up Apple Code Signing
         script: |
-          # If Apple developer certificates are configured in Codemagic UI:
-          xcode-project use-profiles || echo "Skipping profile configuration (building without managed profile)"
+          keychain initialize
+          # Fetch official Apple Distribution certificates & App Store provisioning profiles
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
+            --type DISTRIBUTION \
+            --create || echo "No App Store Connect API key found. Building without managed profile."
+          xcode-project use-profiles || echo "Falling back to project default signing settings."
       - name: Build iOS Application (.ipa / .xcarchive)
         script: |
-          # Build signed IPA or unsigned archive
+          # Build officially signed IPA via xcode-project
           if xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"; then
-            echo "IPA generated successfully via xcode-project build-ipa"
+            echo "Official signed IPA generated successfully via xcode-project build-ipa!"
           else
-            echo "Building via raw xcodebuild for unassigned/developer distribution..."
+            echo "Building via raw xcodebuild for unsigned distribution..."
             cd ios/App
             xcodebuild \
               -workspace App.xcworkspace \
