@@ -14,6 +14,12 @@ export interface UserProfile {
   category: 'Basic User' | 'Referred User' | 'Premium User' | string;
   bvn: string;
   nin: string;
+  hasKyc?: boolean;
+  has_kyc?: boolean;
+  bvnMasked?: string;
+  ninMasked?: string;
+  bvn_masked?: string;
+  nin_masked?: string;
   isVerified: boolean;
   pinCode: string;
   hasPin: boolean;

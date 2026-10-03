@@ -189,7 +189,24 @@ function MainApp() {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('edata_current_user');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const u = JSON.parse(saved);
+        if (u.virtualAccount) {
+          const b = (u.virtualAccount.bank_name || '').toLowerCase();
+          const acc = (u.virtualAccount.account_number || '').trim();
+          if (b.includes('wema') || b.includes('katpay') || acc === '0127189291') {
+            u.virtualAccount = null;
+          }
+        }
+        if (Array.isArray(u.virtualAccounts)) {
+          u.virtualAccounts = u.virtualAccounts.filter((va: any) => {
+            const b = (va.bank_name || '').toLowerCase();
+            const acc = (va.account_number || '').trim();
+            return !b.includes('wema') && !b.includes('katpay') && acc !== '0127189291';
+          });
+        }
+        return u;
+      }
     } catch { }
     return DEFAULT_USER;
   });
@@ -573,16 +590,26 @@ function MainApp() {
     const lastName = user.lastname || user.last_name || '';
     const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
 
-    const vAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
-    const primaryVAccount = vAccounts.length > 0 && vAccounts[0].account_number ? {
-      bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
-      account_number: vAccounts[0].account_number || vAccounts[0].accountNo || '',
-      account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
-    } : (currentUser.virtualAccount || null);
+    const rawVAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
+    const vAccounts = rawVAccounts.filter((a: any) => {
+      const b = (a.bank_name || a.bank || '').toLowerCase();
+      const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+      return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+    });
 
-    if (primaryVAccount && primaryVAccount.account_number) {
+    let primaryVAccount: any = null;
+    if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].accountNo || vAccounts[0].account_no)) {
+      primaryVAccount = {
+        bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
+        account_number: vAccounts[0].account_number || vAccounts[0].accountNo || vAccounts[0].account_no || '',
+        account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
+      };
       try {
         localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
+      } catch { }
+    } else {
+      try {
+        localStorage.removeItem('edata_virtual_account');
       } catch { }
     }
 
@@ -633,6 +660,12 @@ function MainApp() {
       category: user.level_label || user.category || user.user_level || currentUser.category || 'Basic User',
       bvn: user.bvn || currentUser.bvn || '',
       nin: user.nin || currentUser.nin || '',
+      hasKyc: Boolean(user.has_kyc ?? walletRes?.data?.has_kyc ?? user.hasKyc ?? currentUser.hasKyc ?? (user.bvn || user.nin)),
+      has_kyc: Boolean(user.has_kyc ?? walletRes?.data?.has_kyc ?? user.has_kyc ?? currentUser.has_kyc ?? (user.bvn || user.nin)),
+      bvnMasked: user.bvn_masked || user.bvnMasked || walletRes?.data?.bvn_masked || currentUser.bvnMasked || '',
+      ninMasked: user.nin_masked || user.ninMasked || walletRes?.data?.nin_masked || currentUser.ninMasked || '',
+      bvn_masked: user.bvn_masked || user.bvnMasked || walletRes?.data?.bvn_masked || currentUser.bvn_masked || '',
+      nin_masked: user.nin_masked || user.ninMasked || walletRes?.data?.nin_masked || currentUser.nin_masked || '',
       isVerified: true,
       pinCode: '',
       hasPin: user.has_pin !== undefined ? Boolean(user.has_pin) : (user.hasPin !== undefined ? Boolean(user.hasPin) : currentUser.hasPin),
@@ -1410,6 +1443,7 @@ function MainApp() {
                 {activeView === 'fund' && (
                   <FundWallet
                     currentUser={currentUser}
+                    setCurrentUser={setCurrentUser}
                     onBack={handleGoBack}
                     onRefreshWallet={handleGlobalRefresh}
                   />

@@ -101,7 +101,7 @@ function PrivacyContent({ support }: { support: SupportInfo }) {
         <p>• Full name, email address, and phone number during account creation.</p>
         <p>• Profile photo (if uploaded).</p>
         <p className="font-black text-white pt-1">Financial & Transaction Data:</p>
-        <p>• Wallet balance, virtual bank account details (Moniepoint/KatPay), and complete transaction logs across Airtime, Data, Cable TV, Electricity, Exam Cards, and A2C.</p>
+        <p>• Wallet balance, virtual bank account details (Moniepoint/Payvessel), and complete transaction logs across Airtime, Data, Cable TV, Electricity, Exam Cards, and A2C.</p>
         <p className="font-black text-white pt-1">Security Credentials:</p>
         <p>• 4-Digit Transaction PINs (stored strictly using salted bcrypt password hashing algorithms).</p>
       </Section>

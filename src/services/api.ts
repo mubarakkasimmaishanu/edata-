@@ -171,12 +171,21 @@ export const api = {
     return request('/wallet-check', {}, silent);
   },
 
-  async initKatpay(amount: number) {
-    return request('/katpay-init', {
+  async initPayvessel(amount: number) {
+    return request('/payvessel-init', {
       method: 'POST',
       body: JSON.stringify({ amount }),
     });
   },
+
+  async verifyPayvessel(reference: string) {
+    return request('/payvessel-verify', {
+      method: 'POST',
+      body: JSON.stringify({ reference }),
+    });
+  },
+
+
 
   async initPaystack(amount: number) {
     return request('/paystack-init', {
@@ -185,9 +194,17 @@ export const api = {
     });
   },
 
-  async generateVirtualAccount() {
-    return request('/katpay-generate-virtual-account', {
+  async generateVirtualAccount(data?: { bvn?: string; nin?: string }) {
+    return request('/payvessel-generate-virtual-account', {
       method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  async revealKyc(pin: string) {
+    return request('/reveal-kyc', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
     });
   },
 

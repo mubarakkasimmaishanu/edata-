@@ -1,30 +1,140 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, VirtualAccount } from '../types';
-import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info } from 'lucide-react';
+import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info, ShieldCheck, X } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { useToast } from './Toast';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../services/api';
 
 interface FundWalletProps {
   currentUser: UserProfile;
+  setCurrentUser?: React.Dispatch<React.SetStateAction<UserProfile>> | ((user: UserProfile | ((prev: UserProfile) => UserProfile)) => void);
   onBack: () => void;
   onRefreshWallet?: () => void;
 }
 
-export default function FundWallet({ currentUser, onBack, onRefreshWallet }: FundWalletProps) {
+export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefreshWallet }: FundWalletProps) {
   const toast = useToast();
+  const { theme } = useTheme();
   const [fundTab, setFundTab] = useState<'virtual' | 'online' | 'manual'>('virtual');
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
-  const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string }>({
-    bank_name: 'Wema Bank',
-    account_name: 'CIZAR Innovation',
-    account_number: '0127189291',
-  });
+  const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Online funding state (Paystack & KatPay)
-  const [gateway, setGateway] = useState<'paystack' | 'katpay'>('paystack');
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
+  const [kycValue, setKycValue] = useState('');
+  const [kycSubmitting, setKycSubmitting] = useState(false);
+
+  const hasExistingKyc = Boolean(
+    (currentUser.bvn && currentUser.bvn.length === 11) ||
+    (currentUser.nin && currentUser.nin.length === 11) ||
+    currentUser.hasKyc ||
+    currentUser.has_kyc
+  );
+
+  const handleStartGenerateAccount = () => {
+    if (!hasExistingKyc) {
+      setShowKycModal(true);
+      return;
+    }
+    handleGenerateVirtualAccount();
+  };
+
+  const handleGenerateVirtualAccount = async (manualKyc?: { bvn?: string; nin?: string }) => {
+    setLoading(true);
+    try {
+      let created = false;
+      let errMsg = '';
+      const kycPayload = manualKyc || ((currentUser.bvn || currentUser.nin) ? {
+        bvn: currentUser.bvn,
+        nin: currentUser.nin,
+      } : undefined);
+
+      try {
+        const genRes = await api.generateVirtualAccount(kycPayload);
+        if (genRes?.require_kyc) {
+          setShowKycModal(true);
+          return;
+        }
+        if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.success)) {
+          created = true;
+          if (manualKyc?.bvn) currentUser.bvn = manualKyc.bvn;
+          if (manualKyc?.nin) currentUser.nin = manualKyc.nin;
+          currentUser.hasKyc = true;
+        } else if (genRes && (genRes.error || genRes.message)) {
+          errMsg = genRes.error || genRes.message;
+        }
+      } catch (e: any) {
+        console.warn('Dedicated account generation notice:', e);
+        errMsg = e?.message || '';
+      }
+
+      // Refresh wallet to load virtual accounts
+      const res = await api.getWallet();
+      const rawAccs = res.data?.virtual_accounts || res.virtual_accounts || [];
+      const accs = Array.isArray(rawAccs) ? rawAccs.filter((a: any) => {
+        const b = (a.bank_name || a.bank || '').toLowerCase();
+        const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+        return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+      }) : [];
+
+      if (accs.length > 0) {
+        setVirtualAccounts(accs);
+        setShowKycModal(false);
+        toast.success('Dedicated Virtual Account ready!');
+      } else if (created) {
+        await fetchFundData();
+        setShowKycModal(false);
+        toast.success('Virtual Account generated. Refreshing details...');
+      } else {
+        if (errMsg) {
+          toast.error(errMsg);
+        } else {
+          toast.info('Dedicated virtual account request submitted.');
+        }
+      }
+      if (onRefreshWallet) onRefreshWallet();
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to generate virtual account right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKycSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = kycValue.replace(/\D/g, '');
+    if (clean.length !== 11) {
+      toast.error(`${kycType.toUpperCase()} must be exactly 11 digits.`);
+      return;
+    }
+    setKycSubmitting(true);
+    try {
+      await handleGenerateVirtualAccount({ [kycType]: clean });
+    } finally {
+      setKycSubmitting(false);
+    }
+  };
+
+  const handlePasteKyc = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const clean = text.replace(/\D/g, '').slice(0, 11);
+      if (clean) {
+        setKycValue(clean);
+        toast.success(`Pasted ${kycType.toUpperCase()}!`);
+      } else {
+        toast.info('No digits found in clipboard.');
+      }
+    } catch {
+      toast.info('Please type or paste directly.');
+    }
+  };
+
+  // Online funding state (Paystack & Payvessel)
+  const [gateway, setGateway] = useState<'paystack' | 'payvessel'>('payvessel');
   const [onlineAmount, setOnlineAmount] = useState('2000');
   const grossOnline = parseFloat(onlineAmount || '0') || 0;
   const chargePercent = gateway === 'paystack' ? 0.015 : 0.01;
@@ -55,13 +165,23 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
     setLoading(true);
     try {
       const res = await api.getWallet();
-      const accounts = res.data?.virtual_accounts || res.virtual_accounts || [];
-      if (Array.isArray(accounts)) {
-        setVirtualAccounts(accounts);
-      }
+      const rawAccounts = res.data?.virtual_accounts || res.virtual_accounts || [];
+      const accounts = Array.isArray(rawAccounts) ? rawAccounts.filter((a: any) => {
+        const b = (a.bank_name || a.bank || '').toLowerCase();
+        const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+        return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+      }) : [];
+      setVirtualAccounts(accounts);
+
       const mb = res.data?.manual_bank || res.manual_bank;
       if (mb) {
-        setManualBank(mb);
+        const mbName = (mb.bank_name || '').toLowerCase();
+        const mbNum = (mb.account_number || '').trim();
+        if (!mbName.includes('wema') && !mbName.includes('katpay') && mbNum !== '0127189291') {
+          setManualBank(mb);
+        } else {
+          setManualBank(null);
+        }
       }
     } catch (err: any) {
       console.warn('Fund Wallet fetch warning:', err);
@@ -81,21 +201,21 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
     try {
       const res = gateway === 'paystack'
         ? await api.initPaystack(amountNum)
-        : await api.initKatpay(amountNum);
+        : await api.initPayvessel(amountNum);
 
       const checkoutUrl = res.checkout_url || res.data?.checkout_url;
       if (res.success && checkoutUrl) {
-        toast.success(`${gateway === 'paystack' ? 'Paystack' : 'KatPay'} Gateway Initialized! Opening checkout...`);
+        toast.success(`${gateway === 'paystack' ? 'Paystack' : 'Payvessel'} Gateway Initialized! Opening checkout...`);
         try {
           await Browser.open({ url: checkoutUrl });
         } catch {
           window.open(checkoutUrl, '_system');
         }
       } else {
-        toast.error(res.error || res.message || `Failed to initialize ${gateway === 'paystack' ? 'Paystack' : 'KatPay'} payment.`);
+        toast.error(res.error || res.message || `Failed to initialize ${gateway === 'paystack' ? 'Paystack' : 'Payvessel'} payment.`);
       }
     } catch (err: any) {
-      toast.error(err.message || `Error connecting to ${gateway === 'paystack' ? 'Paystack' : 'KatPay'} payment gateway.`);
+      toast.error(err.message || `Error connecting to ${gateway === 'paystack' ? 'Paystack' : 'Payvessel'} payment gateway.`);
     } finally {
       setOnlineSubmitting(false);
     }
@@ -194,12 +314,12 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           <div className="space-y-4">
             <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl space-y-2">
               <p className="text-xs text-sky-300 leading-relaxed">
-                Transfer any amount to your dedicated <strong>Wallet Account</strong> below. Your eData wallet will be credited <strong>instantly</strong>.
+                Transfer from <strong>₦100</strong> to your dedicated <strong>Wallet Account</strong> below. Your eData wallet will be credited <strong>instantly</strong>.
               </p>
               <div className="pt-2 border-t border-sky-500/20 flex items-start gap-2 text-[11px] text-amber-300">
                 <Info className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
                 <span>
-                  <strong>Notice:</strong> A 1% bank charge applies to all DVA transfers (e.g. ₦1,000 transfer credits <strong>₦990.00</strong> to your wallet).
+                  <strong>Notice:</strong> Minimum funding amount is <strong>₦100</strong>. A 1% transaction charge applies across all amounts (e.g. ₦1,000 transfer credits <strong>₦990.00</strong> to your wallet). Transfers below ₦100 cannot be processed.
                 </span>
               </div>
             </div>
@@ -239,41 +359,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                   <button
                     type="button"
                     disabled={loading}
-                    onClick={async () => {
-                      setLoading(true);
-                      try {
-                        let created = false;
-                        let errMsg = '';
-                        try {
-                          const genRes = await api.generateVirtualAccount();
-                          if (genRes && (genRes.account_number || genRes.data?.account_number)) {
-                            created = true;
-                          } else if (genRes && (genRes.error || genRes.message)) {
-                            errMsg = genRes.error || genRes.message;
-                          }
-                        } catch (e: any) {
-                          console.warn('KatPay direct generation notice:', e);
-                          errMsg = e?.message || '';
-                        }
-
-                        // Always refresh wallet to load virtual accounts
-                        const res = await api.getWallet();
-                        const accs = res.data?.virtual_accounts || res.virtual_accounts || [];
-                        if (Array.isArray(accs) && accs.length > 0) {
-                          setVirtualAccounts(accs);
-                          toast.success('Wallet Account generated successfully!');
-                        } else if (created) {
-                          fetchFundData();
-                          toast.success('Wallet Account request processed. Refreshing details...');
-                        } else {
-                          toast.info('Virtual Account request queued. Using default bank account details below.');
-                        }
-                      } catch (err: any) {
-                        toast.error(err?.message || 'Unable to generate virtual account right now.');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
+                    onClick={handleStartGenerateAccount}
                     className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display mt-2"
                   >
                     {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Create Wallet Account'}
@@ -315,8 +401,9 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                         <p className="text-xs text-slate-400">{acc.account_name}</p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => copyToClipboard(acc.account_number, acc.bank_name)}
-                        className="p-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all cursor-pointer"
+                        className="p-2.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl transition-all cursor-pointer active:scale-95"
                       >
                         {copiedBank === acc.bank_name ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -340,7 +427,7 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                 <span>
                   {gateway === 'paystack'
                     ? 'A 1.5% transaction charge applies to Paystack checkout.'
-                    : 'A 1% transaction charge applies to KatPay checkout.'}
+                    : 'A 1% transaction charge applies to Payvessel checkout.'}
                 </span>
               </div>
             </div>
@@ -350,6 +437,22 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">Select Payment Gateway</label>
                 <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGateway('payvessel')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      gateway === 'payvessel'
+                        ? 'bg-sky-500/15 border-sky-400 text-white ring-1 ring-sky-400'
+                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-white font-display">Payvessel</span>
+                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">Instant</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">Instant Transfer • 1% fee</p>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setGateway('paystack')}
@@ -364,22 +467,6 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                       <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">Active</span>
                     </div>
                     <p className="text-[10px] text-slate-400 leading-tight">Card, USSD & Bank • 1.5% fee</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setGateway('katpay')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      gateway === 'katpay'
-                        ? 'bg-sky-500/15 border-sky-400 text-white ring-1 ring-sky-400'
-                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-black text-white font-display">KatPay</span>
-                      <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">Maintenance</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 leading-tight">Instant Transfer • 1% fee</p>
                   </button>
                 </div>
               </div>
@@ -440,10 +527,10 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                 {onlineSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                    <span>Connecting {gateway === 'paystack' ? 'Paystack' : 'KatPay'} Gateway...</span>
+                    <span>Connecting {gateway === 'paystack' ? 'Paystack' : 'Payvessel'} Gateway...</span>
                   </>
                 ) : (
-                  <span>Pay ₦{grossOnline.toLocaleString()} with {gateway === 'paystack' ? 'Paystack' : 'KatPay'} (Net: ₦{netOnlineCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                  <span>Pay ₦{grossOnline.toLocaleString()} with {gateway === 'paystack' ? 'Paystack' : 'Payvessel'} (Net: ₦{netOnlineCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
                 )}
               </button>
             </div>
@@ -460,11 +547,17 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
                   Min of ₦20,000
                 </span>
               </div>
-              <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
-                <p className="text-xs text-slate-400">Bank: <strong className="text-white">{manualBank.bank_name}</strong></p>
-                <p className="text-xs text-slate-400">Account Name: <strong className="text-white">{manualBank.account_name}</strong></p>
-                <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">{manualBank.account_number}</strong></p>
-              </div>
+              {manualBank ? (
+                <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl space-y-1">
+                  <p className="text-xs text-slate-400">Bank: <strong className="text-white">{manualBank.bank_name}</strong></p>
+                  <p className="text-xs text-slate-400">Account Name: <strong className="text-white">{manualBank.account_name}</strong></p>
+                  <p className="text-xs text-slate-400">Account Number: <strong className="text-sky-400 font-mono">{manualBank.account_number}</strong></p>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-900 border border-slate-700 rounded-xl text-center">
+                  <p className="text-xs text-slate-400">Loading bank details...</p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -522,6 +615,110 @@ export default function FundWallet({ currentUser, onBack, onRefreshWallet }: Fun
           </form>
         )}
       </main>
+
+      {/* KYC Verification Modal */}
+      {showKycModal && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-6">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => { if (!kycSubmitting) setShowKycModal(false); }}
+          />
+          <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-[340px] shadow-2xl shadow-black/40 font-display">
+            <button
+              type="button"
+              onClick={() => setShowKycModal(false)}
+              disabled={kycSubmitting}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex justify-center mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+                <ShieldCheck className="w-6 h-6 text-sky-500" />
+              </div>
+            </div>
+
+            <h3 className="text-base font-black text-slate-900 dark:text-white text-center">
+              Identity Verification
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1.5 leading-relaxed font-medium">
+              Enter your 11-digit BVN or NIN to assign your dedicated bank account.
+            </p>
+
+            {/* Toggle BVN / NIN */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl mt-4">
+              <button
+                type="button"
+                onClick={() => { setKycType('bvn'); setKycValue(''); }}
+                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  kycType === 'bvn'
+                    ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                BVN
+              </button>
+              <button
+                type="button"
+                onClick={() => { setKycType('nin'); setKycValue(''); }}
+                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  kycType === 'nin'
+                    ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                NIN
+              </button>
+            </div>
+
+            <form onSubmit={handleKycSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {kycType === 'bvn' ? '11-Digit BVN' : '11-Digit NIN'}
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={11}
+                    value={kycValue}
+                    onChange={(e) => setKycValue(e.target.value.replace(/\D/g, ''))}
+                    placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 focus:border-sky-500 rounded-xl px-4 py-3 pr-20 text-slate-900 dark:text-white font-mono text-center tracking-widest text-base focus:outline-none transition-colors"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePasteKyc}
+                    className="absolute right-2 px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Paste</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={kycValue.length !== 11 || kycSubmitting}
+                className="w-full py-3.5 bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-sky-500/25 font-display"
+              >
+                {kycSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  'Generate Account'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
