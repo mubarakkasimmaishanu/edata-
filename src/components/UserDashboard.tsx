@@ -135,7 +135,8 @@ export default function UserDashboard({
         const parsed = JSON.parse(saved);
         const bName = (parsed.bank_name || '').toLowerCase();
         const accNo = (parsed.account_number || '').trim();
-        if (bName.includes('wema') || bName.includes('katpay') || accNo === '0127189291') {
+        const accNm = (parsed.account_name || '').toLowerCase();
+        if (bName.includes('wema') || bName.includes('katpay') || accNm.includes('katpay') || accNm.includes('cizar') || accNo === '0127189291') {
           localStorage.removeItem('edata_virtual_account');
           return null;
         }
@@ -214,7 +215,8 @@ export default function UserDashboard({
         const vAccounts = rawAccounts.filter((a: any) => {
           const b = (a.bank_name || a.bank || '').toLowerCase();
           const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-          return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+          const nm = (a.account_name || a.accountName || '').toLowerCase();
+          return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
         });
 
         if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo)) {
@@ -444,6 +446,8 @@ export default function UserDashboard({
             const vAcc = rawV && !(
               (rawV.bank_name || '').toLowerCase().includes('wema') ||
               (rawV.bank_name || '').toLowerCase().includes('katpay') ||
+              (rawV.account_name || '').toLowerCase().includes('katpay') ||
+              (rawV.account_name || '').toLowerCase().includes('cizar') ||
               (rawV.account_number || '').trim() === '0127189291'
             ) ? rawV : null;
 
@@ -466,6 +470,7 @@ export default function UserDashboard({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
+                      onContextMenu={(e) => e.preventDefault()}
                       onClick={(e) => {
                         e.stopPropagation();
                         navigator.clipboard.writeText(accNum);

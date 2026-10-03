@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.eDATA.app",
+        "paths": [
+          "/join*",
+          "/r/*",
+          "/office/*",
+          "/dashboard/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAMID.com.eDATA.app"
+    ]
+  }
+}

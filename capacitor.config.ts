@@ -5,7 +5,12 @@ const config: CapacitorConfig = {
   appName: 'eData',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    iosScheme: 'https'
+  },
+  ios: {
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile'
   },
   plugins: {
     GoogleAuth: {
@@ -14,9 +19,9 @@ const config: CapacitorConfig = {
       forceCodeForRefreshToken: true
     },
     SplashScreen: {
-      launchShowDuration: 0,
+      launchShowDuration: 1500,
       launchAutoHide: true,
-      backgroundColor: "#ffffff",
+      backgroundColor: "#0f172a",
       showSpinner: false,
       androidScaleType: "CENTER_CROP",
       splashFullScreen: false,
