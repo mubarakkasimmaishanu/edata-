@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import {
   ChevronLeft, Key, KeyRound, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
-  Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon
+  Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon,
+  Eye, EyeOff, Shield
 } from 'lucide-react';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
@@ -114,6 +115,10 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
       setEnrollingBio(false);
     }
   };
+
+
+
+
 
   // Copy states & loading states
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -274,10 +279,10 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           </div>
         )}
 
-        {/* ── USER INFORMATION Section ── */}
+        {/* ── PERSONAL INFORMATION Section ── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 font-display">USER INFORMATION</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 font-display">PERSONAL INFORMATION</span>
             <button
               onClick={() => setFullScreenView('edit_profile')}
               className="text-xs font-bold text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
@@ -286,7 +291,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
             </button>
           </div>
 
-          <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4.5 space-y-3.5 shadow-xl shadow-slate-950/20">
+          <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4.5 space-y-3 shadow-xl shadow-slate-950/20">
             {/* Full Name Row */}
             <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
               <div className="flex items-center gap-3">
@@ -338,6 +343,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 {currentUser.phone ? 'Edit' : 'Add Phone'}
               </button>
             </div>
+
           </div>
         </section>
 
@@ -726,6 +732,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           </div>
         </div>
       )}
+
     </div>
   );
 }

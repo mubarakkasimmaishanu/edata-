@@ -131,31 +131,50 @@ export default function UserDashboard({
   const [localVirtualAccount, setLocalVirtualAccount] = useState<VirtualAccount | null>(() => {
     try {
       const saved = localStorage.getItem('edata_virtual_account');
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const bName = (parsed.bank_name || '').toLowerCase();
+        const accNo = (parsed.account_number || '').trim();
+        if (bName.includes('wema') || bName.includes('katpay') || accNo === '0127189291') {
+          localStorage.removeItem('edata_virtual_account');
+          return null;
+        }
+        return parsed;
+      }
     } catch {
       return null;
     }
+    return null;
   });
 
   useEffect(() => {
-    if (!localVirtualAccount) {
-      api.getWallet()
-        .then((res) => {
-          const vAccounts: any[] = res.data?.virtual_accounts || res.virtual_accounts || (res.data?.virtual_account ? [res.data.virtual_account] : res.virtual_account ? [res.virtual_account] : []);
-          if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no)) {
-            const acc: VirtualAccount = {
-              bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
-              account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
-              account_name: vAccounts[0].account_name || vAccounts[0].accountName || 'eData User',
-            };
-            setLocalVirtualAccount(acc);
-            try {
-              localStorage.setItem('edata_virtual_account', JSON.stringify(acc));
-            } catch {}
-          }
-        })
-        .catch(() => {});
-    }
+    api.getWallet()
+      .then((res) => {
+        const rawAccounts: any[] = res.data?.virtual_accounts || res.virtual_accounts || (res.data?.virtual_account ? [res.data.virtual_account] : res.virtual_account ? [res.virtual_account] : []);
+        const vAccounts = rawAccounts.filter((a: any) => {
+          const b = (a.bank_name || a.bank || '').toLowerCase();
+          const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+          return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+        });
+
+        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo)) {
+          const acc: VirtualAccount = {
+            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
+            account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
+            account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
+          };
+          setLocalVirtualAccount(acc);
+          try {
+            localStorage.setItem('edata_virtual_account', JSON.stringify(acc));
+          } catch {}
+        } else {
+          setLocalVirtualAccount(null);
+          try {
+            localStorage.removeItem('edata_virtual_account');
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleGenerateVirtualAccount = async () => {
@@ -163,40 +182,47 @@ export default function UserDashboard({
     try {
       let fetchedAcc: VirtualAccount | null = null;
       
-      // 1. Attempt KatPay virtual account generation API
+      // 1. One-click Payvessel virtual account generation API
       try {
-        const genRes = await api.generateVirtualAccount();
-        if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.data?.virtual_account)) {
-          const raw = genRes.data?.virtual_account || genRes.data || genRes;
+        const kycPayload = (currentUser.bvn || currentUser.nin) ? {
+          bvn: currentUser.bvn,
+          nin: currentUser.nin,
+        } : undefined;
+        const genRes = await api.generateVirtualAccount(kycPayload);
+        if (genRes?.require_kyc) {
+          toast.info('Please enter your BVN or NIN to assign your dedicated account.');
+          onNavigate('fund');
+          return;
+        }
+        const accData = genRes.data || genRes;
+        const raw = accData?.virtual_account || (Array.isArray(accData?.accounts) ? accData.accounts[0] : null) || accData;
+        if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
           fetchedAcc = {
-            bank_name: raw.bank_name || raw.bank || 'KatPay / Wema Bank',
+            bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',
             account_number: raw.account_number || raw.accountNo || raw.account_no,
             account_name: raw.account_name || raw.accountName || displayName,
           };
         }
-      } catch (e) {
-        console.warn('KatPay direct virtual account generation warning:', e);
+      } catch (e: any) {
+        console.warn('Payvessel direct virtual account generation warning:', e);
       }
 
-      // 2. Fallback / Check wallet accounts from server
+      // 2. Fetch fresh wallet accounts from server
       if (!fetchedAcc || !fetchedAcc.account_number) {
         const walletRes = await api.getWallet();
-        const vAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
-        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no)) {
+        const rawAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
+        const vAccounts = rawAccounts.filter((a: any) => {
+          const b = (a.bank_name || a.bank || '').toLowerCase();
+          const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+          return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+        });
+
+        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo)) {
           fetchedAcc = {
-            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'KatPay / Wema Bank',
+            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
             account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
             account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
           };
-        } else {
-          const mb = walletRes.data?.manual_bank || walletRes.manual_bank;
-          if (mb && mb.account_number) {
-            fetchedAcc = {
-              bank_name: mb.bank_name || 'Bank Transfer',
-              account_number: mb.account_number,
-              account_name: mb.account_name || displayName,
-            };
-          }
         }
       }
 
@@ -205,7 +231,7 @@ export default function UserDashboard({
         try {
           localStorage.setItem('edata_virtual_account', JSON.stringify(fetchedAcc));
         } catch {}
-        toast.success(`Virtual Account ${fetchedAcc.account_number} ready! Copy to fund your wallet.`);
+        toast.success(`Virtual Account ${fetchedAcc.account_number} ready!`);
         if (onRefresh) onRefresh();
       } else {
         toast.info('Opening wallet funding options...');
@@ -412,9 +438,14 @@ export default function UserDashboard({
             </div>
           </div>
 
-          {/* Bottom Area: Backend KatPay Virtual Account Capsule */}
+          {/* Bottom Area: Dedicated Virtual Account Capsule */}
           {(() => {
-            const vAcc = localVirtualAccount || currentUser.virtualAccount || (currentUser.virtualAccounts && currentUser.virtualAccounts.length > 0 ? currentUser.virtualAccounts[0] : null);
+            const rawV = localVirtualAccount || currentUser.virtualAccount || (currentUser.virtualAccounts && currentUser.virtualAccounts.length > 0 ? currentUser.virtualAccounts[0] : null);
+            const vAcc = rawV && !(
+              (rawV.bank_name || '').toLowerCase().includes('wema') ||
+              (rawV.bank_name || '').toLowerCase().includes('katpay') ||
+              (rawV.account_number || '').trim() === '0127189291'
+            ) ? rawV : null;
 
             if (vAcc && vAcc.account_number) {
               const accNum = vAcc.account_number;
