@@ -86,18 +86,30 @@ python scratch/deploy_to_hostinger_live.py
   - Capacitor App lifecycle management, native Android icons and splash assets (`eData-v2.2.0-release.apk`).
   - Android Autofill & Google Password Manager support with `autocomplete="username"` and `autocomplete="current-password"`.
   - Native Google Auth integration via `@codetrix-studio/capacitor-google-auth`.
+- **iOS Integration & Native Assets (Magic Code / Codemagic / GitHub Actions):**
+  - Native Capacitor iOS platform under `ios/App` configured with Bundle ID `com.eDATA.app`.
+  - Configured `Info.plist` with required iOS permissions: Face ID (`NSFaceIDUsageDescription`), Contacts (`NSContactsUsageDescription`), Camera (`NSCameraUsageDescription`), and Photo Library (`NSPhotoLibraryUsageDescription`).
+  - URL Schemes (`edata://`, `com.eDATA.app`, and reversed Google OAuth Client ID) and Associated Domains (`applinks:edata.com.ng`, `applinks:www.edata.com.ng`).
+  - iOS Branding script: `scripts/generate_ios_assets.py` generates Apple-compliant 1024x1024 RGB App Store icon and 2732x2732 splash assets.
+  - Automated Cloud Build Pipelines:
+    - **Codemagic CI/CD:** `codemagic.yaml` for building `.ipa` and `.xcarchive` on cloud macOS M2 instances.
+    - **GitHub Actions:** `.github/workflows/build-ios.yml` for automated compilation and artifact export on GitHub macOS runners.
 
 ### Build & Push Commands
 ```powershell
 # 1. Check TypeScript compilation
 npx tsc --noEmit
 
-# 2. Build React production bundle
+# 2. Build React production bundle & generate iOS assets
 npm run build
+npm run assets:ios
 
-# 3. Commit and push
+# 3. Sync native iOS and Android platforms
+npm run cap:sync
+
+# 4. Commit and push (triggers GitHub Actions & Codemagic iOS builds)
 git add .
-git commit -m "Optimize Quick Actions direct PIN checkout flow, context-aware target inputs, Reseller Upgrade page, and Android assets"
+git commit -m "Generate and configure native iOS platform with Codemagic and GitHub Actions"
 git push origin main
 ```
 

@@ -10,7 +10,10 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "cap:sync": "npx cap sync",
-    "cap:open": "npx cap open android"
+    "cap:sync:ios": "npx cap sync ios",
+    "cap:open": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "assets:ios": "python scripts/generate_ios_assets.py"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
@@ -20,6 +23,7 @@
     "@capacitor/browser": "^6.0.6",
     "@capacitor/cli": "^6.2.0",
     "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.2",
     "@capacitor/push-notifications": "^6.0.5",
     "@capacitor/status-bar": "^6.0.3",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",

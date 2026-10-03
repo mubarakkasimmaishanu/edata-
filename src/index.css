@@ -711,10 +711,23 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Eliminate 300ms mobile touch delay on clickable elements */
-button, a, input, select, textarea, [role="button"] {
-  touch-action: manipulation;
+/* Eliminate 300ms mobile touch delay and prevent native touch callout/selection artifacts */
+*, *::before, *::after {
   -webkit-tap-highlight-color: transparent;
+}
+
+body, button, a, [role="button"], label, svg {
+  touch-action: manipulation;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+input, textarea {
+  touch-action: manipulation;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Hardware Accelerated Layers — sparingly.

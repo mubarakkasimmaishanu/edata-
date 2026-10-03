@@ -1,0 +1,80 @@
+name: Build eData iOS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'ios/**'
+      - 'package.json'
+      - 'capacitor.config.ts'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS Application
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: |
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build Web Application
+        run: |
+          npm run build
+
+      - name: Sync Capacitor iOS
+        run: |
+          npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install
+
+      - name: Build iOS Archive (.xcarchive)
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/eData.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package Payload into Unsigned .IPA
+        run: |
+          cd ios/App/build
+          mkdir -p Payload
+          cp -r eData.xcarchive/Products/Applications/App.app Payload/eData.app
+          zip -r eData-v2.4.3-unsigned.ipa Payload
+          echo "Created eData-v2.4.3-unsigned.ipa successfully!"
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eData-iOS-Release-IPA
+          path: ios/App/build/eData-v2.4.3-unsigned.ipa
+          retention-days: 14
+
+      - name: Upload Xcode Archive Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eData-Xcode-Archive
+          path: ios/App/build/eData.xcarchive
+          retention-days: 14

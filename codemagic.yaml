@@ -1,0 +1,72 @@
+workflows:
+  ios-release:
+    name: eData iOS Release Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20.x
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.eDATA.app"
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Install Node Dependencies
+        script: |
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+      - name: Generate Branding Assets
+        script: |
+          python3 scripts/generate_ios_assets.py
+      - name: Build Web Application
+        script: |
+          npm run build
+      - name: Sync Capacitor iOS
+        script: |
+          npx cap sync ios
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install --repo-update
+      - name: Configure Code Signing / Ad-hoc / TestFlight
+        script: |
+          # If Apple developer certificates are configured in Codemagic UI:
+          xcode-project use-profiles || echo "Skipping profile configuration (building without managed profile)"
+      - name: Build iOS Application (.ipa / .xcarchive)
+        script: |
+          # Build signed IPA or unsigned archive
+          if xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"; then
+            echo "IPA generated successfully via xcode-project build-ipa"
+          else
+            echo "Building via raw xcodebuild for unassigned/developer distribution..."
+            cd ios/App
+            xcodebuild \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath build/App.xcarchive \
+              archive \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY=""
+          fi
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - ios/App/build/**/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - dev@edata.com.ng
+        notify:
+          success: true
+          failure: true

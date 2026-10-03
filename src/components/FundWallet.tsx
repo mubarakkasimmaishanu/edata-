@@ -34,6 +34,20 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
     currentUser.has_kyc
   );
 
+  const handleDirectGenerate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!hasExistingKyc) {
+      const clean = kycValue.replace(/\D/g, '');
+      if (clean.length !== 11) {
+        toast.error(`${kycType.toUpperCase()} must be exactly 11 digits.`);
+        return;
+      }
+      await handleGenerateVirtualAccount({ [kycType]: clean });
+    } else {
+      await handleGenerateVirtualAccount();
+    }
+  };
+
   const handleStartGenerateAccount = () => {
     if (!hasExistingKyc) {
       setShowKycModal(true);
@@ -77,7 +91,8 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
       const accs = Array.isArray(rawAccs) ? rawAccs.filter((a: any) => {
         const b = (a.bank_name || a.bank || '').toLowerCase();
         const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-        return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+        const nm = (a.account_name || a.accountName || '').toLowerCase();
+        return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
       }) : [];
 
       if (accs.length > 0) {
@@ -169,7 +184,8 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
       const accounts = Array.isArray(rawAccounts) ? rawAccounts.filter((a: any) => {
         const b = (a.bank_name || a.bank || '').toLowerCase();
         const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-        return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+        const nm = (a.account_name || a.accountName || '').toLowerCase();
+        return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
       }) : [];
       setVirtualAccounts(accounts);
 
@@ -330,41 +346,105 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                   <div className="w-12 h-12 bg-sky-500/10 border border-sky-500/30 rounded-2xl flex items-center justify-center mx-auto mb-2 text-sky-400">
                     <Landmark className="w-6 h-6" />
                   </div>
-                  <h3 className="text-sm font-black text-white font-display">Wallet Account Setup</h3>
+                  <h3 className="text-sm font-black text-white font-display">Instant Dedicated Virtual Account</h3>
                   <p className="text-xs text-slate-400">
-                    Generate your dedicated bank transfer account for 24/7 automated instant funding.
+                    {hasExistingKyc
+                      ? 'Generate your dedicated bank account for 24/7 automated instant funding.'
+                      : 'Enter your 11-digit BVN or NIN to assign your dedicated bank account.'}
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-300 block mb-1">Account Holder Name</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={currentUser.name || `${currentUser.firstname || ''} ${currentUser.lastname || ''}`.trim() || currentUser.email}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-slate-300 font-medium focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-300 block mb-1">Registered Phone</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={currentUser.phone || '08000000000'}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-slate-300 font-medium focus:outline-none"
-                    />
-                  </div>
+                {!hasExistingKyc ? (
+                  <form onSubmit={handleDirectGenerate} className="space-y-3 pt-2">
+                    {/* Toggle BVN / NIN */}
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 border border-slate-800 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => { setKycType('bvn'); setKycValue(''); }}
+                        className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          kycType === 'bvn'
+                            ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        BVN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setKycType('nin'); setKycValue(''); }}
+                        className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          kycType === 'nin'
+                            ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        NIN
+                      </button>
+                    </div>
 
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={handleStartGenerateAccount}
-                    className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display mt-2"
-                  >
-                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Create Wallet Account'}
-                  </button>
-                </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                        {kycType === 'bvn' ? '11-Digit BVN' : '11-Digit NIN'}
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={11}
+                          value={kycValue}
+                          onChange={(e) => setKycValue(e.target.value.replace(/\D/g, ''))}
+                          placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-3 pr-20 text-white font-mono text-center tracking-widest text-sm focus:outline-none transition-colors"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={handlePasteKyc}
+                          className="absolute right-2 px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Paste</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || kycValue.length !== 11}
+                      className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-40 disabled:hover:bg-sky-500 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display mt-2"
+                    >
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Generating Account...</span>
+                        </>
+                      ) : (
+                        'Generate Virtual Account'
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleGenerateVirtualAccount()}
+                      className="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display mt-2"
+                    >
+                      {loading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Generating Account...</span>
+                        </>
+                      ) : (
+                        'Generate Virtual Account'
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {/* Secondary manual bank option if present */}
                 {manualBank && manualBank.account_number && (
@@ -402,6 +482,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                       </div>
                       <button
                         type="button"
+                        onContextMenu={(e) => e.preventDefault()}
                         onClick={() => copyToClipboard(acc.account_number, acc.bank_name)}
                         className="p-2.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl transition-all cursor-pointer active:scale-95"
                       >
