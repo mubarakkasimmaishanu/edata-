@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAMID.com.eDATA.app",
+        "appID": "U5XG4VZ4LN.com.eDATA.app",
         "paths": [
           "/join*",
           "/r/*",
@@ -15,7 +15,7 @@
   },
   "webcredentials": {
     "apps": [
-      "TEAMID.com.eDATA.app"
+      "U5XG4VZ4LN.com.eDATA.app"
     ]
   }
 }
