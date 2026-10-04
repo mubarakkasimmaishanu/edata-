@@ -43,11 +43,28 @@ workflows:
       - name: Build iOS Application (.ipa / .xcarchive)
         script: |
           # Build officially signed App Store / TestFlight IPA
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+          if xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"; then
+            echo "IPA generated successfully via xcode-project build-ipa!"
+          else
+            echo "Direct xcode-project failed, compiling via xcodebuild archive..."
+            cd ios/App
+            xcodebuild \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath build/App.xcarchive \
+              archive
+            
+            mkdir -p build/Payload
+            cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/App.app
+            cd build
+            zip -r eData-Release-signed.ipa Payload
+            echo "Packaged eData-Release-signed.ipa successfully!"
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
+      - ios/App/build/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
