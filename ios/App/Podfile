@@ -35,5 +35,17 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
     end
+    if target.name == 'GTMAppAuth'
+      phase = target.new_shell_script_build_phase("Inject GTMAppAuth PrivacyInfo")
+      phase.shell_script = <<-SCRIPT
+        PRIVACY_SRC="${SRCROOT}/../../App/PrivacyInfo.xcprivacy"
+        if [ -f "$PRIVACY_SRC" ]; then
+          mkdir -p "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.framework"
+          cp -f "$PRIVACY_SRC" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.framework/PrivacyInfo.xcprivacy" 2>/dev/null || true
+          mkdir -p "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          cp -f "$PRIVACY_SRC" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PrivacyInfo.xcprivacy" 2>/dev/null || true
+        fi
+      SCRIPT
+    end
   end
 end
