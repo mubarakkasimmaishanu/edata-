@@ -40,37 +40,7 @@ workflows:
           pod install --repo-update
       - name: Inject GTMAppAuth Privacy Manifest
         script: |
-          PRIVACY_SRC="$PWD/ios/App/App/PrivacyInfo.xcprivacy"
-          
-          # 1. Copy into Pods source folders
-          find ios/App/Pods -type d -name "GTMAppAuth*" | while read -r dir; do
-            echo "Copying PrivacyInfo to $dir"
-            mkdir -p "$dir/Resources"
-            cp -f "$PRIVACY_SRC" "$dir/Resources/PrivacyInfo.xcprivacy"
-            cp -f "$PRIVACY_SRC" "$dir/PrivacyInfo.xcprivacy"
-          done
-          
-          # 2. Patch Pods-App-frameworks.sh to guarantee PrivacyInfo.xcprivacy is inside GTMAppAuth.framework before codesigning
-          FRAMEWORKS_SCRIPT="ios/App/Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh"
-          if [ -f "$FRAMEWORKS_SCRIPT" ]; then
-            python3 -c "
-p = '$FRAMEWORKS_SCRIPT'
-with open(p, 'r') as f:
-    c = f.read()
-
-injection = '''
-    if [ -d \"\$destination/GTMAppAuth.framework\" ]; then
-      echo \"Injecting PrivacyInfo.xcprivacy into \$destination/GTMAppAuth.framework\"
-      cp -f \"$PRIVACY_SRC\" \"\$destination/GTMAppAuth.framework/PrivacyInfo.xcprivacy\"
-    fi
-'''
-if 'code_sign_if_enabled' in c:
-    c = c.replace('code_sign_if_enabled', injection + '\n    code_sign_if_enabled', 1)
-    with open(p, 'w') as f:
-        f.write(c)
-    print('Successfully patched Pods-App-frameworks.sh with GTMAppAuth privacy manifest!')
-"
-          fi
+          python3 scripts/inject_privacy_manifest.py
       - name: Set up Apple Code Signing
         script: |
           # Apply the uploaded iOS Distribution certificate and Provisioning profile
