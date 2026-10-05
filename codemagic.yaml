@@ -50,7 +50,6 @@ workflows:
             --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
-      - ios/App/build/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
