@@ -1,7 +1,7 @@
 {
   "name": "edata-mobile",
   "private": true,
-  "version": "2.4.4",
+  "version": "2.4.5",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -13,7 +13,8 @@
     "cap:sync:ios": "npx cap sync ios",
     "cap:open": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
-    "assets:ios": "python scripts/generate_ios_assets.py"
+    "assets:ios": "python scripts/generate_ios_assets.py",
+    "postinstall": "node scripts/patch-google-auth-ios.cjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",

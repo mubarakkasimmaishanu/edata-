@@ -86,10 +86,28 @@ export default function AuthPage({
 
   // Google Client ID (Web Client ID from Firebase / Google Cloud Console)
   const GOOGLE_CLIENT_ID = '452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com';
+  // iOS OAuth Client ID (Google Cloud Console → Credentials → OAuth client → type "iOS",
+  // bundle ID com.eDATA.app). The Web client ID above CANNOT be used by the native iOS SDK.
+  // When set, also add its reversed form (com.googleusercontent.apps.XXXX) to
+  // CFBundleURLSchemes in ios/App/App/Info.plist. Leave empty to hide Google Sign-In on iOS.
+  const GOOGLE_IOS_CLIENT_ID = '';
+  const isIOS = Capacitor.getPlatform() === 'ios';
+  const googleSignInAvailable = !isIOS || GOOGLE_IOS_CLIENT_ID.length > 0;
 
   // Initialize the correct SDK exactly once per platform
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
+      if (isIOS) {
+        if (!GOOGLE_IOS_CLIENT_ID) return;
+        // iOS: native SDK needs the iOS client ID; serverClientId (from capacitor.config)
+        // makes the returned ID token's audience the Web client ID the backend verifies.
+        import('@codetrix-studio/capacitor-google-auth')
+          .then(({ GoogleAuth }) =>
+            GoogleAuth.initialize({ clientId: GOOGLE_IOS_CLIENT_ID, scopes: ['profile', 'email'], grantOfflineAccess: true })
+          )
+          .catch(() => {});
+        return;
+      }
       // Android reads server_client_id from strings.xml — do NOT pass clientId here
       import('@codetrix-studio/capacitor-google-auth')
         .then(({ GoogleAuth }) => GoogleAuth.initialize())
@@ -185,10 +203,15 @@ export default function AuthPage({
         tokenPayload = await runGISWebOAuth();
       }
 
-      // Send to Backend Google API
-      const backendRes = await api.googleAuth(tokenPayload);
+      // Send to Backend Google API with captured referral code if available
+      const activeReferral = authPromo.trim() || getPendingReferral() || undefined;
+      const backendRes = await api.googleAuth({
+        ...tokenPayload,
+        ...(activeReferral ? { referral_code: activeReferral } : {}),
+      });
 
       if (backendRes.success && backendRes.data?.token) {
+        clearPendingReferral();
         setAuthToken(backendRes.data.token);
         const userObj: UserProfile = {
           id: backendRes.data.user.id,
@@ -301,7 +324,8 @@ export default function AuthPage({
     }
 
     try {
-      const res = await api.signupRequest(authEmail, authPromo);
+      const activePromo = authPromo.trim() || getPendingReferral() || undefined;
+      const res = await api.signupRequest(authEmail, activePromo);
       if (res.success) {
         setScreenMode('otp');
         toast.success(res.message || 'Verification code sent to your registered email');
@@ -340,7 +364,8 @@ export default function AuthPage({
   // ─── Resend OTP Handler ───
   const handleResendOTP = async () => {
     try {
-      const res = await api.signupRequest(authEmail, authPromo);
+      const activePromo = authPromo.trim() || getPendingReferral() || undefined;
+      const res = await api.signupRequest(authEmail, activePromo);
       if (res.success) {
         toast.success(res.message || 'A new verification code has been sent to your email.');
       } else {
@@ -364,7 +389,8 @@ export default function AuthPage({
     }
 
     try {
-      const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', authPromo);
+      const activePromo = authPromo.trim() || getPendingReferral() || undefined;
+      const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', activePromo);
       if (res.success && res.data) {
         const newUserObj: UserProfile = {
           id: res.data.user.id,
@@ -375,7 +401,7 @@ export default function AuthPage({
           category: res.data.user.level_label || 'Basic User',
           bvn: '', nin: '', isVerified: false,
           pinCode: '', hasPin: res.data.user.has_pin || false,
-          promoCode: authPromo,
+          promoCode: activePromo || authPromo,
         };
         setCurrentUser(newUserObj);
         localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));
@@ -638,6 +664,7 @@ export default function AuthPage({
                   </form>
                 )}
 
+                {googleSignInAvailable && (<>
                 {/* Divider */}
                 <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center">
@@ -677,6 +704,7 @@ export default function AuthPage({
                   )}
                   <span>Continue with Google</span>
                 </button>
+                </>)}
               </div>
             </div>
 

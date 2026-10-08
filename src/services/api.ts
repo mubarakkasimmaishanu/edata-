@@ -126,10 +126,32 @@ export const api = {
     return data;
   },
 
-  async googleAuth(params: { id_token?: string; access_token?: string; email?: string; name?: string; picture?: string; firstname?: string; lastname?: string }) {
+  async googleAuth(params: {
+    id_token?: string;
+    access_token?: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    firstname?: string;
+    lastname?: string;
+    referral_code?: string;
+    install_referrer?: string;
+    click_id?: string;
+  }) {
+    const refCode = params.referral_code || localStorage.getItem('edata_pending_referral') || undefined;
+    const installReferrer = params.install_referrer || localStorage.getItem('edata_raw_install_referrer') || undefined;
+    const clickId = params.click_id || localStorage.getItem('edata_pending_click_id') || undefined;
+
+    const payload = {
+      ...params,
+      ...(refCode ? { referral_code: refCode } : {}),
+      ...(installReferrer ? { install_referrer: installReferrer } : {}),
+      ...(clickId ? { click_id: clickId } : {}),
+    };
+
     const data = await request('/google-auth', {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
     if (data.success && data.data?.token) {
       setAuthToken(data.data.token);
@@ -334,10 +356,19 @@ export const api = {
     });
   },
 
-  async signupRequest(email: string, referralCode?: string) {
+  async signupRequest(email: string, referralCode?: string, installReferrer?: string, clickId?: string) {
+    const finalRef = referralCode || localStorage.getItem('edata_pending_referral') || undefined;
+    const finalInstall = installReferrer || localStorage.getItem('edata_raw_install_referrer') || undefined;
+    const finalClick = clickId || localStorage.getItem('edata_pending_click_id') || undefined;
+
     return request('/signup-request', {
       method: 'POST',
-      body: JSON.stringify({ email, referral_code: referralCode }),
+      body: JSON.stringify({
+        email,
+        referral_code: finalRef,
+        install_referrer: finalInstall,
+        click_id: finalClick,
+      }),
     });
   },
 
@@ -357,8 +388,14 @@ export const api = {
     referralCode?: string,
     firstname?: string,
     lastname?: string,
-    phone?: string
+    phone?: string,
+    installReferrer?: string,
+    clickId?: string
   ) {
+    const finalRef = referralCode || localStorage.getItem('edata_pending_referral') || undefined;
+    const finalInstall = installReferrer || localStorage.getItem('edata_raw_install_referrer') || undefined;
+    const finalClick = clickId || localStorage.getItem('edata_pending_click_id') || undefined;
+
     return request('/signup-complete', {
       method: 'POST',
       body: JSON.stringify({
@@ -367,11 +404,20 @@ export const api = {
         password,
         confirm_password: confirmPassword || password,
         transaction_pin: transactionPin,
-        referral_code: referralCode,
+        referral_code: finalRef,
         firstname,
         lastname,
         phone,
+        install_referrer: finalInstall,
+        click_id: finalClick,
       }),
+    });
+  },
+
+  async claimReferral(referralCode: string) {
+    return request('/claim-referral', {
+      method: 'POST',
+      body: JSON.stringify({ referral_code: referralCode }),
     });
   },
 
