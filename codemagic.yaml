@@ -16,6 +16,7 @@ workflows:
         BUNDLE_ID: "com.eDATA.app"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
+        APP_STORE_APPLE_ID: "6818987035"
     triggering:
       events:
         - push
@@ -38,9 +39,25 @@ workflows:
         script: |
           cd ios/App
           pod install --repo-update
-      - name: Inject GTMAppAuth Privacy Manifest
+      - name: Verify Google SDK versions (ITMS-91061)
         script: |
-          python3 scripts/inject_privacy_manifest.py
+          # GoogleSignIn >= 7.1 pulls GTMAppAuth >= 4.1.1, AppAuth >= 1.7.3 and
+          # GTMSessionFetcher >= 3.3, which all ship Apple privacy manifests.
+          grep -E "^  - (GoogleSignIn|GTMAppAuth|AppAuth|GTMSessionFetcher)" ios/App/Podfile.lock
+          if grep -qE "^  - GTMAppAuth \((1|2|3)\." ios/App/Podfile.lock; then
+            echo "ERROR: GTMAppAuth < 4.1.1 resolved (no privacy manifest). Is patches/ applied?"
+            exit 1
+          fi
+      - name: Set unique build number
+        script: |
+          cd ios/App
+          LATEST=$(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID" --platform IOS 2>/dev/null | tail -n 1 | tr -dc '0-9')
+          if [ -z "$LATEST" ]; then
+            LATEST=$(grep -m1 -oE "CURRENT_PROJECT_VERSION = [0-9]+" App.xcodeproj/project.pbxproj | grep -oE "[0-9]+")
+          fi
+          NEXT=$((LATEST + 1))
+          echo "Setting CFBundleVersion to $NEXT"
+          sed -i '' -E "s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = $NEXT;/g" App.xcodeproj/project.pbxproj
       - name: Set up Apple Code Signing
         script: |
           # Apply the uploaded iOS Distribution certificate and Provisioning profile
@@ -51,11 +68,22 @@ workflows:
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
-      - name: Verify IPA Privacy Manifest
+      - name: Verify IPA Privacy Manifests
         script: |
+          set -e
           for ipa in build/ios/ipa/*.ipa; do
             echo "Inspecting IPA: $ipa"
-            unzip -l "$ipa" | grep -i "PrivacyInfo.xcprivacy"
+            LISTING=$(unzip -l "$ipa")
+            echo "$LISTING" | grep -i "PrivacyInfo.xcprivacy" || true
+            for sdk in GTMAppAuth AppAuth GTMSessionFetcher GoogleSignIn; do
+              if echo "$LISTING" | grep -qE "Frameworks/${sdk}\.framework/"; then
+                if ! echo "$LISTING" | grep -qE "Frameworks/${sdk}\.framework/.*PrivacyInfo\.xcprivacy"; then
+                  echo "ERROR: ${sdk}.framework is missing PrivacyInfo.xcprivacy (ITMS-91061)"
+                  exit 1
+                fi
+                echo "OK: ${sdk}.framework contains a privacy manifest"
+              fi
+            done
           done
     artifacts:
       - build/ios/ipa/*.ipa

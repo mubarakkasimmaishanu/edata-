@@ -4,7 +4,7 @@ import { Browser } from '@capacitor/browser';
 import { api } from './api';
 import { AppVersionData } from '../types';
 
-export const FALLBACK_APP_VERSION = '2.4.4';
+export const FALLBACK_APP_VERSION = '2.4.5';
 
 /**
  * Semver comparison utility.

@@ -73,9 +73,70 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    @CapacitorPlugin(name = "InstallReferrer")
+    public static class InstallReferrerPlugin extends Plugin {
+        @PluginMethod
+        public void getReferrerDetails(PluginCall call) {
+            Context context = getContext();
+            try {
+                final com.android.installreferrer.api.InstallReferrerClient referrerClient =
+                    com.android.installreferrer.api.InstallReferrerClient.newBuilder(context).build();
+                referrerClient.startConnection(new com.android.installreferrer.api.InstallReferrerStateListener() {
+                    @Override
+                    public void onInstallReferrerSetupFinished(int responseCode) {
+                        switch (responseCode) {
+                            case com.android.installreferrer.api.InstallReferrerClient.InstallReferrerResponse.OK:
+                                try {
+                                    com.android.installreferrer.api.ReferrerDetails response = referrerClient.getInstallReferrer();
+                                    String referrerUrl = response.getInstallReferrer();
+                                    long clickTimestamp = response.getReferrerClickTimestampSeconds();
+                                    long installTimestamp = response.getInstallBeginTimestampSeconds();
+                                    referrerClient.endConnection();
+
+                                    com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+                                    ret.put("installReferrer", referrerUrl != null ? referrerUrl : "");
+                                    ret.put("clickTimestamp", clickTimestamp);
+                                    ret.put("installTimestamp", installTimestamp);
+                                    ret.put("success", true);
+                                    call.resolve(ret);
+                                } catch (Exception e) {
+                                    try { referrerClient.endConnection(); } catch (Exception ignored) {}
+                                    com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+                                    ret.put("installReferrer", "");
+                                    ret.put("error", e.getMessage());
+                                    ret.put("success", false);
+                                    call.resolve(ret);
+                                }
+                                break;
+                            default:
+                                try { referrerClient.endConnection(); } catch (Exception ignored) {}
+                                com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+                                ret.put("installReferrer", "");
+                                ret.put("responseCode", responseCode);
+                                ret.put("success", false);
+                                call.resolve(ret);
+                                break;
+                        }
+                    }
+
+                    @Override
+                    public void onInstallReferrerServiceDisconnected() {
+                    }
+                });
+            } catch (Exception e) {
+                com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+                ret.put("installReferrer", "");
+                ret.put("error", e.getMessage());
+                ret.put("success", false);
+                call.resolve(ret);
+            }
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeNotifierPlugin.class);
+        registerPlugin(InstallReferrerPlugin.class);
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
 
