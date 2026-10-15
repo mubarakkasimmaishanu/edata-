@@ -32,6 +32,19 @@ export default function PinInput({
     }
   }, [autoFocus, disabled]);
 
+  useEffect(() => {
+    if (disabled) {
+      inputsRef.current.forEach(el => {
+        try {
+          el?.blur();
+        } catch {}
+      });
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+  }, [disabled]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const rawVal = e.target.value;
     const cleanDigits = rawVal.replace(/\D/g, '');
@@ -52,8 +65,19 @@ export default function PinInput({
       const targetFocusIdx = Math.min(pasted.length, length - 1);
       inputsRef.current[targetFocusIdx]?.focus();
 
-      if (pasted.length === length && onComplete) {
-        onComplete(pasted);
+      if (pasted.length === length) {
+        // Blur inputs immediately to hide mobile software keypad
+        inputsRef.current.forEach(el => {
+          try {
+            el?.blur();
+          } catch {}
+        });
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        if (onComplete) {
+          setTimeout(() => onComplete(pasted), 50);
+        }
       }
       return;
     }
@@ -71,8 +95,19 @@ export default function PinInput({
     }
 
     // Auto complete if final digit entered
-    if (newPin.length === length && onComplete) {
-      onComplete(newPin);
+    if (newPin.length === length) {
+      // Immediately blur all inputs to retract the mobile software keypad
+      inputsRef.current.forEach(el => {
+        try {
+          el?.blur();
+        } catch {}
+      });
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      if (onComplete) {
+        setTimeout(() => onComplete(newPin), 50);
+      }
     }
   };
 

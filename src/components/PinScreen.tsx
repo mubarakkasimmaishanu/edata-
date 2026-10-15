@@ -298,11 +298,36 @@ export default function PinScreen({
     }
   }, [mode, summary?.recipient]);
 
+  // Ensure software keypad is immediately dismissed when transaction status modal opens
+  useEffect(() => {
+    if (transactionResult?.open) {
+      const dismiss = () => {
+        try {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          document.querySelectorAll('input, textarea').forEach(el => (el as HTMLElement).blur());
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+        } catch {}
+      };
+      dismiss();
+      const t1 = setTimeout(dismiss, 50);
+      const t2 = setTimeout(dismiss, 150);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [transactionResult?.open]);
+
   // Handle auto submit / step completion
   const handleComplete = async (completedValue: string) => {
     if (loading) return;
     try {
-      (document.activeElement as HTMLElement)?.blur();
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      document.querySelectorAll('input, textarea').forEach(el => (el as HTMLElement).blur());
     } catch { }
     setHasError(false);
     setErrorMessage('');
@@ -333,6 +358,14 @@ export default function PinScreen({
         }
         setErrorMessage(errMsg);
         setPin('');
+
+        try {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          document.querySelectorAll('input, textarea').forEach(el => (el as HTMLElement).blur());
+          window.scrollTo(0, 0);
+        } catch { }
 
         setTransactionResult({
           open: true,
@@ -379,6 +412,14 @@ export default function PinScreen({
           console.warn('triggerDeviceNotification error:', notifErr);
         }
 
+        try {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          document.querySelectorAll('input, textarea').forEach(el => (el as HTMLElement).blur());
+          window.scrollTo(0, 0);
+        } catch { }
+
         setTransactionResult({
           open: true,
           status: isPending ? 'pending' : 'success',
@@ -409,6 +450,13 @@ export default function PinScreen({
         }
       } catch (renderErr) {
         console.error('Post purchase handling error:', renderErr);
+        try {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          document.querySelectorAll('input, textarea').forEach(el => (el as HTMLElement).blur());
+          window.scrollTo(0, 0);
+        } catch { }
         setTransactionResult({
           open: true,
           status: 'success',
@@ -630,7 +678,10 @@ export default function PinScreen({
   return (
     <div className={`fixed inset-0 z-50 bg-slate-950 text-white flex flex-col animate-fadeIn font-display ${mode === 'purchase' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
       {/* ── Top Header Navigation ── */}
-      <header className={`sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 flex items-center justify-between safe-top ${mode === 'purchase' ? 'py-2' : 'py-3.5'}`}>
+      <header
+        style={{ display: transactionResult?.open ? 'none' : 'flex' }}
+        className={`sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md border-b border-slate-900 px-4 items-center justify-between safe-top ${mode === 'purchase' ? 'py-2' : 'py-3.5'}`}
+      >
         <button
           onClick={onBack}
           disabled={loading}
@@ -658,7 +709,10 @@ export default function PinScreen({
       </header>
 
       {/* ── Main Content Area ── */}
-      <main className={`flex-1 min-h-0 max-w-md mx-auto w-full flex flex-col ${mode === 'purchase' ? 'px-4 py-2.5 gap-2.5 justify-start pb-[calc(env(safe-area-inset-bottom)+0.5rem)]' : 'px-5 py-6 justify-between'}`}>
+      <main
+        style={{ display: transactionResult?.open ? 'none' : 'flex' }}
+        className={`flex-1 min-h-0 max-w-md mx-auto w-full flex-col ${mode === 'purchase' ? 'px-4 py-2.5 gap-2.5 justify-start pb-[calc(env(safe-area-inset-bottom)+0.5rem)]' : 'px-5 py-6 justify-between'}`}
+      >
         <div className={mode === 'purchase' ? 'space-y-2.5' : 'space-y-6'}>
           {/* ── Purchase Mode Summary Card (Compact — fits full phone height, no scroll) ── */}
           {mode === 'purchase' && summary && (
@@ -1253,8 +1307,8 @@ export default function PinScreen({
 
       {/* ── Fintech Transaction Status Modal (Success / Pending / Failure) ── */}
       {transactionResult?.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in safe-top safe-bottom">
-          <div className={`w-full max-w-sm rounded-[28px] p-6 border shadow-2xl animate-scale-up text-center flex flex-col items-center ${
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in safe-top safe-bottom overflow-y-auto">
+          <div className={`w-full max-w-sm my-auto rounded-[28px] p-6 border shadow-2xl animate-scale-up text-center flex flex-col items-center ${
             theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-xl' : 'bg-slate-900 border-slate-800 text-white shadow-2xl'
           }`}>
             {/* Status Icon */}
