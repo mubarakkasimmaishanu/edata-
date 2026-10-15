@@ -81,7 +81,7 @@ function MainApp() {
   // --- WhatsApp / OPay / Moniepoint Version Handshake & Grace Period Deprecation ---
   const runVersionCheck = async () => {
     try {
-      const data = await checkAppUpdate('android');
+      const data = await checkAppUpdate();
       if (!data) return;
 
       setAppUpdateData(data);
