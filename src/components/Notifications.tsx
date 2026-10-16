@@ -19,19 +19,7 @@ export default function Notifications({ notifications: propNotifications = [], o
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedNotif, setSelectedNotif] = useState<any | null>(null);
-
-  // System fallback if server has no broadcast yet
-  const defaultNotifications = [
-    {
-      id: 'admin_sys_1',
-      title: 'eData Mobile System Active',
-      message: 'Welcome to eData Mobile! All instant VTU airtime, data bundles, electricity bill tokens, and exam result pins are operational 24/7.',
-      image: null,
-      type: 'info',
-      date: 'Just now',
-      read: false
-    }
-  ];
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
 
   const fetchBackendNotifications = async () => {
     setRefreshing(true);
@@ -44,7 +32,7 @@ export default function Notifications({ notifications: propNotifications = [], o
       let formatted: any[] = [];
       if (notifArray.length > 0) {
         formatted = notifArray.map((item: any, idx: number) => ({
-          id: item.id || `notif_${idx}`,
+          id: item.id ?? `notif_${idx}`,
           title: item.title || item.subject || item.header || 'Admin Announcement',
           message: item.message || item.content || item.body || item.text || '',
           image: resolveImageUrl(item.image),
@@ -52,28 +40,18 @@ export default function Notifications({ notifications: propNotifications = [], o
           date: item.created_at || item.date || item.timestamp || 'Recent',
           read: Boolean(item.is_read || item.read)
         }));
-      } else if (propNotifications && propNotifications.length > 0) {
-        formatted = propNotifications.map((n, i) => ({
-          id: n.id || `prop_${i}`,
-          title: n.title,
-          message: n.message,
-          image: null,
-          type: n.type || 'info',
-          date: n.timestamp || 'Recent',
-          read: false
-        }));
       } else {
         formatted = [];
       }
 
       setNotificationsList(formatted);
-      if (onRefreshUnreadCount) onRefreshUnreadCount(backendUnreadCount || formatted.filter(n => !n.read).length);
+      if (onRefreshUnreadCount) {
+        onRefreshUnreadCount(typeof backendUnreadCount === 'number' ? backendUnreadCount : formatted.filter(n => !n.read).length);
+      }
     } catch (err: any) {
       console.warn('Backend notification fetch note:', err.message);
-      if (propNotifications && propNotifications.length > 0) {
+      if (loading && propNotifications && propNotifications.length > 0) {
         setNotificationsList(propNotifications);
-      } else {
-        setNotificationsList(defaultNotifications);
       }
     } finally {
       setLoading(false);
@@ -86,44 +64,109 @@ export default function Notifications({ notifications: propNotifications = [], o
   }, []);
 
   const handleMarkAllRead = async () => {
-    try {
-      await api.markNotificationRead('all');
-    } catch {}
+    const previousList = [...notificationsList];
+    const previousUnread = previousList.filter(n => !n.read).length;
+
+    // Optimistic update
     setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
     if (onRefreshUnreadCount) onRefreshUnreadCount(0);
-    toast.success('All notifications marked as read.');
+
+    try {
+      const res = await api.markNotificationRead('all');
+      if (!res || res.success === false) {
+        throw new Error(res?.error || res?.message || 'Failed to mark notifications as read.');
+      }
+      toast.success('All notifications marked as read.');
+    } catch (err: any) {
+      // Rollback optimistic update on failure
+      setNotificationsList(previousList);
+      if (onRefreshUnreadCount) onRefreshUnreadCount(previousUnread);
+      toast.error(err?.message || 'Could not mark notifications as read. Please try again.');
+    }
   };
 
   const handleClearAll = async () => {
-    try {
-      await api.deleteNotification('all');
-    } catch {}
+    const previousList = [...notificationsList];
+    const previousUnread = previousList.filter(n => !n.read).length;
+
+    // Optimistic update
     setNotificationsList([]);
     if (onRefreshUnreadCount) onRefreshUnreadCount(0);
-    toast.success('All notifications cleared.');
+
+    try {
+      const res = await api.deleteNotification('all');
+      if (!res || res.success === false) {
+        throw new Error(res?.error || res?.message || 'Failed to clear notifications.');
+      }
+      toast.success('All notifications cleared.');
+    } catch (err: any) {
+      // Rollback optimistic update on failure
+      setNotificationsList(previousList);
+      if (onRefreshUnreadCount) onRefreshUnreadCount(previousUnread);
+      toast.error(err?.message || 'Could not clear notifications. Please try again.');
+    }
   };
 
   const handleDeleteSingle = async (e: React.MouseEvent, id: any) => {
     e.stopPropagation();
-    try {
-      await api.deleteNotification(id);
-    } catch {}
-    const updated = notificationsList.filter(n => n.id !== id);
+    const previousList = [...notificationsList];
+    const previousUnread = previousList.filter(n => !n.read).length;
+
+    // Optimistic update
+    const updated = notificationsList.filter(n => String(n.id) !== String(id));
     setNotificationsList(updated);
-    const unread = updated.filter(n => !n.read).length;
-    if (onRefreshUnreadCount) onRefreshUnreadCount(unread);
-    toast.success('Notification removed.');
+    const optimisticUnread = updated.filter(n => !n.read).length;
+    if (onRefreshUnreadCount) onRefreshUnreadCount(optimisticUnread);
+
+    try {
+      const isLocalOnly = String(id).startsWith('admin_sys_') || String(id).startsWith('notif_') || String(id).startsWith('prop_');
+      if (!isLocalOnly) {
+        const res = await api.deleteNotification(id);
+        if (!res || res.success === false) {
+          throw new Error(res?.error || res?.message || 'Failed to delete notification.');
+        }
+        const serverUnread = res?.data?.unread_count ?? res?.unread_count;
+        if (onRefreshUnreadCount && typeof serverUnread === 'number') {
+          onRefreshUnreadCount(serverUnread);
+        }
+      }
+      toast.success('Notification removed.');
+    } catch (err: any) {
+      // Rollback optimistic update on failure
+      setNotificationsList(previousList);
+      if (onRefreshUnreadCount) onRefreshUnreadCount(previousUnread);
+      toast.error(err?.message || 'Could not delete notification. Please try again.');
+    }
   };
 
   const handleOpenNotification = async (notif: any) => {
     setSelectedNotif(notif);
     if (!notif.read) {
-      try {
-        await api.markNotificationRead(notif.id);
-      } catch {}
+      const previousList = [...notificationsList];
+      const previousUnread = previousList.filter(n => !n.read).length;
+
+      // Optimistic update
       setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-      const unread = notificationsList.filter(n => n.id !== notif.id && !n.read).length;
-      if (onRefreshUnreadCount) onRefreshUnreadCount(unread);
+      const optimisticUnread = notificationsList.filter(n => n.id !== notif.id && !n.read).length;
+      if (onRefreshUnreadCount) onRefreshUnreadCount(optimisticUnread);
+
+      try {
+        const isLocalOnly = String(notif.id).startsWith('admin_sys_') || String(notif.id).startsWith('notif_') || String(notif.id).startsWith('prop_');
+        if (!isLocalOnly) {
+          const res = await api.markNotificationRead(notif.id);
+          if (!res || res.success === false) {
+            throw new Error(res?.error || res?.message || 'Failed to mark notification as read.');
+          }
+          const serverUnread = res?.data?.unread_count ?? res?.unread_count;
+          if (onRefreshUnreadCount && typeof serverUnread === 'number') {
+            onRefreshUnreadCount(serverUnread);
+          }
+        }
+      } catch {
+        // Rollback optimistic read state if API failed
+        setNotificationsList(previousList);
+        if (onRefreshUnreadCount) onRefreshUnreadCount(previousUnread);
+      }
     }
   };
 
@@ -186,7 +229,32 @@ export default function Notifications({ notifications: propNotifications = [], o
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-5 space-y-3.5">
+      <main
+        onTouchStart={(e) => {
+          if (window.scrollY <= 10) {
+            setTouchStartY(e.touches[0].clientY);
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (touchStartY !== null) {
+            const diff = e.changedTouches[0].clientY - touchStartY;
+            if (diff > 65 && !refreshing && !loading) {
+              fetchBackendNotifications();
+            }
+            setTouchStartY(null);
+          }
+        }}
+        className="flex-1 px-4 py-5 space-y-3.5"
+      >
+        {refreshing && (
+          <div className="flex items-center justify-center gap-2 py-1.5 animate-fadeIn">
+            <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />
+            <span className={`text-[11px] font-bold ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+              Refreshing notifications...
+            </span>
+          </div>
+        )}
+
         {loading ? (
           <div className={`p-8 border rounded-3xl text-center space-y-2 ${
             theme === 'light' ? 'bg-white border-slate-200 shadow-md' : 'bg-slate-900/60 border-slate-800'

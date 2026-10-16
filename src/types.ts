@@ -129,6 +129,24 @@ export interface VirtualAccount {
   bank_name: string;
   account_number: string;
   account_name: string;
+  provider?: string;
+  is_primary?: boolean;
+  badge?: string;
+}
+
+export interface DvaProviderInfo {
+  code: string;
+  name: string;
+  provider_title: string;
+  description?: string;
+  badge?: string;
+  requires_kyc: boolean;
+  is_active: boolean;
+  is_dashboard_priority: boolean;
+  priority_rank: number;
+  supported_banks?: string[];
+  has_account: boolean;
+  accounts: VirtualAccount[];
 }
 
 export interface ManualBank {

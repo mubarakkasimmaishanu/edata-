@@ -8,6 +8,8 @@ import {
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { api, resolveImageUrl } from '../services/api';
+import successIcon from '@/assets/icons/success.png';
+import userIcon from '@/assets/icons/user.png';
 import PinScreen from './PinScreen';
 import PrivacyTerms from './PrivacyTerms';
 import ChangePasswordScreen from './ChangePasswordScreen';
@@ -15,7 +17,6 @@ import EditProfileScreen from './EditProfileScreen';
 import ResellerUpgrade from './ResellerUpgrade';
 import DeleteAccount from './DeleteAccount';
 import PinInput from './PinInput';
-import { Gift } from 'lucide-react';
 import {
   checkBiometrics,
   isBiometricsEnabled,
@@ -50,12 +51,37 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   const [bioPinInput, setBioPinInput] = useState('');
   const [enrollingBio, setEnrollingBio] = useState(false);
 
-  // Load biometric hardware status on mount
+  // Load biometric hardware status and refresh masked KYC status on mount
   React.useEffect(() => {
     checkBiometrics().then(status => {
       setBioStatus(status);
       setBiometricEnabled(status.isEnabled);
     });
+    api.getProfile(true)
+      .then((res) => {
+        const d = res?.data?.user || res?.data || res;
+        if (d && (d.bvn_masked !== undefined || d.nin_masked !== undefined || d.has_kyc !== undefined)) {
+          setCurrentUser((prev) => {
+            const next: UserProfile = {
+              ...prev,
+              bvn: d.bvn_masked || d.bvn || prev.bvn || '',
+              nin: d.nin_masked || d.nin || prev.nin || '',
+              bvn_masked: d.bvn_masked || d.bvn || prev.bvn_masked || '',
+              nin_masked: d.nin_masked || d.nin || prev.nin_masked || '',
+              bvnMasked: d.bvn_masked || d.bvn || prev.bvnMasked || '',
+              ninMasked: d.nin_masked || d.nin || prev.ninMasked || '',
+              hasKyc: Boolean(d.has_kyc ?? prev.hasKyc ?? (d.bvn_masked || d.nin_masked)),
+              has_kyc: Boolean(d.has_kyc ?? prev.has_kyc ?? (d.bvn_masked || d.nin_masked)),
+              hasPin: d.has_pin !== undefined ? Boolean(d.has_pin) : prev.hasPin,
+            };
+            try {
+              localStorage.setItem('edata_current_user', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleToggleBiometrics = async () => {
@@ -116,13 +142,108 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
     }
   };
 
-
-
-
-
-  // Copy states & loading states
+  // Copy states, KYC PIN reveal states & loading states
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedNin, setCopiedNin] = useState(false);
+  const [copiedBvn, setCopiedBvn] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const [ninVisible, setNinVisible] = useState(false);
+  const [bvnVisible, setBvnVisible] = useState(false);
+  const [revealedNin, setRevealedNin] = useState<string | null>(null);
+  const [revealedBvn, setRevealedBvn] = useState<string | null>(null);
+  const [kycPinTarget, setKycPinTarget] = useState<'nin' | 'bvn' | null>(null);
+  const [kycPinInput, setKycPinInput] = useState('');
+  const [verifyingKycPin, setVerifyingKycPin] = useState(false);
+
+  const maskedNinDisplay =
+    currentUser.nin_masked ||
+    currentUser.ninMasked ||
+    (currentUser.nin && currentUser.nin.includes('*')
+      ? currentUser.nin
+      : currentUser.nin && currentUser.nin.length >= 4
+      ? `*******${currentUser.nin.slice(-4)}`
+      : '•••••••••••');
+
+  const maskedBvnDisplay =
+    currentUser.bvn_masked ||
+    currentUser.bvnMasked ||
+    (currentUser.bvn && currentUser.bvn.includes('*')
+      ? currentUser.bvn
+      : currentUser.bvn && currentUser.bvn.length >= 4
+      ? `*******${currentUser.bvn.slice(-4)}`
+      : '•••••••••••');
+
+  const handleRequestRevealKyc = (field: 'nin' | 'bvn') => {
+    if (!currentUser.hasPin) {
+      toast.warning('Please set up a Transaction PIN to view your KYC details.');
+      setPinScreenMode('set_pin');
+      return;
+    }
+    setKycPinInput('');
+    setKycPinTarget(field);
+  };
+
+  const handleVerifyKycPin = async (enteredPin: string) => {
+    if (enteredPin.length !== 4) {
+      toast.warning('Please enter your 4-digit Transaction PIN.');
+      return;
+    }
+    try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch {}
+    setVerifyingKycPin(true);
+    try {
+      const res = await api.revealKyc(enteredPin);
+      if (res && res.success) {
+        const rawNin = res.data?.nin || '';
+        const rawBvn = res.data?.bvn || '';
+        setRevealedNin(rawNin);
+        setRevealedBvn(rawBvn);
+        const targetField = kycPinTarget;
+        if (targetField === 'nin') {
+          setNinVisible(true);
+        } else if (targetField === 'bvn') {
+          setBvnVisible(true);
+        }
+        setKycPinTarget(null);
+        setKycPinInput('');
+        toast.success(`${(targetField || 'KYC').toUpperCase()} verified and unlocked!`);
+      } else {
+        toast.error(res?.error || 'Incorrect Transaction PIN. Access denied.');
+        setKycPinInput('');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Incorrect Transaction PIN. Access denied.');
+      setKycPinInput('');
+    } finally {
+      setVerifyingKycPin(false);
+    }
+  };
+
+  const copyKycValue = (val: string, field: 'nin' | 'bvn') => {
+    if (!val) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(val).catch(() => {});
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = val;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    } catch {}
+    if (field === 'nin') {
+      setCopiedNin(true);
+      setTimeout(() => setCopiedNin(false), 2500);
+    } else {
+      setCopiedBvn(true);
+      setTimeout(() => setCopiedBvn(false), 2500);
+    }
+    toast.success(`${field.toUpperCase()} copied!`);
+  };
 
   const avatarUrl = resolveImageUrl(currentUser.photo || currentUser.avatar || currentUser.picture);
 
@@ -205,7 +326,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               {avatarUrl ? (
                 <img src={avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-slate-400" />
+                <img src={userIcon} alt={currentUser.name} className="w-14 h-14 object-contain opacity-80" />
               )}
             </div>
 
@@ -279,6 +400,35 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           </div>
         )}
 
+        {/* ── REFERRAL PROGRAM QUICK ACCESS BUTTON (OPay / PalmPay Style) ── */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('referral')}
+            className="w-full bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 hover:border-sky-500/40 rounded-3xl p-4 shadow-xl transition-all active:scale-[0.99] flex items-center justify-between gap-3 text-left cursor-pointer group"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 p-2 group-hover:scale-105 transition-transform">
+                <img src={successIcon} alt="Referral Rewards" className="w-7 h-7 object-contain" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-white font-display">Referral Program</h3>
+                  <span className="text-[9.5px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                    Earn Cash
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                  Invite friends & earn up to ₦2,500 bonus + instant commissions
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0 text-sky-400 text-xs font-bold font-display group-hover:translate-x-0.5 transition-transform">
+              <span className="hidden sm:inline">Invite</span>
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-sky-400" />
+            </div>
+          </button>
+        )}
+
         {/* ── PERSONAL INFORMATION Section ── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between px-1">
@@ -342,6 +492,94 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               >
                 {currentUser.phone ? 'Edit' : 'Add Phone'}
               </button>
+            </div>
+
+            {/* NIN Row */}
+            <div
+              onClick={() => !ninVisible && handleRequestRevealKyc('nin')}
+              className={`flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 ${!ninVisible ? 'cursor-pointer hover:border-sky-500/40 transition-all' : ''}`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4.5 h-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">NIN</span>
+                  <div className="flex items-center gap-1.5">
+                    {!ninVisible && <Lock className="w-3 h-3 text-slate-400 shrink-0" />}
+                    <span className="text-xs font-bold text-white font-mono">
+                      {ninVisible ? (revealedNin || 'Not provided') : maskedNinDisplay}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                {ninVisible && revealedNin && (
+                  <button
+                    type="button"
+                    onClick={() => copyKycValue(revealedNin, 'nin')}
+                    className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedNin ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedNin ? 'Copied' : 'Copy'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => ninVisible ? setNinVisible(false) : handleRequestRevealKyc('nin')}
+                  className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  {ninVisible ? (
+                    <><EyeOff className="w-3.5 h-3.5" /> Hide</>
+                  ) : (
+                    <><Lock className="w-3.5 h-3.5" /> View</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* BVN Row */}
+            <div
+              onClick={() => !bvnVisible && handleRequestRevealKyc('bvn')}
+              className={`flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 ${!bvnVisible ? 'cursor-pointer hover:border-sky-500/40 transition-all' : ''}`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                  <Shield className="w-4.5 h-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">BVN</span>
+                  <div className="flex items-center gap-1.5">
+                    {!bvnVisible && <Lock className="w-3 h-3 text-slate-400 shrink-0" />}
+                    <span className="text-xs font-bold text-white font-mono">
+                      {bvnVisible ? (revealedBvn || 'Not provided') : maskedBvnDisplay}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                {bvnVisible && revealedBvn && (
+                  <button
+                    type="button"
+                    onClick={() => copyKycValue(revealedBvn, 'bvn')}
+                    className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedBvn ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedBvn ? 'Copied' : 'Copy'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => bvnVisible ? setBvnVisible(false) : handleRequestRevealKyc('bvn')}
+                  className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  {bvnVisible ? (
+                    <><EyeOff className="w-3.5 h-3.5" /> Hide</>
+                  ) : (
+                    <><Lock className="w-3.5 h-3.5" /> View</>
+                  )}
+                </button>
+              </div>
             </div>
 
           </div>
@@ -544,25 +782,6 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
             </button>
 
-            {/* Referral Program */}
-            {onNavigate && (
-              <button
-                onClick={() => onNavigate('referral')}
-                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 hover:border-purple-500/50 transition-all group text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
-                    <Gift className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-white block font-display">Referral Program</span>
-                    <span className="text-[10.5px] text-slate-400 font-medium">Invite friends & earn dynamic cash rewards</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-400 transition-colors" />
-              </button>
-            )}
-
             {/* Delete Account */}
             <button
               onClick={() => setFullScreenView('delete_account')}
@@ -722,6 +941,72 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 type="button"
                 onClick={() => setShowPinPromptForBio(false)}
                 disabled={enrollingBio}
+                className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs transition-all cursor-pointer ${
+                  theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/80'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── KYC Transaction PIN Verification Modal ── */}
+      {kycPinTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl animate-scale-up text-center ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10' : 'bg-slate-900 border-slate-800 text-white shadow-slate-950/50'
+          }`}>
+            <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3.5 border ${
+              theme === 'light'
+                ? 'bg-sky-50 border-sky-200 text-sky-600 shadow-md shadow-sky-500/10'
+                : 'bg-sky-500/15 border-sky-500/30 text-sky-400 shadow-lg shadow-sky-500/20'
+            }`}>
+              <Lock className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-black font-display mb-1">
+              Verify Transaction PIN
+            </h3>
+            <p className={`text-xs mb-5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+              Enter your 4-digit Transaction PIN to securely view your {kycPinTarget.toUpperCase()}.
+            </p>
+
+            <div className="mb-6 flex justify-center">
+              <PinInput
+                length={4}
+                value={kycPinInput}
+                onChange={setKycPinInput}
+                onComplete={handleVerifyKycPin}
+                disabled={verifyingKycPin}
+                mask={true}
+                autoFocus={true}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleVerifyKycPin(kycPinInput)}
+                disabled={kycPinInput.length !== 4 || verifyingKycPin}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display"
+              >
+                {verifyingKycPin ? (
+                  <span>Verifying PIN...</span>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 text-sky-200" />
+                    <span>Verify & Reveal {kycPinTarget.toUpperCase()}</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setKycPinTarget(null);
+                  setKycPinInput('');
+                }}
+                disabled={verifyingKycPin}
                 className={`w-full py-2.5 px-4 rounded-2xl font-bold text-xs transition-all cursor-pointer ${
                   theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/80'
                 }`}

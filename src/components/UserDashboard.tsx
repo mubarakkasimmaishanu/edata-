@@ -128,6 +128,8 @@ export default function UserDashboard({
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
   const [isGeneratingAccount, setIsGeneratingAccount] = useState(false);
+  const [priorityProviderCode, setPriorityProviderCode] = useState<string>('');
+  const [priorityProviderName, setPriorityProviderName] = useState<string>('');
   const [localVirtualAccount, setLocalVirtualAccount] = useState<VirtualAccount | null>(() => {
     try {
       const saved = localStorage.getItem('edata_virtual_account');
@@ -135,8 +137,7 @@ export default function UserDashboard({
         const parsed = JSON.parse(saved);
         const bName = (parsed.bank_name || '').toLowerCase();
         const accNo = (parsed.account_number || '').trim();
-        const accNm = (parsed.account_name || '').toLowerCase();
-        if (bName.includes('wema') || bName.includes('katpay') || accNm.includes('katpay') || accNm.includes('cizar') || accNo === '0127189291') {
+        if (bName.includes('wema') || accNo === '0127189291') {
           localStorage.removeItem('edata_virtual_account');
           return null;
         }
@@ -149,20 +150,44 @@ export default function UserDashboard({
   });
 
   useEffect(() => {
+    if (currentUser.virtualAccount && currentUser.virtualAccount.account_number) {
+      if (!priorityProviderCode || currentUser.virtualAccount.provider === priorityProviderCode || currentUser.virtualAccount.is_primary === true) {
+        setLocalVirtualAccount(currentUser.virtualAccount);
+      } else {
+        setLocalVirtualAccount(null);
+      }
+    } else if (priorityProviderCode && localVirtualAccount && localVirtualAccount.provider && localVirtualAccount.provider !== priorityProviderCode) {
+      setLocalVirtualAccount(null);
+    }
+  }, [currentUser.virtualAccount, priorityProviderCode]);
+
+  useEffect(() => {
     api.getWallet()
       .then((res) => {
+        const priorityCode = res.data?.dashboard_priority_code || res.dashboard_priority_code || '';
+        const priorityName = res.data?.dashboard_priority_name || res.dashboard_priority_name || '';
+        if (priorityCode) setPriorityProviderCode(priorityCode);
+        if (priorityName) setPriorityProviderName(priorityName);
+
         const rawAccounts: any[] = res.data?.virtual_accounts || res.virtual_accounts || (res.data?.virtual_account ? [res.data.virtual_account] : res.virtual_account ? [res.virtual_account] : []);
         const vAccounts = rawAccounts.filter((a: any) => {
           const b = (a.bank_name || a.bank || '').toLowerCase();
           const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-          return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+          return !b.includes('wema') && num !== '0127189291';
         });
 
-        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo)) {
+        const chosen = priorityCode
+          ? vAccounts.find((a: any) => a.is_primary === true || a.provider === priorityCode)
+          : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0]);
+
+        if (chosen && (chosen.account_number || chosen.account_no || chosen.accountNo)) {
           const acc: VirtualAccount = {
-            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
-            account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
-            account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
+            bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
+            account_number: chosen.account_number || chosen.account_no || chosen.accountNo,
+            account_name: chosen.account_name || chosen.accountName || displayName,
+            provider: chosen.provider,
+            is_primary: chosen.is_primary,
+            badge: chosen.badge,
           };
           setLocalVirtualAccount(acc);
           try {
@@ -182,14 +207,30 @@ export default function UserDashboard({
     setIsGeneratingAccount(true);
     try {
       let fetchedAcc: VirtualAccount | null = null;
-      
-      // 1. One-click Payvessel virtual account generation API
+      let targetPriorityCode: string | undefined = priorityProviderCode || undefined;
+
       try {
-        const kycPayload = (currentUser.bvn || currentUser.nin) ? {
-          bvn: currentUser.bvn,
-          nin: currentUser.nin,
+        const dvaInfo = await api.getDvaProviders(true);
+        if (dvaInfo?.data?.dashboard_priority_code) {
+          targetPriorityCode = dvaInfo.data.dashboard_priority_code;
+          setPriorityProviderCode(dvaInfo.data.dashboard_priority_code);
+        }
+        if (dvaInfo?.data?.dashboard_priority_name) {
+          setPriorityProviderName(dvaInfo.data.dashboard_priority_name);
+        }
+      } catch {}
+
+      // 1. Generate priority DVA virtual account via backend API
+      try {
+        const unmaskedBvn = currentUser.bvn && /^\d{11}$/.test(currentUser.bvn) ? currentUser.bvn : undefined;
+        const unmaskedNin = currentUser.nin && /^\d{11}$/.test(currentUser.nin) ? currentUser.nin : undefined;
+        const kycPayload = (unmaskedBvn || unmaskedNin) ? {
+          bvn: unmaskedBvn,
+          nin: unmaskedNin,
         } : undefined;
-        const genRes = await api.generateVirtualAccount(kycPayload);
+        const genRes = targetPriorityCode
+          ? await api.generateDvaAccount(targetPriorityCode, kycPayload)
+          : await api.generateVirtualAccount(kycPayload);
         if (genRes?.require_kyc) {
           toast.info('Please enter your BVN or NIN to assign your dedicated account.');
           onNavigate('fund');
@@ -202,28 +243,35 @@ export default function UserDashboard({
             bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',
             account_number: raw.account_number || raw.accountNo || raw.account_no,
             account_name: raw.account_name || raw.accountName || displayName,
+            provider: raw.provider || targetPriorityCode,
+            is_primary: true,
           };
         }
       } catch (e: any) {
-        console.warn('Payvessel direct virtual account generation warning:', e);
+        console.warn('Direct virtual account generation warning:', e);
       }
 
       // 2. Fetch fresh wallet accounts from server
       if (!fetchedAcc || !fetchedAcc.account_number) {
         const walletRes = await api.getWallet();
+        const priorityCode = walletRes.data?.dashboard_priority_code || walletRes.dashboard_priority_code || targetPriorityCode || '';
         const rawAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
         const vAccounts = rawAccounts.filter((a: any) => {
           const b = (a.bank_name || a.bank || '').toLowerCase();
           const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-          const nm = (a.account_name || a.accountName || '').toLowerCase();
-          return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
+          return !b.includes('wema') && num !== '0127189291';
         });
 
-        if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo)) {
+        const chosen = priorityCode
+          ? vAccounts.find((a: any) => a.is_primary === true || a.provider === priorityCode)
+          : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0]);
+        if (chosen && (chosen.account_number || chosen.account_no || chosen.accountNo)) {
           fetchedAcc = {
-            bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
-            account_number: vAccounts[0].account_number || vAccounts[0].account_no || vAccounts[0].accountNo,
-            account_name: vAccounts[0].account_name || vAccounts[0].accountName || displayName,
+            bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
+            account_number: chosen.account_number || chosen.account_no || chosen.accountNo,
+            account_name: chosen.account_name || chosen.accountName || displayName,
+            provider: chosen.provider,
+            is_primary: chosen.is_primary,
           };
         }
       }
@@ -442,12 +490,16 @@ export default function UserDashboard({
 
           {/* Bottom Area: Dedicated Virtual Account Capsule */}
           {(() => {
-            const rawV = localVirtualAccount || currentUser.virtualAccount || (currentUser.virtualAccounts && currentUser.virtualAccounts.length > 0 ? currentUser.virtualAccounts[0] : null);
-            const vAcc = rawV && !(
+            const candidateFromList = Array.isArray(currentUser.virtualAccounts) && currentUser.virtualAccounts.length > 0
+              ? (priorityProviderCode
+                  ? currentUser.virtualAccounts.find((a) => a.is_primary === true || a.provider === priorityProviderCode)
+                  : (currentUser.virtualAccounts.find((a) => a.is_primary === true) || currentUser.virtualAccounts[0]))
+              : null;
+
+            const rawV = localVirtualAccount || currentUser.virtualAccount || candidateFromList;
+            const matchesPriority = !priorityProviderCode || rawV?.provider === priorityProviderCode || rawV?.is_primary === true;
+            const vAcc = rawV && matchesPriority && !(
               (rawV.bank_name || '').toLowerCase().includes('wema') ||
-              (rawV.bank_name || '').toLowerCase().includes('katpay') ||
-              (rawV.account_name || '').toLowerCase().includes('katpay') ||
-              (rawV.account_name || '').toLowerCase().includes('cizar') ||
               (rawV.account_number || '').trim() === '0127189291'
             ) ? rawV : null;
 
@@ -473,7 +525,20 @@ export default function UserDashboard({
                       onContextMenu={(e) => e.preventDefault()}
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigator.clipboard.writeText(accNum);
+                        try {
+                          if (navigator.clipboard?.writeText) {
+                            navigator.clipboard.writeText(accNum).catch(() => {});
+                          } else {
+                            const ta = document.createElement('textarea');
+                            ta.value = accNum;
+                            ta.style.position = 'fixed';
+                            ta.style.opacity = '0';
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(ta);
+                          }
+                        } catch {}
                         setCopiedAccount(true);
                         toast.success(`Account number ${accNum} copied! Transfer from any bank app to fund wallet.`);
                         setTimeout(() => setCopiedAccount(false), 2500);
@@ -502,9 +567,11 @@ export default function UserDashboard({
             return (
               <div className="p-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-between gap-2 shadow-inner">
                 <div className="space-y-0.5 min-w-0">
-                  <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">VIRTUAL ACCOUNT</span>
+                  <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest block font-display">
+                    VIRTUAL ACCOUNT {priorityProviderName ? `• ${priorityProviderName.toUpperCase()}` : ''}
+                  </span>
                   <p className="text-xs font-bold text-white font-display">
-                    Instant Bank Transfer Account
+                    {priorityProviderName ? `Instant ${priorityProviderName} Transfer Account` : 'Instant Bank Transfer Account'}
                   </p>
                 </div>
 
