@@ -194,7 +194,7 @@ function MainApp() {
         if (u.virtualAccount) {
           const b = (u.virtualAccount.bank_name || '').toLowerCase();
           const acc = (u.virtualAccount.account_number || '').trim();
-          if (b.includes('wema') || b.includes('katpay') || acc === '0127189291') {
+          if (b.includes('wema') || acc === '0127189291') {
             u.virtualAccount = null;
           }
         }
@@ -202,7 +202,7 @@ function MainApp() {
           u.virtualAccounts = u.virtualAccounts.filter((va: any) => {
             const b = (va.bank_name || '').toLowerCase();
             const acc = (va.account_number || '').trim();
-            return !b.includes('wema') && !b.includes('katpay') && acc !== '0127189291';
+            return !b.includes('wema') && acc !== '0127189291';
           });
         }
         return u;
@@ -590,23 +590,36 @@ function MainApp() {
     const lastName = user.lastname || user.last_name || '';
     const computedName = `${firstName} ${lastName}`.trim() || user.name || user.username || user.email?.split('@')[0] || currentUser.name || 'eData User';
 
+    const priorityCode = walletRes?.data?.dashboard_priority_code || walletRes?.dashboard_priority_code;
     const rawVAccounts: any[] = walletRes?.data?.virtual_accounts || walletRes?.virtual_accounts || (walletRes?.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes?.virtual_account ? [walletRes.virtual_account] : []);
     const vAccounts = rawVAccounts.filter((a: any) => {
       const b = (a.bank_name || a.bank || '').toLowerCase();
       const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-      return !b.includes('wema') && !b.includes('katpay') && num !== '0127189291';
+      return !b.includes('wema') && num !== '0127189291';
     });
 
     let primaryVAccount: any = null;
-    if (vAccounts.length > 0 && (vAccounts[0].account_number || vAccounts[0].accountNo || vAccounts[0].account_no)) {
-      primaryVAccount = {
-        bank_name: vAccounts[0].bank_name || vAccounts[0].bank || 'Dedicated Virtual Account',
-        account_number: vAccounts[0].account_number || vAccounts[0].accountNo || vAccounts[0].account_no || '',
-        account_name: vAccounts[0].account_name || vAccounts[0].accountName || computedName,
-      };
-      try {
-        localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
-      } catch { }
+    if (vAccounts.length > 0) {
+      const chosen = priorityCode
+        ? vAccounts.find((a: any) => a.is_primary === true || a.provider === priorityCode)
+        : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0]);
+      if (chosen && (chosen.account_number || chosen.accountNo || chosen.account_no)) {
+        primaryVAccount = {
+          bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
+          account_number: chosen.account_number || chosen.accountNo || chosen.account_no || '',
+          account_name: chosen.account_name || chosen.accountName || computedName,
+          provider: chosen.provider,
+          is_primary: chosen.is_primary,
+          badge: chosen.badge,
+        };
+        try {
+          localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVAccount));
+        } catch { }
+      } else {
+        try {
+          localStorage.removeItem('edata_virtual_account');
+        } catch { }
+      }
     } else {
       try {
         localStorage.removeItem('edata_virtual_account');

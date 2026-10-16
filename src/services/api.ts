@@ -164,7 +164,7 @@ export const api = {
     return request('/profile', {}, silent);
   },
 
-  async updateProfile(data: { firstname?: string; lastname?: string; phone?: string }) {
+  async updateProfile(data: { firstname?: string; lastname?: string; phone?: string; nin?: string; bvn?: string }) {
     return request('/update-profile', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -216,7 +216,24 @@ export const api = {
     });
   },
 
-  async generateVirtualAccount(data?: { bvn?: string; nin?: string }) {
+  async getDvaProviders(silent = false) {
+    return request('/dva-providers', {}, silent);
+  },
+
+  async generateDvaAccount(provider: string, data?: { bvn?: string; nin?: string }) {
+    return request('/dva-generate', {
+      method: 'POST',
+      body: JSON.stringify({ provider, ...(data || {}) }),
+    });
+  },
+
+  async generateVirtualAccount(data?: { bvn?: string; nin?: string }, provider?: string) {
+    if (provider) {
+      return request('/dva-generate', {
+        method: 'POST',
+        body: JSON.stringify({ provider, ...(data || {}) }),
+      });
+    }
     return request('/payvessel-generate-virtual-account', {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
@@ -422,21 +439,42 @@ export const api = {
   },
 
   async getNotifications(silent = false) {
-    return request('/notifications', {}, silent);
+    return request(`/notifications?_t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    }, silent);
   },
 
-  async markNotificationRead(id?: number | 'all') {
-    return request('/notifications/read', {
-      method: 'POST',
-      body: JSON.stringify({ id: id ?? 'all' }),
-    });
+  async markNotificationRead(id?: number | string | 'all') {
+    const payload = JSON.stringify({ id: id ?? 'all', notification_id: id ?? 'all' });
+    try {
+      return await request('/notifications/read', {
+        method: 'POST',
+        body: payload,
+      });
+    } catch {
+      return await request('/notifications-read', {
+        method: 'POST',
+        body: payload,
+      });
+    }
   },
 
-  async deleteNotification(id?: number | 'all') {
-    return request('/notifications/delete', {
-      method: 'POST',
-      body: JSON.stringify({ id: id ?? 'all' }),
-    });
+  async deleteNotification(id?: number | string | 'all') {
+    const payload = JSON.stringify({ id: id ?? 'all', notification_id: id ?? 'all' });
+    try {
+      return await request('/notifications/delete', {
+        method: 'POST',
+        body: payload,
+      });
+    } catch {
+      return await request('/notifications-delete', {
+        method: 'POST',
+        body: payload,
+      });
+    }
   },
 
   async deleteAccount(password: string) {

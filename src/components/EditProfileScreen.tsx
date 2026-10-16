@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, User, Phone, Mail, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, RefreshCw, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
 import { useToast } from './Toast';
@@ -16,6 +16,18 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
   const [lastname, setLastname] = useState(currentUser.lastname || currentUser.name?.split(' ').slice(1).join(' ') || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
 
+  const existingNinMasked =
+    currentUser.nin_masked ||
+    currentUser.ninMasked ||
+    (currentUser.nin && currentUser.nin.length >= 4 ? `*******${currentUser.nin.slice(-4)}` : '');
+  const existingBvnMasked =
+    currentUser.bvn_masked ||
+    currentUser.bvnMasked ||
+    (currentUser.bvn && currentUser.bvn.length >= 4 ? `*******${currentUser.bvn.slice(-4)}` : '');
+
+  const [nin, setNin] = useState('');
+  const [bvn, setBvn] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -29,21 +41,68 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
       return;
     }
 
+    const cleanNin = nin.replace(/\D/g, '').trim();
+    const cleanBvn = bvn.replace(/\D/g, '').trim();
+
+    if (cleanNin && cleanNin.length !== 11) {
+      setErrorMsg('NIN must be exactly 11 digits.');
+      toast.warning('NIN must be exactly 11 digits.');
+      return;
+    }
+    if (cleanBvn && cleanBvn.length !== 11) {
+      setErrorMsg('BVN must be exactly 11 digits.');
+      toast.warning('BVN must be exactly 11 digits.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await api.updateProfile({
+      const payload: {
+        firstname: string;
+        lastname: string;
+        phone: string;
+        nin?: string;
+        bvn?: string;
+      } = {
         firstname: firstname.trim(),
         lastname: lastname.trim(),
         phone: phone.trim(),
-      });
+      };
+      if (!existingNinMasked && cleanNin.length === 11) {
+        payload.nin = cleanNin;
+      }
+      if (!existingBvnMasked && cleanBvn.length === 11) {
+        payload.bvn = cleanBvn;
+      }
+
+      const res = await api.updateProfile(payload);
       const fullName = `${firstname.trim()} ${lastname.trim()}`;
-      setCurrentUser((prev) => ({
-        ...prev,
-        firstname: firstname.trim(),
-        lastname: lastname.trim(),
-        name: fullName || prev.name,
-        phone: phone.trim(),
-      }));
+      const newNinMasked =
+        res?.data?.nin_masked ||
+        (cleanNin.length === 11 ? `*******${cleanNin.slice(-4)}` : existingNinMasked);
+      const newBvnMasked =
+        res?.data?.bvn_masked ||
+        (cleanBvn.length === 11 ? `*******${cleanBvn.slice(-4)}` : existingBvnMasked);
+
+      setCurrentUser((prev) => {
+        const updated: UserProfile = {
+          ...prev,
+          firstname: firstname.trim(),
+          lastname: lastname.trim(),
+          name: fullName || prev.name,
+          phone: phone.trim(),
+          ...(newNinMasked
+            ? { nin: newNinMasked, nin_masked: newNinMasked, ninMasked: newNinMasked, hasKyc: true, has_kyc: true }
+            : {}),
+          ...(newBvnMasked
+            ? { bvn: newBvnMasked, bvn_masked: newBvnMasked, bvnMasked: newBvnMasked, hasKyc: true, has_kyc: true }
+            : {}),
+        };
+        try {
+          localStorage.setItem('edata_current_user', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
       toast.success(res.message || 'Profile details updated successfully!');
       onBack();
     } catch (err: any) {
@@ -145,6 +204,58 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
                 <span>{currentUser.email}</span>
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-black">Locked</span>
               </div>
+            </div>
+
+            {/* One-Time NIN Field */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                NIN (National Identification Number)
+              </label>
+              {existingNinMasked ? (
+                <div className="w-full bg-slate-950/60 border border-slate-800/60 rounded-2xl px-4 py-3 text-xs text-slate-400 font-mono flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    {existingNinMasked}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-black">Saved</span>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={11}
+                  value={nin}
+                  onChange={(e) => setNin(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="Enter 11-digit NIN (Optional)"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-white font-mono font-medium focus:outline-none focus:border-sky-500 transition-all"
+                />
+              )}
+            </div>
+
+            {/* One-Time BVN Field */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                BVN (Bank Verification Number)
+              </label>
+              {existingBvnMasked ? (
+                <div className="w-full bg-slate-950/60 border border-slate-800/60 rounded-2xl px-4 py-3 text-xs text-slate-400 font-mono flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    {existingBvnMasked}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-black">Saved</span>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={11}
+                  value={bvn}
+                  onChange={(e) => setBvn(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="Enter 11-digit BVN (Optional)"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-white font-mono font-medium focus:outline-none focus:border-sky-500 transition-all"
+                />
+              )}
             </div>
 
             {/* Error Display */}

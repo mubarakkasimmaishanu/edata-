@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, VirtualAccount } from '../types';
+import { UserProfile, VirtualAccount, DvaProviderInfo } from '../types';
 import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info, ShieldCheck, X } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { useToast } from './Toast';
@@ -19,6 +19,9 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   const [fundTab, setFundTab] = useState<'virtual' | 'online' | 'manual'>('virtual');
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
+  const [dvaProviders, setDvaProviders] = useState<DvaProviderInfo[]>([]);
+  const [generatingProvider, setGeneratingProvider] = useState<string | null>(null);
+  const [kycTargetProvider, setKycTargetProvider] = useState<string | null>(null);
   const [manualBank, setManualBank] = useState<{ bank_name: string; account_name: string; account_number: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -26,16 +29,57 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
   const [kycValue, setKycValue] = useState('');
   const [kycSubmitting, setKycSubmitting] = useState(false);
+  const [serverHasKyc, setServerHasKyc] = useState(false);
 
   const hasExistingKyc = Boolean(
-    (currentUser.bvn && currentUser.bvn.length === 11) ||
-    (currentUser.nin && currentUser.nin.length === 11) ||
+    serverHasKyc ||
+    (currentUser.bvn && currentUser.bvn.length > 0) ||
+    (currentUser.nin && currentUser.nin.length > 0) ||
+    currentUser.bvn_masked ||
+    currentUser.nin_masked ||
+    currentUser.bvnMasked ||
+    currentUser.ninMasked ||
     currentUser.hasKyc ||
     currentUser.has_kyc
   );
 
+  const persistUserKycState = (bvnVal?: string, ninVal?: string, bvnMask?: string, ninMask?: string) => {
+    setServerHasKyc(true);
+    const computedBvnMask = bvnMask || (bvnVal && bvnVal.length >= 4 ? `*******${bvnVal.slice(-4)}` : undefined);
+    const computedNinMask = ninMask || (ninVal && ninVal.length >= 4 ? `*******${ninVal.slice(-4)}` : undefined);
+    if (setCurrentUser) {
+      setCurrentUser((prev: UserProfile) => {
+        const next: UserProfile = {
+          ...prev,
+          hasKyc: true,
+          has_kyc: true,
+          ...(computedBvnMask ? { bvn: computedBvnMask, bvn_masked: computedBvnMask, bvnMasked: computedBvnMask } : {}),
+          ...(computedNinMask ? { nin: computedNinMask, nin_masked: computedNinMask, ninMasked: computedNinMask } : {}),
+        };
+        try {
+          localStorage.setItem('edata_current_user', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    } else {
+      currentUser.hasKyc = true;
+      currentUser.has_kyc = true;
+      if (computedBvnMask) {
+        currentUser.bvn = computedBvnMask;
+        currentUser.bvn_masked = computedBvnMask;
+        currentUser.bvnMasked = computedBvnMask;
+      }
+      if (computedNinMask) {
+        currentUser.nin = computedNinMask;
+        currentUser.nin_masked = computedNinMask;
+        currentUser.ninMasked = computedNinMask;
+      }
+    }
+  };
+
   const handleDirectGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch {}
     if (!hasExistingKyc) {
       const clean = kycValue.replace(/\D/g, '');
       if (clean.length !== 11) {
@@ -48,7 +92,16 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
     }
   };
 
-  const handleStartGenerateAccount = () => {
+  const handleStartGenerateAccount = (provider?: DvaProviderInfo) => {
+    if (provider) {
+      if (provider.requires_kyc && !hasExistingKyc) {
+        setKycTargetProvider(provider.code);
+        setShowKycModal(true);
+        return;
+      }
+      handleGenerateVirtualAccount(undefined, provider.code);
+      return;
+    }
     if (!hasExistingKyc) {
       setShowKycModal(true);
       return;
@@ -56,27 +109,51 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
     handleGenerateVirtualAccount();
   };
 
-  const handleGenerateVirtualAccount = async (manualKyc?: { bvn?: string; nin?: string }) => {
-    setLoading(true);
+  const handleGenerateVirtualAccount = async (manualKyc?: { bvn?: string; nin?: string }, providerCode?: string) => {
+    const targetCode = providerCode || kycTargetProvider || undefined;
+    if (targetCode) {
+      setGeneratingProvider(targetCode);
+    } else {
+      setLoading(true);
+    }
+
     try {
       let created = false;
       let errMsg = '';
-      const kycPayload = manualKyc || ((currentUser.bvn || currentUser.nin) ? {
-        bvn: currentUser.bvn,
-        nin: currentUser.nin,
+      const unmaskedUserBvn = currentUser.bvn && /^\d{11}$/.test(currentUser.bvn) ? currentUser.bvn : undefined;
+      const unmaskedUserNin = currentUser.nin && /^\d{11}$/.test(currentUser.nin) ? currentUser.nin : undefined;
+      const kycPayload = manualKyc || ((unmaskedUserBvn || unmaskedUserNin) ? {
+        bvn: unmaskedUserBvn,
+        nin: unmaskedUserNin,
       } : undefined);
 
+      // If the user submitted a valid 11-digit BVN or NIN, immediately persist it so they are never asked again
+      if (manualKyc?.bvn || manualKyc?.nin) {
+        persistUserKycState(manualKyc.bvn, manualKyc.nin);
+        api.updateProfile({
+          ...(manualKyc.bvn ? { bvn: manualKyc.bvn } : {}),
+          ...(manualKyc.nin ? { nin: manualKyc.nin } : {}),
+        }).catch(() => {});
+      }
+
       try {
-        const genRes = await api.generateVirtualAccount(kycPayload);
+        const genRes = targetCode
+          ? await api.generateDvaAccount(targetCode, kycPayload)
+          : await api.generateVirtualAccount(kycPayload);
+
         if (genRes?.require_kyc) {
+          if (targetCode) setKycTargetProvider(targetCode);
           setShowKycModal(true);
           return;
         }
         if (genRes && (genRes.account_number || genRes.data?.account_number || genRes.success)) {
           created = true;
-          if (manualKyc?.bvn) currentUser.bvn = manualKyc.bvn;
-          if (manualKyc?.nin) currentUser.nin = manualKyc.nin;
-          currentUser.hasKyc = true;
+          persistUserKycState(
+            manualKyc?.bvn,
+            manualKyc?.nin,
+            genRes.data?.bvn_masked || genRes.bvn_masked,
+            genRes.data?.nin_masked || genRes.nin_masked
+          );
         } else if (genRes && (genRes.error || genRes.message)) {
           errMsg = genRes.error || genRes.message;
         }
@@ -85,24 +162,11 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
         errMsg = e?.message || '';
       }
 
-      // Refresh wallet to load virtual accounts
-      const res = await api.getWallet();
-      const rawAccs = res.data?.virtual_accounts || res.virtual_accounts || [];
-      const accs = Array.isArray(rawAccs) ? rawAccs.filter((a: any) => {
-        const b = (a.bank_name || a.bank || '').toLowerCase();
-        const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-        const nm = (a.account_name || a.accountName || '').toLowerCase();
-        return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
-      }) : [];
-
-      if (accs.length > 0) {
-        setVirtualAccounts(accs);
-        setShowKycModal(false);
-        toast.success('Dedicated Virtual Account ready!');
-      } else if (created) {
+      if (created) {
         await fetchFundData();
         setShowKycModal(false);
-        toast.success('Virtual Account generated. Refreshing details...');
+        setKycTargetProvider(null);
+        toast.success('Dedicated Virtual Account ready!');
       } else {
         if (errMsg) {
           toast.error(errMsg);
@@ -114,12 +178,14 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
     } catch (err: any) {
       toast.error(err?.message || 'Unable to generate virtual account right now.');
     } finally {
+      setGeneratingProvider(null);
       setLoading(false);
     }
   };
 
   const handleKycSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch {}
     const clean = kycValue.replace(/\D/g, '');
     if (clean.length !== 11) {
       toast.error(`${kycType.toUpperCase()} must be exactly 11 digits.`);
@@ -127,7 +193,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
     }
     setKycSubmitting(true);
     try {
-      await handleGenerateVirtualAccount({ [kycType]: clean });
+      await handleGenerateVirtualAccount({ [kycType]: clean }, kycTargetProvider || undefined);
     } finally {
       setKycSubmitting(false);
     }
@@ -179,24 +245,45 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   const fetchFundData = async () => {
     setLoading(true);
     try {
-      const res = await api.getWallet();
-      const rawAccounts = res.data?.virtual_accounts || res.virtual_accounts || [];
-      const accounts = Array.isArray(rawAccounts) ? rawAccounts.filter((a: any) => {
-        const b = (a.bank_name || a.bank || '').toLowerCase();
-        const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-        const nm = (a.account_name || a.accountName || '').toLowerCase();
-        return !b.includes('wema') && !b.includes('katpay') && !nm.includes('katpay') && !nm.includes('cizar') && num !== '0127189291';
-      }) : [];
-      setVirtualAccounts(accounts);
+      const [walletRes, dvaRes] = await Promise.allSettled([
+        api.getWallet(),
+        api.getDvaProviders(true),
+      ]);
 
-      const mb = res.data?.manual_bank || res.manual_bank;
-      if (mb) {
-        const mbName = (mb.bank_name || '').toLowerCase();
-        const mbNum = (mb.account_number || '').trim();
-        if (!mbName.includes('wema') && !mbName.includes('katpay') && mbNum !== '0127189291') {
-          setManualBank(mb);
-        } else {
-          setManualBank(null);
+      if (dvaRes.status === 'fulfilled' && dvaRes.value?.success && Array.isArray(dvaRes.value?.data?.providers)) {
+        setDvaProviders(dvaRes.value.data.providers);
+        if (dvaRes.value.data.has_kyc || dvaRes.value.data.bvn_masked || dvaRes.value.data.nin_masked) {
+          persistUserKycState(undefined, undefined, dvaRes.value.data.bvn_masked, dvaRes.value.data.nin_masked);
+        }
+      }
+
+      if (walletRes.status === 'fulfilled' && walletRes.value) {
+        const res = walletRes.value;
+        if (res.data?.has_kyc || res.has_kyc || res.data?.bvn_masked || res.data?.nin_masked) {
+          persistUserKycState(
+            undefined,
+            undefined,
+            res.data?.bvn_masked || res.bvn_masked || res.data?.bvn || res.bvn,
+            res.data?.nin_masked || res.nin_masked || res.data?.nin || res.nin
+          );
+        }
+        const rawAccounts = res.data?.virtual_accounts || res.virtual_accounts || [];
+        const accounts = Array.isArray(rawAccounts) ? rawAccounts.filter((a: any) => {
+          const b = (a.bank_name || a.bank || '').toLowerCase();
+          const num = (a.account_number || a.accountNo || a.account_no || '').trim();
+          return !b.includes('wema') && num !== '0127189291';
+        }) : [];
+        setVirtualAccounts(accounts);
+
+        const mb = res.data?.manual_bank || res.manual_bank;
+        if (mb) {
+          const mbName = (mb.bank_name || '').toLowerCase();
+          const mbNum = (mb.account_number || '').trim();
+          if (!mbName.includes('wema') && !mbName.includes('katpay') && mbNum !== '0127189291') {
+            setManualBank(mb);
+          } else {
+            setManualBank(null);
+          }
         }
       }
     } catch (err: any) {
@@ -238,7 +325,20 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   };
 
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    } catch {}
     setCopiedBank(label);
     toast.success(`Copied ${label}!`);
     setTimeout(() => setCopiedBank(null), 2500);
@@ -340,7 +440,145 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
               </div>
             </div>
 
-            {virtualAccounts.length === 0 ? (
+            {dvaProviders.length > 0 ? (
+              <div className="space-y-4">
+                {dvaProviders.map((prov) => {
+                  const isGeneratingThis = generatingProvider === prov.code;
+                  return (
+                    <div
+                      key={prov.code}
+                      className={`p-4 bg-slate-800/80 border rounded-2xl space-y-3 transition-all ${
+                        prov.is_dashboard_priority
+                          ? 'border-sky-500/50 shadow-md shadow-sky-500/5'
+                          : 'border-slate-700/70'
+                      }`}
+                    >
+                      {/* Provider Header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
+                            <Landmark className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-extrabold text-white font-display">
+                                {prov.provider_title || prov.name}
+                              </h4>
+                              {prov.is_dashboard_priority && (
+                                <span className="text-[9px] font-black uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 px-1.5 py-0.5 rounded-md">
+                                  Recommended
+                                </span>
+                              )}
+                            </div>
+                            {prov.description && (
+                              <p className="text-[11px] text-slate-400 leading-snug mt-0.5">
+                                {prov.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold shrink-0">
+                          {prov.badge || 'Automatic'}
+                        </span>
+                      </div>
+
+                      {/* Accounts or Independent Generate Button */}
+                      {prov.has_account && Array.isArray(prov.accounts) && prov.accounts.length > 0 ? (
+                        <div className="space-y-2 pt-1">
+                          {prov.accounts.map((acc, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3.5 bg-slate-900/90 border border-slate-700/80 rounded-xl flex items-center justify-between gap-3"
+                            >
+                              <div>
+                                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">
+                                  {acc.bank_name}
+                                </span>
+                                <p className="text-lg font-mono font-extrabold text-white tracking-wider mt-0.5">
+                                  {acc.account_number}
+                                </p>
+                                <p className="text-[11px] text-slate-400">{acc.account_name}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onContextMenu={(e) => e.preventDefault()}
+                                onClick={() => copyToClipboard(acc.account_number, `${acc.bank_name} (${prov.name})`)}
+                                className="p-2.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
+                              >
+                                {copiedBank === `${acc.bank_name} (${prov.name})` ? (
+                                  <Check className="w-4 h-4 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="pt-1 space-y-2.5">
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
+                            <span>
+                              {prov.requires_kyc
+                                ? hasExistingKyc
+                                  ? '✓ KYC Verified • Ready for instant creation'
+                                  : '🔒 Requires 11-digit BVN or NIN'
+                                : '⚡ Zero KYC Required • Instant Activation'}
+                            </span>
+                            {Array.isArray(prov.supported_banks) && prov.supported_banks.length > 0 && (
+                              <span className="text-[10px] font-bold text-slate-300">
+                                {prov.supported_banks.join(' / ')}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={isGeneratingThis || loading}
+                            onClick={() => handleStartGenerateAccount(prov)}
+                            className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display"
+                          >
+                            {isGeneratingThis ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <span>Generating {prov.name} DVA...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Landmark className="w-4 h-4" />
+                                <span>Generate {prov.name} DVA</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Secondary manual bank option if present */}
+                {manualBank && manualBank.account_number && (
+                  <div className="p-4 bg-slate-800/60 border border-slate-700/60 rounded-2xl">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">
+                      Alternative Bank Transfer Account
+                    </span>
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
+                      <div className="text-left">
+                        <span className="text-[10px] text-sky-400 font-bold uppercase">{manualBank.bank_name}</span>
+                        <p className="text-sm font-mono font-bold text-white tracking-wider">{manualBank.account_number}</p>
+                        <p className="text-[11px] text-slate-400">{manualBank.account_name}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(manualBank.account_number, 'Account Number')}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl cursor-pointer"
+                      >
+                        {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : virtualAccounts.length === 0 ? (
               <div className="p-6 bg-slate-800/80 border border-slate-700/80 rounded-3xl space-y-4">
                 <div className="text-center space-y-1">
                   <div className="w-12 h-12 bg-sky-500/10 border border-sky-500/30 rounded-2xl flex items-center justify-center mx-auto mb-2 text-sky-400">
@@ -356,7 +594,6 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
 
                 {!hasExistingKyc ? (
                   <form onSubmit={handleDirectGenerate} className="space-y-3 pt-2">
-                    {/* Toggle BVN / NIN */}
                     <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 border border-slate-800 rounded-xl">
                       <button
                         type="button"
@@ -392,9 +629,15 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                           inputMode="numeric"
                           maxLength={11}
                           value={kycValue}
-                          onChange={(e) => setKycValue(e.target.value.replace(/\D/g, ''))}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setKycValue(val);
+                            if (val.length === 11) {
+                              try { e.target.blur(); } catch {}
+                            }
+                          }}
                           placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
-                          className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-3 pr-20 text-white font-mono text-center tracking-widest text-sm focus:outline-none transition-colors"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-3 pr-20 text-white font-mono text-center tracking-widest text-base focus:outline-none transition-colors"
                           autoComplete="off"
                           autoCorrect="off"
                           spellCheck={false}
@@ -445,27 +688,6 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                     </button>
                   </div>
                 )}
-
-                {/* Secondary manual bank option if present */}
-                {manualBank && manualBank.account_number && (
-                  <div className="pt-3 border-t border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Alternative Bank Transfer Account</span>
-                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-between">
-                      <div className="text-left">
-                        <span className="text-[10px] text-sky-400 font-bold uppercase">{manualBank.bank_name}</span>
-                        <p className="text-sm font-mono font-bold text-white tracking-wider">{manualBank.account_number}</p>
-                        <p className="text-[11px] text-slate-400">{manualBank.account_name}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(manualBank.account_number, 'Account Number')}
-                        className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl cursor-pointer"
-                      >
-                        {copiedBank === 'Account Number' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -473,7 +695,9 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                   <div key={i} className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-sky-400">{acc.bank_name}</span>
-                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-medium">Automatic</span>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+                        {acc.badge || 'Automatic'}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
@@ -764,7 +988,13 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                     inputMode="numeric"
                     maxLength={11}
                     value={kycValue}
-                    onChange={(e) => setKycValue(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setKycValue(val);
+                      if (val.length === 11) {
+                        try { e.target.blur(); } catch {}
+                      }
+                    }}
                     placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 focus:border-sky-500 rounded-xl px-4 py-3 pr-20 text-slate-900 dark:text-white font-mono text-center tracking-widest text-base focus:outline-none transition-colors"
                     autoComplete="off"
