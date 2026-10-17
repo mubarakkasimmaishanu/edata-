@@ -17,6 +17,7 @@ import EditProfileScreen from './EditProfileScreen';
 import ResellerUpgrade from './ResellerUpgrade';
 import DeleteAccount from './DeleteAccount';
 import PinInput from './PinInput';
+import { useBackHandler } from '../utils/backHandler';
 import {
   checkBiometrics,
   isBiometricsEnabled,
@@ -50,6 +51,11 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   const [showPinPromptForBio, setShowPinPromptForBio] = useState(false);
   const [bioPinInput, setBioPinInput] = useState('');
   const [enrollingBio, setEnrollingBio] = useState(false);
+
+  // Register Android back handlers for overlays and sub-screens
+  useBackHandler(Boolean(pinScreenMode), () => setPinScreenMode(null));
+  useBackHandler(Boolean(fullScreenView), () => setFullScreenView(null));
+  useBackHandler(showPinPromptForBio, () => setShowPinPromptForBio(false));
 
   // Load biometric hardware status and refresh masked KYC status on mount
   React.useEffect(() => {
@@ -155,6 +161,12 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   const [kycPinTarget, setKycPinTarget] = useState<'nin' | 'bvn' | null>(null);
   const [kycPinInput, setKycPinInput] = useState('');
   const [verifyingKycPin, setVerifyingKycPin] = useState(false);
+
+  // Hook back button to dismiss KYC PIN prompt if open
+  useBackHandler(Boolean(kycPinTarget), () => {
+    setKycPinTarget(null);
+    setKycPinInput('');
+  });
 
   const maskedNinDisplay =
     currentUser.nin_masked ||

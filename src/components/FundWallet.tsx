@@ -5,6 +5,7 @@ import { Browser } from '@capacitor/browser';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { api } from '../services/api';
+import { useBackHandler } from '../utils/backHandler';
 
 interface FundWalletProps {
   currentUser: UserProfile;
@@ -26,6 +27,9 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   const [loading, setLoading] = useState(false);
 
   const [showKycModal, setShowKycModal] = useState(false);
+
+  // Hook Android back button to dismiss KYC modal if open
+  useBackHandler(showKycModal, () => setShowKycModal(false));
   const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
   const [kycValue, setKycValue] = useState('');
   const [kycSubmitting, setKycSubmitting] = useState(false);
@@ -454,32 +458,13 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                       }`}
                     >
                       {/* Provider Header */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
-                            <Landmark className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-xs font-extrabold text-white font-display">
-                                {prov.provider_title || prov.name}
-                              </h4>
-                              {prov.is_dashboard_priority && (
-                                <span className="text-[9px] font-black uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30 px-1.5 py-0.5 rounded-md">
-                                  Recommended
-                                </span>
-                              )}
-                            </div>
-                            {prov.description && (
-                              <p className="text-[11px] text-slate-400 leading-snug mt-0.5">
-                                {prov.description}
-                              </p>
-                            )}
-                          </div>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
+                          <Landmark className="w-4 h-4" />
                         </div>
-                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold shrink-0">
-                          {prov.badge || 'Automatic'}
-                        </span>
+                        <h4 className="text-sm font-extrabold text-white font-display">
+                          {prov.name || prov.provider_title}
+                        </h4>
                       </div>
 
                       {/* Accounts or Independent Generate Button */}
@@ -515,21 +500,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                           ))}
                         </div>
                       ) : (
-                        <div className="pt-1 space-y-2.5">
-                          <div className="flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-800">
-                            <span>
-                              {prov.requires_kyc
-                                ? hasExistingKyc
-                                  ? '✓ KYC Verified • Ready for instant creation'
-                                  : '🔒 Requires 11-digit BVN or NIN'
-                                : '⚡ Zero KYC Required • Instant Activation'}
-                            </span>
-                            {Array.isArray(prov.supported_banks) && prov.supported_banks.length > 0 && (
-                              <span className="text-[10px] font-bold text-slate-300">
-                                {prov.supported_banks.join(' / ')}
-                              </span>
-                            )}
-                          </div>
+                        <div className="pt-1">
 
                           <button
                             type="button"

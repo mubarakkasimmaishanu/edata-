@@ -30,9 +30,10 @@ interface ServicesCatalogProps {
    */
   serviceCategories?: string[];
   onNavigate: (view: string) => void;
+  onBack?: () => void;
 }
 
-export default function ServicesCatalog({ currentUser, serviceCategories = [], onNavigate }: ServicesCatalogProps) {
+export default function ServicesCatalog({ currentUser, serviceCategories = [], onNavigate, onBack }: ServicesCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'telecom' | 'bills' | 'education'>('all');
 
@@ -86,7 +87,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
       <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-md safe-top">
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => onNavigate('dashboard')}
+            onClick={onBack || (() => onNavigate('dashboard'))}
             className="w-9 h-9 rounded-2xl bg-slate-800 text-slate-300 flex items-center justify-center border border-slate-700/60 active:scale-95 cursor-pointer transition-transform"
           >
             <ArrowLeft className="w-4.5 h-4.5" />

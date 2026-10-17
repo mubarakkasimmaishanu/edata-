@@ -246,37 +246,51 @@ function MainApp() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [viewHistory, setViewHistory] = useState<ActiveView[]>(['dashboard']);
 
+  // Synchronous refs to guarantee atomic, race-free navigation stack updates in React 19
+  const viewHistoryRef = useRef<ActiveView[]>(['dashboard']);
+  const activeViewRef = useRef<ActiveView>('dashboard');
+  activeViewRef.current = activeView;
+  viewHistoryRef.current = viewHistory;
+
   // Direct Quick Action Checkout state
   const [activeQuickAction, setActiveQuickAction] = useState<QuickAction | null>(null);
   const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
 
   const handleGoBack = () => {
-    // App-level Quick Action PIN sheet takes precedence over the
-    // view-history pop. Screen-internal overlays (BuyData's PIN, the
-    // package/contact modals in ServiceForm, etc.) hook into the
-    // Capacitor listener directly via `useBackHandler` and are drained
-    // before this function is ever called.
+    // 1. In-screen modal/overlay back handlers get first crack (e.g. KYC PIN prompt, modals)
+    if (runBackHandlers()) {
+      return;
+    }
+
+    // 2. App-level Quick Action PIN sheet takes precedence
     if (pinScreenMode) {
       setPinScreenMode(null);
       setActiveQuickAction(null);
       return;
     }
 
-    if (viewHistory.length > 1) {
-      setViewHistory(prev => {
-        const copy = [...prev];
-        copy.pop();
-        const prevView = copy[copy.length - 1] || 'dashboard';
-        setActiveView(prevView);
-        return copy;
-      });
-    } else if (activeView !== 'dashboard') {
-      setActiveView('dashboard');
+    // 3. Navigate back through history stack cleanly
+    const history = [...viewHistoryRef.current];
+    const current = activeViewRef.current;
+
+    // Pop any trailing duplicates matching current screen
+    while (history.length > 1 && history[history.length - 1] === current) {
+      history.pop();
+    }
+
+    if (history.length > 1) {
+      history.pop(); // Pop current view to reveal previous target
+      const prevView = history[history.length - 1] || 'dashboard';
+      viewHistoryRef.current = history;
+      setViewHistory(history);
+      setActiveView(prevView);
+    } else if (current !== 'dashboard') {
+      viewHistoryRef.current = ['dashboard'];
       setViewHistory(['dashboard']);
+      setActiveView('dashboard');
     } else {
-      // Genuinely nothing to go back to — follow the Android convention
-      // and exit the app.
+      // Genuinely on root dashboard with nothing left — exit the app on Android
       import('@capacitor/app').then(({ App: CapApp }) => {
         CapApp.exitApp();
       }).catch(() => { });
@@ -1202,11 +1216,16 @@ function MainApp() {
     }
 
     if (targetView !== activeView) {
-      setViewHistory(prev => {
-        if (prev.length > 0 && prev[prev.length - 1] === targetView) return prev;
-        return [...prev, targetView];
-      });
-      setActiveView(targetView);
+      if (targetView === 'dashboard') {
+        viewHistoryRef.current = ['dashboard'];
+        setViewHistory(['dashboard']);
+        setActiveView('dashboard');
+      } else {
+        const next = [...viewHistoryRef.current.filter(v => v !== targetView), targetView];
+        viewHistoryRef.current = next;
+        setViewHistory(next);
+        setActiveView(targetView);
+      }
     }
 
     setPreselectedNetwork(targetNetwork);
@@ -1388,6 +1407,7 @@ function MainApp() {
                     currentUser={currentUser}
                     serviceCategories={serviceCategories}
                     onNavigate={navigateTo}
+                    onBack={handleGoBack}
                   />
                 )}
 
