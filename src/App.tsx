@@ -13,6 +13,7 @@ import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
 import { initChatwoot, syncChatwootUser, clearChatwootIdentity } from './services/chatwootService';
+import { App as CapApp } from '@capacitor/app';
 
 // Eager: always visible on cold start OR needed instantly (no route wait
 // is acceptable). Dashboard is the entry point, BottomNav sits over every
@@ -257,43 +258,58 @@ function MainApp() {
   const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
 
+  const lastBackPressTimeRef = useRef<number>(0);
+
   const handleGoBack = () => {
-    // 1. In-screen modal/overlay back handlers get first crack (e.g. KYC PIN prompt, modals)
+    // 0. Debounce rapid duplicate back events (e.g. from simultaneous native + document listeners)
+    const now = Date.now();
+    if (now - lastBackPressTimeRef.current < 350) {
+      console.log('[BackButton] Ignored duplicate back event within 350ms');
+      return;
+    }
+    lastBackPressTimeRef.current = now;
+
+    // 1. If user is on authentication screen, back exits the app
+    if (currentScreen === 'auth') {
+      CapApp.exitApp();
+      return;
+    }
+
+    // 2. In-screen modal/overlay back handlers get first crack (e.g. KYC PIN prompt, modals)
     if (runBackHandlers()) {
       return;
     }
 
-    // 2. App-level Quick Action PIN sheet takes precedence
+    // 3. App-level Quick Action PIN sheet takes precedence
     if (pinScreenMode) {
       setPinScreenMode(null);
       setActiveQuickAction(null);
       return;
     }
 
-    // 3. Navigate back through history stack cleanly
+    // 4. Navigate back through history stack cleanly
     const history = [...viewHistoryRef.current];
     const current = activeViewRef.current;
 
-    // Pop any trailing duplicates matching current screen
-    while (history.length > 1 && history[history.length - 1] === current) {
+    // Pop the current view from top of history
+    while (history.length > 0 && history[history.length - 1] === current) {
       history.pop();
     }
 
-    if (history.length > 1) {
-      history.pop(); // Pop current view to reveal previous target
-      const prevView = history[history.length - 1] || 'dashboard';
+    if (current !== 'dashboard' && history.length > 0) {
+      const prevView = history[history.length - 1];
+      activeViewRef.current = prevView;
       viewHistoryRef.current = history;
       setViewHistory(history);
       setActiveView(prevView);
     } else if (current !== 'dashboard') {
+      activeViewRef.current = 'dashboard';
       viewHistoryRef.current = ['dashboard'];
       setViewHistory(['dashboard']);
       setActiveView('dashboard');
     } else {
       // Genuinely on root dashboard with nothing left — exit the app on Android
-      import('@capacitor/app').then(({ App: CapApp }) => {
-        CapApp.exitApp();
-      }).catch(() => { });
+      CapApp.exitApp();
     }
   };
 
@@ -305,34 +321,31 @@ function MainApp() {
     navigateTo(view, { network, planId });
   };
 
-  // Keep the Capacitor back-button listener wired to the LATEST
-  // handleGoBack via a ref, and register it exactly ONCE on mount.
-  // The previous implementation re-ran this effect on every relevant
-  // state change and re-registered inside an async `import()`, so
-  // cleanup often fired before the handler existed — leaving stacked
-  // listeners with stale closures firing on every press.
+  // Keep the back-button listener wired to the LATEST handleGoBack via a ref
   const handleGoBackRef = useRef(handleGoBack);
   handleGoBackRef.current = handleGoBack;
 
   useEffect(() => {
-    let removeListener: (() => void) | null = null;
-    let cancelled = false;
+    // 1. Hardware back button listener from @capacitor/app (Native Bridge)
+    const listenerPromise = CapApp.addListener('backButton', (data) => {
+      console.log('[BackButton] Capacitor hardware backButton pressed, canGoBack:', data?.canGoBack);
+      handleGoBackRef.current();
+    });
 
-    import('@capacitor/app').then(({ App: CapApp }) => {
-      if (cancelled) return;
-      CapApp.addListener('backButton', () => {
-        // Give any open overlay first crack at the press — a modal
-        // or in-screen PIN closes without touching the view history.
-        if (runBackHandlers()) return;
-        handleGoBackRef.current();
-      }).then(h => {
-        if (cancelled) {
-          h.remove();
-          return;
-        }
-        removeListener = () => h.remove();
-      });
-    }).catch(() => { });
+    // 2. Document-level backbutton listener (Standard Cordova/Capacitor webview fallback)
+    const onDocumentBackButton = (e: Event) => {
+      console.log('[BackButton] Document backbutton event received');
+      e.preventDefault();
+      handleGoBackRef.current();
+    };
+    document.addEventListener('backbutton', onDocumentBackButton);
+
+    // 3. Window popstate listener for system back gesture navigation
+    const onPopState = () => {
+      console.log('[BackButton] Window popstate event received');
+      handleGoBackRef.current();
+    };
+    window.addEventListener('popstate', onPopState);
 
     // Initialize Deep Linking (Direct App Links + Deferred Clipboard/Referrer Bridge)
     initDeepLinking();
@@ -344,8 +357,9 @@ function MainApp() {
     });
 
     return () => {
-      cancelled = true;
-      if (removeListener) removeListener();
+      listenerPromise.then(h => h.remove()).catch(() => {});
+      document.removeEventListener('backbutton', onDocumentBackButton);
+      window.removeEventListener('popstate', onPopState);
       unsubReferral();
     };
   }, []);
@@ -1217,11 +1231,13 @@ function MainApp() {
 
     if (targetView !== activeView) {
       if (targetView === 'dashboard') {
+        activeViewRef.current = 'dashboard';
         viewHistoryRef.current = ['dashboard'];
         setViewHistory(['dashboard']);
         setActiveView('dashboard');
       } else {
         const next = [...viewHistoryRef.current.filter(v => v !== targetView), targetView];
+        activeViewRef.current = targetView;
         viewHistoryRef.current = next;
         setViewHistory(next);
         setActiveView(targetView);
