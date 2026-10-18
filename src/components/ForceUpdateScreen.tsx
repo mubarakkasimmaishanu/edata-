@@ -227,7 +227,7 @@ export default function ForceUpdateScreen({ updateData, onSnooze }: ForceUpdateS
             >
               <Download className="w-4 h-4" />
               <span>
-                {updateData.button_label || (isIos ? 'Update on Apple App Store' : 'Update on Google Play Store')}
+                {updateData.button_label || (isIos ? 'Download on Apple App Store' : 'Update on Google Play Store')}
               </span>
               <ExternalLink className="w-3.5 h-3.5 opacity-80" />
             </button>
