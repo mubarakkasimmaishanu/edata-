@@ -9,6 +9,12 @@ This skill documents the standard end-to-end workflow for building, syncing, and
 
 ---
 
+## 0. Team Responsibilities & Work Division
+- **API Provider Connections:** Developer `obasekore` is responsible for API provider integrations (`common/components/*Service.php`, provider migrations, API endpoints).
+- **Core App & Mobile Features:** The primary developer handles frontend (React + Capacitor), backend controllers/models, UI/UX, and non-provider feature workflows.
+- **Mobile as Mirror (Play Store Final Build):** The mobile application is a final Play Store ship build acting as a UI mirror. All future product purchase fixes, business logic, discount/pricing calculations, validation, and data formatting MUST occur strictly on the Yii2 web backend/API. Do not implement purchase fixes on the mobile side.
+
+
 ## 1. Web Backend (Yii2 PHP) Architecture & Deployment
 
 ### Workspace Location
@@ -86,31 +92,28 @@ python scratch/deploy_to_hostinger_live.py
   - Capacitor App lifecycle management, native Android icons and splash assets (`eData-v2.2.0-release.apk`).
   - Android Autofill & Google Password Manager support with `autocomplete="username"` and `autocomplete="current-password"`.
   - Native Google Auth integration via `@codetrix-studio/capacitor-google-auth`.
-- **iOS Integration & Native Assets (Magic Code / Codemagic / GitHub Actions):**
-  - Native Capacitor iOS platform under `ios/App` configured with Bundle ID `com.eDATA.app`.
-  - Configured `Info.plist` with required iOS permissions: Face ID (`NSFaceIDUsageDescription`), Contacts (`NSContactsUsageDescription`), Camera (`NSCameraUsageDescription`), and Photo Library (`NSPhotoLibraryUsageDescription`).
-  - URL Schemes (`edata://`, `com.eDATA.app`, and reversed Google OAuth Client ID) and Associated Domains (`applinks:edata.com.ng`, `applinks:www.edata.com.ng`).
-  - iOS Branding script: `scripts/generate_ios_assets.py` generates Apple-compliant 1024x1024 RGB App Store icon and 2732x2732 splash assets.
-  - Automated Cloud Build Pipelines:
-    - **Codemagic CI/CD:** `codemagic.yaml` for building `.ipa` and `.xcarchive` on cloud macOS M2 instances.
-    - **GitHub Actions:** `.github/workflows/build-ios.yml` for automated compilation and artifact export on GitHub macOS runners.
+  - **Android App Links & Deferred Deep Linking:** `android:autoVerify="true"` on `https://edata.com.ng/join` and `/r/*`, automated referral code sync across installation via Google Play Install Referrer & clipboard fallback. (See `.agents/skills/edata-deferred-deep-linking/SKILL.md` for full Android & iOS specifications).
 
 ### Build & Push Commands
 ```powershell
 # 1. Check TypeScript compilation
 npx tsc --noEmit
 
-# 2. Build React production bundle & generate iOS assets
+# 2. Build React production bundle
 npm run build
-npm run assets:ios
 
-# 3. Sync native iOS and Android platforms
-npm run cap:sync
-
-# 4. Commit and push (triggers GitHub Actions & Codemagic iOS builds)
+# 3. Commit and push
 git add .
-git commit -m "Generate and configure native iOS platform with Codemagic and GitHub Actions"
+git commit -m "Optimize Quick Actions direct PIN checkout flow, context-aware target inputs, Reseller Upgrade page, and Android assets"
 git push origin main
+```
+
+### Android Binary Build & Storage Rule (CRITICAL)
+- **Always Leave in Original Build Output Directory**:
+  - Whenever generating Android binaries (whether `.apk` via `assembleRelease` or `.aab`/`.abb` via `bundleRelease`), **NEVER copy, move, or duplicate** the output to the Desktop, project root, `frontend/web/downloads/`, or anywhere else.
+  - Leave the binary strictly in its original Gradle build output location:
+    - **Release APK**: `C:\Users\MY PC\Desktop\edata-mobile\android\app\build\outputs\apk\release\app-release.apk`
+    - **Release Bundle (.aab / .abb)**: `C:\Users\MY PC\Desktop\edata-mobile\android\app\build\outputs\bundle\release\app-release.aab`
 ```
 
 ---
