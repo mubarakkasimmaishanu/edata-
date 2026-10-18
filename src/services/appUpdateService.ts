@@ -5,6 +5,69 @@ import { api } from './api';
 import { AppVersionData } from '../types';
 
 export const FALLBACK_APP_VERSION = '2.4.6';
+export const DEFAULT_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.eDATA.app';
+export const DEFAULT_IOS_STORE_URL = 'https://apps.apple.com/app/id6740000000';
+
+/**
+ * Determine whether the app is running on iOS (via explicit platform hint, Capacitor native runtime, or User-Agent).
+ */
+export function isIosPlatform(platformHint?: string | null): boolean {
+  if (platformHint) {
+    const clean = platformHint.trim().toLowerCase();
+    if (clean === 'ios') return true;
+    if (clean === 'android') return false;
+  }
+  const capPlat = Capacitor.getPlatform();
+  if (capPlat === 'ios') return true;
+  if (capPlat === 'android') return false;
+  if (typeof navigator !== 'undefined' && navigator.userAgent) {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+  return false;
+}
+
+/**
+ * Resolve the appropriate store URL for the active platform (Apple App Store on iOS, Google Play Store on Android).
+ */
+export function resolveStoreUrl(updateData?: Partial<AppVersionData> | null): string {
+  const isIos = isIosPlatform(updateData?.platform);
+
+  if (isIos) {
+    const candidate = (
+      updateData?.app_store_url ||
+      updateData?.store_url ||
+      updateData?.play_store_url ||
+      DEFAULT_IOS_STORE_URL
+    ).trim();
+
+    // Never allow an iOS client to open a Google Play Store or market:// URL
+    if (
+      !candidate ||
+      /play\.google\.com/i.test(candidate) ||
+      candidate.toLowerCase().startsWith('market://')
+    ) {
+      return DEFAULT_IOS_STORE_URL;
+    }
+    return candidate;
+  }
+
+  const androidCandidate = (
+    updateData?.market_url ||
+    updateData?.store_url ||
+    updateData?.play_store_url ||
+    DEFAULT_ANDROID_STORE_URL
+  ).trim();
+
+  if (
+    !androidCandidate ||
+    /apps\.apple\.com/i.test(androidCandidate) ||
+    androidCandidate.toLowerCase().startsWith('itms-apps://')
+  ) {
+    return DEFAULT_ANDROID_STORE_URL;
+  }
+
+  return androidCandidate;
+}
 
 /**
  * Semver comparison utility.
@@ -48,7 +111,7 @@ export async function getInstalledAppVersion(): Promise<string> {
  */
 export async function checkAppUpdate(platform?: string): Promise<AppVersionData | null> {
   try {
-    const activePlatform = platform || (Capacitor.getPlatform() === 'ios' ? 'ios' : 'android');
+    const activePlatform = platform || (isIosPlatform() ? 'ios' : 'android');
     const version = await getInstalledAppVersion();
     const res: any = await api.getAppConfig(activePlatform, version, true);
     if (res && res.success && res.data) {
@@ -88,15 +151,27 @@ export function snoozeUpdate(targetVersion: string): void {
 }
 
 /**
- * Open the Google Play Store or web link cleanly via Capacitor Browser.
+ * Open the platform-appropriate App Store (Apple App Store on iOS, Google Play Store on Android)
+ * or web link cleanly via Capacitor Browser.
  */
-export async function openStoreLink(url: string): Promise<void> {
+export async function openStoreLink(url: string, platformHint?: string | null): Promise<void> {
   if (!url) return;
   let cleanUrl = url.trim();
+  const isIos = isIosPlatform(platformHint);
 
-  // Normalize market:// URI to official Play Store web URL for Capacitor Browser compatibility
-  if (cleanUrl.startsWith('market://details?id=')) {
-    cleanUrl = cleanUrl.replace('market://details?id=', 'https://play.google.com/store/apps/details?id=');
+  if (isIos) {
+    // On iOS, never redirect to Google Play Store or market:// URIs
+    if (
+      cleanUrl.toLowerCase().startsWith('market://') ||
+      /play\.google\.com/i.test(cleanUrl)
+    ) {
+      cleanUrl = DEFAULT_IOS_STORE_URL;
+    }
+  } else {
+    // On Android, normalize market:// URI to official Play Store web URL for Capacitor Browser compatibility
+    if (cleanUrl.startsWith('market://details?id=')) {
+      cleanUrl = cleanUrl.replace('market://details?id=', 'https://play.google.com/store/apps/details?id=');
+    }
   }
 
   // Try opening via Capacitor Browser for in-app store overlay / external browser

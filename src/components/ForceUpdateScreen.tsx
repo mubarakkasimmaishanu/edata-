@@ -13,7 +13,12 @@ import {
 import { App } from '@capacitor/app';
 import { AppVersionData } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { openStoreLink, openUpdateSupport } from '../services/appUpdateService';
+import {
+  isIosPlatform,
+  openStoreLink,
+  openUpdateSupport,
+  resolveStoreUrl
+} from '../services/appUpdateService';
 
 interface ForceUpdateScreenProps {
   updateData: AppVersionData;
@@ -23,6 +28,7 @@ interface ForceUpdateScreenProps {
 export default function ForceUpdateScreen({ updateData, onSnooze }: ForceUpdateScreenProps) {
   const { theme } = useTheme();
 
+  const isIos = isIosPlatform(updateData.platform);
   const isForce = updateData.update_type === 'FORCE' || updateData.is_expired || updateData.days_to_expire <= 0;
   const isFlexible = !isForce && updateData.update_type === 'FLEXIBLE';
 
@@ -64,13 +70,13 @@ export default function ForceUpdateScreen({ updateData, onSnooze }: ForceUpdateS
   }, [isForce, isFlexible, onSnooze]);
 
   const handleUpdate = () => {
-    const targetUrl = updateData.market_url || updateData.play_store_url;
-    openStoreLink(targetUrl);
+    const targetUrl = resolveStoreUrl(updateData);
+    openStoreLink(targetUrl, updateData.platform);
   };
 
   const handleDirectApk = () => {
-    if (updateData.direct_apk_url) {
-      openStoreLink(updateData.direct_apk_url);
+    if (!isIos && updateData.direct_apk_url) {
+      openStoreLink(updateData.direct_apk_url, 'android');
     }
   };
 
@@ -213,18 +219,20 @@ export default function ForceUpdateScreen({ updateData, onSnooze }: ForceUpdateS
 
           {/* Action Buttons */}
           <div className="space-y-2.5 pt-1">
-            {/* Primary: Update on Google Play */}
+            {/* Primary: Update on Apple App Store (iOS) or Google Play Store (Android) */}
             <button
               type="button"
               onClick={handleUpdate}
               className="w-full py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-sky-500/25 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
-              <span>Update on Google Play Store</span>
+              <span>
+                {updateData.button_label || (isIos ? 'Update on Apple App Store' : 'Update on Google Play Store')}
+              </span>
               <ExternalLink className="w-3.5 h-3.5 opacity-80" />
             </button>
 
-            {/* Secondary: Flexible Mode "Remind Me Tomorrow" OR Direct APK */}
+            {/* Secondary: Flexible Mode "Remind Me Tomorrow" OR Direct APK (Android only) */}
             {isFlexible && onSnooze ? (
               <button
                 type="button"
@@ -238,7 +246,7 @@ export default function ForceUpdateScreen({ updateData, onSnooze }: ForceUpdateS
                 Remind Me Tomorrow
               </button>
             ) : (
-              updateData.direct_apk_url && (
+              !isIos && updateData.direct_apk_url && (
                 <button
                   type="button"
                   onClick={handleDirectApk}

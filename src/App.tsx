@@ -7,7 +7,7 @@ import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from '
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
 import { AppVersionData } from './types';
-import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate, getInstalledAppVersion, compareSemver } from './services/appUpdateService';
+import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate, getInstalledAppVersion, compareSemver, isIosPlatform, openStoreLink } from './services/appUpdateService';
 import ForceUpdateScreen from './components/ForceUpdateScreen';
 import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
@@ -999,7 +999,8 @@ function MainApp() {
   const fetchPopups = async () => {
     try {
       const version = await getInstalledAppVersion();
-      const res: any = await api.getPopups(true, version);
+      const activePlatform = isIosPlatform() ? 'ios' : 'android';
+      const res: any = await api.getPopups(true, version, activePlatform);
       const list: PopupBannerType[] =
         res?.data?.popups
         || res?.popups
@@ -1117,13 +1118,9 @@ function MainApp() {
       return;
     }
 
-    // External URL — prefer Capacitor's in-app browser so users return
-    // to eData cleanly. Falls back to window.open for plain web builds.
-    import('@capacitor/browser')
-      .then(({ Browser }) => Browser.open({ url }))
-      .catch(() => {
-        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { }
-      });
+    // External / Store URL — route through platform-aware openStoreLink so iOS
+    // always opens Apple App Store and Android opens Google Play Store.
+    openStoreLink(url);
 
     // For force-update popups (dismissible=false) DON'T remove the popup
     // from screen — the user should be nudged back to it if they cancel

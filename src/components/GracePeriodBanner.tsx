@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Download, ArrowRight, X } from 'lucide-react';
 import { AppVersionData } from '../types';
-import { openStoreLink } from '../services/appUpdateService';
+import { openStoreLink, resolveStoreUrl } from '../services/appUpdateService';
 
 interface GracePeriodBannerProps {
   updateData: AppVersionData;
@@ -16,8 +16,8 @@ export default function GracePeriodBanner({ updateData, onOpenModal, onDismiss }
 
   const handleUpdate = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = updateData.market_url || updateData.play_store_url;
-    openStoreLink(url);
+    const url = resolveStoreUrl(updateData);
+    openStoreLink(url, updateData.platform);
   };
 
   return (
