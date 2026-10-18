@@ -258,26 +258,27 @@ function MainApp() {
   const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
 
-  const lastBackPressTimeRef = useRef<number>(0);
+  // Used ONLY by the hardware/system back listeners below to collapse the
+  // duplicate events Capacitor fires for a single physical press
+  // (native `backButton` + document `backbutton`). In-app arrow taps call
+  // handleGoBack directly and are never debounced.
+  const lastHardwareBackRef = useRef<number>(0);
 
   const handleGoBack = () => {
-    // 0. Debounce rapid duplicate back events (e.g. from simultaneous native + document listeners)
-    const now = Date.now();
-    if (now - lastBackPressTimeRef.current < 350) {
-      console.log('[BackButton] Ignored duplicate back event within 350ms');
-      return;
-    }
-    lastBackPressTimeRef.current = now;
-
     // 1. If user is on authentication screen, back exits the app
     if (currentScreen === 'auth') {
-      CapApp.exitApp();
+      CapApp.exitApp().catch(() => {});
       return;
     }
 
-    // 2. In-screen modal/overlay back handlers get first crack (e.g. KYC PIN prompt, modals)
-    if (runBackHandlers()) {
-      return;
+    // 2. In-screen modal/overlay back handlers get first crack (e.g. KYC PIN prompt, modals).
+    //    Never let an overlay-handler error block normal back navigation.
+    try {
+      if (runBackHandlers()) {
+        return;
+      }
+    } catch (err) {
+      console.warn('[BackButton] runBackHandlers failed, falling through to navigation:', err);
     }
 
     // 3. App-level Quick Action PIN sheet takes precedence
@@ -309,7 +310,7 @@ function MainApp() {
       setActiveView('dashboard');
     } else {
       // Genuinely on root dashboard with nothing left — exit the app on Android
-      CapApp.exitApp();
+      CapApp.exitApp().catch(() => {});
     }
   };
 
@@ -326,26 +327,34 @@ function MainApp() {
   handleGoBackRef.current = handleGoBack;
 
   useEffect(() => {
-    // 1. Hardware back button listener from @capacitor/app (Native Bridge)
-    const listenerPromise = CapApp.addListener('backButton', (data) => {
-      console.log('[BackButton] Capacitor hardware backButton pressed, canGoBack:', data?.canGoBack);
-      handleGoBackRef.current();
-    });
+    // One physical Android back press makes Capacitor fire BOTH the native
+    // `backButton` listener AND a document `backbutton` event. Collapse them
+    // into a single navigation step.
+    const onHardwareBack = (source: string) => {
+      const now = Date.now();
+      if (now - lastHardwareBackRef.current < 300) {
+        return;
+      }
+      lastHardwareBackRef.current = now;
+      console.log('[BackButton] Hardware back via', source);
+      try {
+        handleGoBackRef.current();
+      } catch (err) {
+        console.warn('[BackButton] handleGoBack threw:', err);
+      }
+    };
 
-    // 2. Document-level backbutton listener (Standard Cordova/Capacitor webview fallback)
+    // 1. Hardware back button listener from @capacitor/app (Native Bridge).
+    //    Registering this listener is what makes Capacitor forward the press
+    //    to JS instead of silently swallowing it.
+    const listenerPromise = CapApp.addListener('backButton', () => onHardwareBack('capacitor'));
+
+    // 2. Document-level backbutton event (Capacitor also dispatches this)
     const onDocumentBackButton = (e: Event) => {
-      console.log('[BackButton] Document backbutton event received');
       e.preventDefault();
-      handleGoBackRef.current();
+      onHardwareBack('document');
     };
     document.addEventListener('backbutton', onDocumentBackButton);
-
-    // 3. Window popstate listener for system back gesture navigation
-    const onPopState = () => {
-      console.log('[BackButton] Window popstate event received');
-      handleGoBackRef.current();
-    };
-    window.addEventListener('popstate', onPopState);
 
     // Initialize Deep Linking (Direct App Links + Deferred Clipboard/Referrer Bridge)
     initDeepLinking();
@@ -359,7 +368,6 @@ function MainApp() {
     return () => {
       listenerPromise.then(h => h.remove()).catch(() => {});
       document.removeEventListener('backbutton', onDocumentBackButton);
-      window.removeEventListener('popstate', onPopState);
       unsubReferral();
     };
   }, []);

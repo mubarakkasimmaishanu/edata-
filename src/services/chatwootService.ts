@@ -11,7 +11,9 @@ declare global {
       setCustomAttributes: (attributes: Record<string, any>) => void;
       deleteUserIdentity: () => void;
       toggle: (state?: 'open' | 'close') => void;
-      isOpen: () => boolean;
+      // NOTE: the real Chatwoot SDK exposes `isOpen` as a BOOLEAN property,
+      // not a function. Always read it through `isChatwootOpen()` below.
+      isOpen?: boolean | (() => boolean);
       hide: () => void;
       show: () => void;
     };
@@ -29,6 +31,22 @@ export const DEFAULT_CHATWOOT_BASE_URL = 'https://chat.edata.com.ng';
 export const DEFAULT_CHATWOOT_WEBSITE_TOKEN = '5b84b0982ffc4c0dbd189236';
 
 let isChatwootInitialized = false;
+
+/**
+ * Safely report whether the Chatwoot widget is currently open.
+ * Handles `isOpen` being a boolean (real SDK) or a function, and never throws —
+ * this runs inside the back-button path, so an exception here would break
+ * all back navigation.
+ */
+export function isChatwootOpen(): boolean {
+  try {
+    if (typeof window === 'undefined' || !window.$chatwoot) return false;
+    const v = (window.$chatwoot as any).isOpen;
+    return typeof v === 'function' ? Boolean(v.call(window.$chatwoot)) : Boolean(v);
+  } catch {
+    return false;
+  }
+}
 
 export function initChatwoot(options?: {
   baseUrl?: string;
