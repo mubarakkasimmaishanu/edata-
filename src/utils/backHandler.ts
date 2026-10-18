@@ -17,6 +17,7 @@
 // have from the platform.
 
 import { useEffect, useRef } from 'react';
+import { isChatwootOpen, restoreAppStatusBar } from '../services/chatwootService';
 
 type Handler = () => boolean | void;
 
@@ -45,19 +46,17 @@ export function pushBackHandler(fn: Handler): () => void {
  * `backButton` listener before the default view-history pop.
  */
 export function runBackHandlers(): boolean {
-  // If Chatwoot live chat modal is open, close it first on back button press
-  if (typeof window !== 'undefined' && window.$chatwoot?.isOpen?.()) {
-    try {
-      window.$chatwoot.toggle('close');
-      const isDark = document.documentElement.classList.contains('dark');
-      import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-        StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
-        StatusBar.setBackgroundColor({ color: isDark ? '#0f172a' : '#ffffff' }).catch(() => {});
-      }).catch(() => {});
+  // If Chatwoot live chat modal is open, close it first on back button press.
+  // The whole check lives inside try/catch: an exception here previously
+  // broke ALL back navigation (corner arrow + phone back button).
+  try {
+    if (isChatwootOpen()) {
+      window.$chatwoot?.toggle('close');
+      restoreAppStatusBar();
       return true;
-    } catch {
-      // Fall through to app handler stack
     }
+  } catch {
+    // Fall through to app handler stack
   }
 
   for (let i = stack.length - 1; i >= 0; i--) {
