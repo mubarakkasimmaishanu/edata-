@@ -355,6 +355,9 @@ export interface CableProvider {
 export type AppUpdateType = 'FORCE' | 'FLEXIBLE' | 'NONE';
 
 export interface AppVersionData {
+  platform?: 'android' | 'ios';
+  store_name?: string;
+  button_label?: string;
   update_required: boolean;
   update_type: AppUpdateType;
   is_expired: boolean;
@@ -367,6 +370,8 @@ export interface AppVersionData {
   title: string;
   message: string;
   release_notes: string[];
+  store_url?: string;
+  app_store_url?: string | null;
   play_store_url: string;
   market_url?: string;
   direct_apk_url?: string | null;

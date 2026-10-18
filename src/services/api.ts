@@ -515,11 +515,19 @@ export const api = {
 
   // Fetch admin-managed popup banners. Public endpoint — works with or
   // without a token; the backend returns guest-only popups when there is
-  // no bearer. `appVersion` is forwarded so the server can gate popups
-  // to a specific mobile version range without a client rebuild.
-  async getPopups(silent = false, appVersion?: string) {
-    const qs = appVersion ? `?app_version=${encodeURIComponent(appVersion)}` : '';
-    return request(`/popups${qs}`, {}, silent);
+  // no bearer. `appVersion` and `platform` are forwarded so the server can
+  // gate popups to a specific mobile version range and native platform.
+  async getPopups(silent = false, appVersion?: string, platform?: string) {
+    const params = new URLSearchParams();
+    if (appVersion) params.append('app_version', appVersion);
+    if (platform) params.append('platform', platform);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request(`/popups${qs}`, {
+      headers: {
+        ...(appVersion ? { 'X-App-Version': appVersion } : {}),
+        ...(platform ? { 'X-Platform': platform } : {}),
+      }
+    }, silent);
   },
 
   async getReferralConfig(silent = false) {
@@ -545,6 +553,7 @@ export const api = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         ...(appVersion ? { 'X-App-Version': appVersion } : {}),
+        ...(platform ? { 'X-Platform': platform } : {}),
       }
     }, silent);
   },
