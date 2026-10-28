@@ -3,7 +3,7 @@ import { UserProfile } from '../types';
 import {
   ChevronLeft, Key, KeyRound, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
   Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon,
-  Eye, EyeOff, Shield
+  Eye, EyeOff, Shield, Landmark, CreditCard, Building2
 } from 'lucide-react';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
@@ -153,12 +153,73 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   const [copiedNin, setCopiedNin] = useState(false);
   const [copiedBvn, setCopiedBvn] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const handleSaveBank = async () => {
+    if (!editBankName.trim() || !editAccountNumber.trim() || !editAccountName.trim()) {
+      toast.warning('Please enter bank name, 10-digit account number, and account name.');
+      return;
+    }
+    const cleanNum = editAccountNumber.replace(/\D/g, '');
+    if (cleanNum.length !== 10) {
+      toast.warning('Account number must be exactly 10 digits (NUBAN).');
+      return;
+    }
+    const isEditing = Boolean(currentUser.has_bank_account || currentUser.account_number_masked);
+    if (isEditing && editPin.length !== 4) {
+      toast.warning('Please enter your 4-digit Transaction PIN to change your bank account.');
+      return;
+    }
+    setSavingBank(true);
+    try {
+      const res = await api.savePayoutAccount({
+        bank_name: editBankName.trim(),
+        account_number: cleanNum,
+        account_name: editAccountName.trim(),
+        transaction_pin: editPin || undefined,
+      });
+      if (res && res.success) {
+        toast.success('Payout bank account saved successfully!');
+        const updatedUser: UserProfile = {
+          ...currentUser,
+          bank_name: res.data?.bank_name || editBankName.trim(),
+          account_number_masked: res.data?.account_number_masked || `******${cleanNum.slice(-4)}`,
+          account_name: res.data?.account_name || editAccountName.trim(),
+          has_bank_account: true,
+        };
+        setCurrentUser(updatedUser);
+        try {
+          localStorage.setItem('edata_current_user', JSON.stringify(updatedUser));
+        } catch {}
+        setShowEditBankModal(false);
+        setEditPin('');
+        setEditAccountNumber('');
+      } else {
+        toast.error(res?.error || 'Failed to save bank account details.');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save bank account.');
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
 
   const [ninVisible, setNinVisible] = useState(false);
   const [bvnVisible, setBvnVisible] = useState(false);
   const [revealedNin, setRevealedNin] = useState<string | null>(null);
   const [revealedBvn, setRevealedBvn] = useState<string | null>(null);
-  const [kycPinTarget, setKycPinTarget] = useState<'nin' | 'bvn' | null>(null);
+  const [bankVisible, setBankVisible] = useState(false);
+  const [revealedBankName, setRevealedBankName] = useState<string | null>(null);
+  const [revealedAccountNumber, setRevealedAccountNumber] = useState<string | null>(null);
+  const [revealedAccountName, setRevealedAccountName] = useState<string | null>(null);
+  const [copiedBank, setCopiedBank] = useState(false);
+  const [showEditBankModal, setShowEditBankModal] = useState(false);
+  const [editBankName, setEditBankName] = useState(currentUser.bank_name || '');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editAccountName, setEditAccountName] = useState(currentUser.account_name || `${currentUser.firstname || ''} ${currentUser.lastname || ''}`.trim());
+  const [editPin, setEditPin] = useState('');
+  const [savingBank, setSavingBank] = useState(false);
+
+  const [kycPinTarget, setKycPinTarget] = useState<'nin' | 'bvn' | 'bank' | null>(null);
   const [kycPinInput, setKycPinInput] = useState('');
   const [verifyingKycPin, setVerifyingKycPin] = useState(false);
 
@@ -166,6 +227,10 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
   useBackHandler(Boolean(kycPinTarget), () => {
     setKycPinTarget(null);
     setKycPinInput('');
+  });
+
+  useBackHandler(showEditBankModal, () => {
+    setShowEditBankModal(false);
   });
 
   const maskedNinDisplay =
@@ -186,7 +251,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
       ? `*******${currentUser.bvn.slice(-4)}`
       : '•••••••••••');
 
-  const handleRequestRevealKyc = (field: 'nin' | 'bvn') => {
+  const handleRequestRevealKyc = (field: 'nin' | 'bvn' | 'bank') => {
     if (!currentUser.hasPin) {
       toast.warning('Please set up a Transaction PIN to view your KYC details.');
       setPinScreenMode('set_pin');
@@ -208,17 +273,27 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
       if (res && res.success) {
         const rawNin = res.data?.nin || '';
         const rawBvn = res.data?.bvn || '';
+        const rawBankName = res.data?.bank_name || '';
+        const rawAccNum = res.data?.account_number || '';
+        const rawAccName = res.data?.account_name || '';
         setRevealedNin(rawNin);
         setRevealedBvn(rawBvn);
+        if (rawBankName) setRevealedBankName(rawBankName);
+        if (rawAccNum) setRevealedAccountNumber(rawAccNum);
+        if (rawAccName) setRevealedAccountName(rawAccName);
+
         const targetField = kycPinTarget;
         if (targetField === 'nin') {
           setNinVisible(true);
         } else if (targetField === 'bvn') {
           setBvnVisible(true);
+        } else if (targetField === 'bank') {
+          setBankVisible(true);
         }
         setKycPinTarget(null);
         setKycPinInput('');
-        toast.success(`${(targetField || 'KYC').toUpperCase()} verified and unlocked!`);
+        const label = targetField === 'bank' ? 'Bank Account' : (targetField || 'KYC').toUpperCase();
+        toast.success(`${label} verified and unlocked!`);
       } else {
         toast.error(res?.error || 'Incorrect Transaction PIN. Access denied.');
         setKycPinInput('');
@@ -231,7 +306,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
     }
   };
 
-  const copyKycValue = (val: string, field: 'nin' | 'bvn') => {
+  const copyKycValue = (val: string, field: 'nin' | 'bvn' | 'bank') => {
     if (!val) return;
     try {
       if (navigator.clipboard?.writeText) {
@@ -250,11 +325,16 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
     if (field === 'nin') {
       setCopiedNin(true);
       setTimeout(() => setCopiedNin(false), 2500);
-    } else {
+      toast.success('NIN copied!');
+    } else if (field === 'bvn') {
       setCopiedBvn(true);
       setTimeout(() => setCopiedBvn(false), 2500);
+      toast.success('BVN copied!');
+    } else if (field === 'bank') {
+      setCopiedBank(true);
+      setTimeout(() => setCopiedBank(false), 2500);
+      toast.success('Bank account number copied!');
     }
-    toast.success(`${field.toUpperCase()} copied!`);
   };
 
   const avatarUrl = resolveImageUrl(currentUser.photo || currentUser.avatar || currentUser.picture);
@@ -591,6 +671,95 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                     <><Lock className="w-3.5 h-3.5" /> View</>
                   )}
                 </button>
+              </div>
+            </div>
+
+            {/* Bank Account Row (Payout & Referral Withdrawals) */}
+            <div
+              onClick={() => {
+                if (currentUser.has_bank_account || currentUser.account_number_masked) {
+                  if (!bankVisible) handleRequestRevealKyc('bank');
+                } else {
+                  setShowEditBankModal(true);
+                }
+              }}
+              className={`flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 ${
+                (currentUser.has_bank_account || currentUser.account_number_masked) && !bankVisible
+                  ? 'cursor-pointer hover:border-sky-500/40 transition-all'
+                  : ''
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                  <Landmark className="w-4.5 h-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                    PAYOUT BANK ACCOUNT
+                  </span>
+                  {currentUser.has_bank_account || currentUser.account_number_masked ? (
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        {!bankVisible && <Lock className="w-3 h-3 text-slate-400 shrink-0" />}
+                        <span className="text-xs font-bold text-white font-mono">
+                          {currentUser.bank_name ? `${currentUser.bank_name} • ` : ''}
+                          {bankVisible ? (revealedAccountNumber || currentUser.account_number_masked) : (currentUser.account_number_masked || '******')}
+                        </span>
+                      </div>
+                      {(currentUser.account_name || revealedAccountName) && (
+                        <span className="text-[10px] text-slate-400 block truncate font-medium">
+                          {bankVisible ? (revealedAccountName || currentUser.account_name) : currentUser.account_name}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs font-bold text-amber-400 font-display">
+                      Not Linked Yet
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                {currentUser.has_bank_account || currentUser.account_number_masked ? (
+                  <>
+                    {bankVisible && revealedAccountNumber && (
+                      <button
+                        type="button"
+                        onClick={() => copyKycValue(revealedAccountNumber, 'bank')}
+                        className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedBank ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedBank ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => bankVisible ? setBankVisible(false) : handleRequestRevealKyc('bank')}
+                      className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      {bankVisible ? (
+                        <><EyeOff className="w-3.5 h-3.5" /> Hide</>
+                      ) : (
+                        <><Lock className="w-3.5 h-3.5" /> View</>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditBankModal(true)}
+                      className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowEditBankModal(true)}
+                    className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-md transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    + Link Bank
+                  </button>
+                )}
               </div>
             </div>
 
@@ -981,7 +1150,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               Verify Transaction PIN
             </h3>
             <p className={`text-xs mb-5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-              Enter your 4-digit Transaction PIN to securely view your {kycPinTarget.toUpperCase()}.
+              Enter your 4-digit Transaction PIN to securely view your {kycPinTarget === 'bank' ? 'Payout Bank Account' : kycPinTarget.toUpperCase()}.
             </p>
 
             <div className="mb-6 flex justify-center">
@@ -1008,7 +1177,7 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 ) : (
                   <>
                     <Eye className="w-4 h-4 text-sky-200" />
-                    <span>Verify & Reveal {kycPinTarget.toUpperCase()}</span>
+                    <span>Verify & Reveal {kycPinTarget === 'bank' ? 'Bank Account' : kycPinTarget.toUpperCase()}</span>
                   </>
                 )}
               </button>
@@ -1025,6 +1194,148 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* 🏦 Edit / Setup Payout Bank Account Modal */}
+      {showEditBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div
+            className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-all max-h-[90vh] overflow-y-auto ${
+              theme === 'light'
+                ? 'bg-white border-slate-200 text-slate-800'
+                : 'bg-slate-900 border-slate-700/80 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center">
+                  <Landmark className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black font-display text-white">
+                    {currentUser.has_bank_account || currentUser.account_number_masked ? 'Update Payout Bank' : 'Link Payout Bank Account'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Used for referral withdrawals & cash payouts</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditBankModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              {/* Popular Bank Quick Select Chips */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-display mb-1.5">
+                  Popular Banks
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {['OPay', 'Moniepoint', 'PalmPay', 'Kuda', 'GTBank', 'Access Bank', 'Zenith Bank', 'First Bank', 'UBA'].map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setEditBankName(b)}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                        editBankName === b
+                          ? 'bg-sky-500 text-white shadow-md'
+                          : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bank Name Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-300 block font-display">Bank Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. OPay, Moniepoint, Access Bank"
+                  value={editBankName}
+                  onChange={(e) => setEditBankName(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                />
+              </div>
+
+              {/* Account Number Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-300 block font-display">Account Number (10 Digits)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="0123456789"
+                  value={editAccountNumber}
+                  onChange={(e) => setEditAccountNumber(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono tracking-wider focus:outline-none focus:border-sky-500"
+                />
+              </div>
+
+              {/* Account Name Input & Matching Warning */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 block font-display">Account Name</label>
+                  <span className="text-[9.5px] text-amber-400 font-semibold font-display">Must match profile name</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. JOHN DOE"
+                  value={editAccountName}
+                  onChange={(e) => setEditAccountName(e.target.value.toUpperCase())}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 uppercase"
+                />
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                  Registered Name: <strong className="text-white">{`${currentUser.firstname || ''} ${currentUser.lastname || ''}`.trim() || currentUser.name}</strong>. Third-party accounts are rejected for security.
+                </p>
+              </div>
+
+              {/* PIN input if updating existing account */}
+              {(currentUser.has_bank_account || currentUser.account_number_masked) && (
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-[11px] font-bold text-slate-300 block font-display">
+                    Authorize with 4-Digit PIN
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={editPin}
+                    onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-center text-sm font-mono tracking-[0.4em] text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleSaveBank}
+                  disabled={savingBank}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 font-display disabled:opacity-50"
+                >
+                  {savingBank ? <span>Saving Bank Details...</span> : <span>Save Bank Account</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditBankModal(false)}
+                  disabled={savingBank}
+                  className="w-full py-2 px-4 rounded-xl text-slate-400 hover:text-white font-bold text-xs transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
