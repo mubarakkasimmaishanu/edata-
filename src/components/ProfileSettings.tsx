@@ -674,54 +674,57 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               </div>
             </div>
 
-            {/* Bank Account Row (Payout & Referral Withdrawals) */}
-            <div
-              onClick={() => {
-                if (currentUser.has_bank_account || currentUser.account_number_masked) {
-                  if (!bankVisible) handleRequestRevealKyc('bank');
-                } else {
-                  setShowEditBankModal(true);
-                }
-              }}
-              className={`flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 ${
-                (currentUser.has_bank_account || currentUser.account_number_masked) && !bankVisible
-                  ? 'cursor-pointer hover:border-sky-500/40 transition-all'
-                  : ''
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
-                  <Landmark className="w-4.5 h-4.5" />
+            {/* Bank Account Section: Separated Payout Bank, Account Number & Account Name Rows */}
+            {currentUser.has_bank_account || currentUser.account_number_masked ? (
+              <>
+                {/* 1. Bank Name Row */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                      <Landmark className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                        PAYOUT BANK
+                      </span>
+                      <span className="text-xs font-black text-white font-display truncate block">
+                        {revealedBankName || currentUser.bank_name || 'Not provided'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditBankModal(true)}
+                    className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0 ml-2"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Edit
+                  </button>
                 </div>
-                <div className="min-w-0">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
-                    PAYOUT BANK ACCOUNT
-                  </span>
-                  {currentUser.has_bank_account || currentUser.account_number_masked ? (
-                    <div>
+
+                {/* 2. Account Number Row */}
+                <div
+                  onClick={() => !bankVisible && handleRequestRevealKyc('bank')}
+                  className={`flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60 ${
+                    !bankVisible ? 'cursor-pointer hover:border-sky-500/40 transition-all' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                      <CreditCard className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                        ACCOUNT NUMBER
+                      </span>
                       <div className="flex items-center gap-1.5">
                         {!bankVisible && <Lock className="w-3 h-3 text-slate-400 shrink-0" />}
-                        <span className="text-xs font-bold text-white font-mono">
-                          {currentUser.bank_name ? `${currentUser.bank_name} • ` : ''}
-                          {bankVisible ? (revealedAccountNumber || currentUser.account_number_masked) : (currentUser.account_number_masked || '******')}
+                        <span className="text-xs font-bold text-white font-mono tracking-wider">
+                          {bankVisible ? (revealedAccountNumber || currentUser.account_number_masked) : (currentUser.account_number_masked || '••••••••••')}
                         </span>
                       </div>
-                      {(currentUser.account_name || revealedAccountName) && (
-                        <span className="text-[10px] text-slate-400 block truncate font-medium">
-                          {bankVisible ? (revealedAccountName || currentUser.account_name) : currentUser.account_name}
-                        </span>
-                      )}
                     </div>
-                  ) : (
-                    <span className="text-xs font-bold text-amber-400 font-display">
-                      Not Linked Yet
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                {currentUser.has_bank_account || currentUser.account_number_masked ? (
-                  <>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                     {bankVisible && revealedAccountNumber && (
                       <button
                         type="button"
@@ -743,25 +746,54 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                         <><Lock className="w-3.5 h-3.5" /> View</>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowEditBankModal(true)}
-                      className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" /> Edit
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowEditBankModal(true)}
-                    className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-md transition-all flex items-center gap-1 cursor-pointer shrink-0"
-                  >
-                    + Link Bank
-                  </button>
-                )}
+                  </div>
+                </div>
+
+                {/* 3. Account Name Row */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                      <User className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                        ACCOUNT NAME
+                      </span>
+                      <span className="text-xs font-bold text-white font-display truncate block uppercase">
+                        {revealedAccountName || currentUser.account_name || currentUser.name || 'Not provided'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-500/15 text-emerald-400 text-[10px] font-black px-2.5 py-1.5 rounded-xl border border-emerald-500/30 flex items-center gap-1 shrink-0 font-display">
+                    <Check className="w-3 h-3 text-emerald-400" /> Verified
+                  </span>
+                </div>
+              </>
+            ) : (
+              /* When not linked yet */
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                    <Landmark className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">
+                      PAYOUT BANK ACCOUNT
+                    </span>
+                    <span className="text-xs font-bold text-amber-400 font-display">
+                      Not Linked Yet
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditBankModal(true)}
+                  className="bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-md transition-all flex items-center gap-1 cursor-pointer shrink-0 ml-2"
+                >
+                  + Link Bank
+                </button>
               </div>
-            </div>
+            )}
 
           </div>
         </section>
