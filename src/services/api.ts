@@ -534,6 +534,29 @@ export const api = {
     return request('/referral-config', {}, silent);
   },
 
+  async savePayoutAccount(data: {
+    bank_name: string;
+    bank_code?: string;
+    account_number: string;
+    account_name: string;
+    transaction_pin?: string;
+  }) {
+    return request('/save-payout-account', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async requestReferralWithdraw(data: {
+    amount: number;
+    transaction_pin: string;
+  }) {
+    return request('/referral-withdraw', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Register Firebase Cloud Messaging (FCM) Push Device Token
   async registerPushToken(token: string, platform: string = 'android') {
     return request('/register-push-token', {

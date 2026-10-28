@@ -32,6 +32,12 @@ export interface UserProfile {
   picture?: string | null;
   virtualAccount?: VirtualAccount | null;
   virtualAccounts?: VirtualAccount[];
+  bank_name?: string;
+  bank_code?: string;
+  account_name?: string;
+  account_number?: string;
+  account_number_masked?: string;
+  has_bank_account?: boolean;
 }
 
 export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
@@ -278,7 +284,43 @@ export interface ReferralConfig {
   downlines: DownlineUser[];
   how_it_works: ReferralStep[];
   profit_share?: MarketerProfitShareData;
+  payout_config?: PayoutConfig;
 }
+
+export interface PayoutBankAccount {
+  is_configured: boolean;
+  bank_name?: string;
+  bank_code?: string;
+  account_number_masked?: string;
+  account_name?: string;
+}
+
+export interface CustomerWithdrawalItem {
+  id: number;
+  reference: string;
+  amount: number;
+  fee: number;
+  net_amount: number;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  status: number;
+  status_label: string;
+  execution_mode?: string;
+  created_at: string;
+  processed_at?: string | null;
+  admin_notes?: string | null;
+}
+
+export interface PayoutConfig {
+  is_enabled?: boolean;
+  notice_message?: string | null;
+  min_amount: number;
+  fee: number;
+  bank_account: PayoutBankAccount;
+  recent_payouts: CustomerWithdrawalItem[];
+}
+
 
 
 export interface AirtimeTypeItem {
