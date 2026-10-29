@@ -79,6 +79,11 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
               hasKyc: Boolean(d.has_kyc ?? prev.hasKyc ?? (d.bvn_masked || d.nin_masked)),
               has_kyc: Boolean(d.has_kyc ?? prev.has_kyc ?? (d.bvn_masked || d.nin_masked)),
               hasPin: d.has_pin !== undefined ? Boolean(d.has_pin) : prev.hasPin,
+              bank_name: d.bank_name || prev.bank_name || '',
+              bank_code: d.bank_code || prev.bank_code || '',
+              account_number_masked: d.account_number_masked || prev.account_number_masked || '',
+              account_name: d.account_name || prev.account_name || '',
+              has_bank_account: Boolean(d.has_bank_account ?? prev.has_bank_account ?? (d.bank_name || d.account_number_masked)),
             };
             try {
               localStorage.setItem('edata_current_user', JSON.stringify(next));
@@ -163,9 +168,8 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
       toast.warning('Account number must be exactly 10 digits (NUBAN).');
       return;
     }
-    const isEditing = Boolean(currentUser.has_bank_account || currentUser.account_number_masked);
-    if (isEditing && editPin.length !== 4) {
-      toast.warning('Please enter your 4-digit Transaction PIN to change your bank account.');
+    if (editPin.length !== 4) {
+      toast.warning('Please enter your 4-digit Transaction PIN to authorize saving bank details.');
       return;
     }
     setSavingBank(true);
@@ -1331,23 +1335,24 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 </p>
               </div>
 
-              {/* PIN input if updating existing account */}
-              {(currentUser.has_bank_account || currentUser.account_number_masked) && (
-                <div className="space-y-1.5 pt-1">
+              {/* Always require 4-digit Transaction PIN */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-300 block font-display">
                     Authorize with 4-Digit PIN
                   </label>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="••••"
-                    value={editPin}
-                    onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-center text-sm font-mono tracking-[0.4em] text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
-                  />
+                  <span className="text-[9.5px] text-sky-400 font-semibold font-display">Security Required</span>
                 </div>
-              )}
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="••••"
+                  value={editPin}
+                  onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-center text-sm font-mono tracking-[0.4em] text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                />
+              </div>
 
               {/* Action Buttons */}
               <div className="pt-2 space-y-2">
