@@ -4,7 +4,7 @@ import { Browser } from '@capacitor/browser';
 import { api } from './api';
 import { AppVersionData } from '../types';
 
-export const FALLBACK_APP_VERSION = '2.4.6';
+export const FALLBACK_APP_VERSION = '2.4.7';
 export const DEFAULT_ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.eDATA.app';
 export const DEFAULT_IOS_STORE_URL = 'https://apps.apple.com/app/id6740000000';
 
