@@ -219,10 +219,10 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   };
 
   // Online funding state (Paystack & Payvessel)
-  const [gateway, setGateway] = useState<'paystack' | 'payvessel'>('payvessel');
+  const [gateway] = useState<'payvessel'>('payvessel');
   const [onlineAmount, setOnlineAmount] = useState('2000');
   const grossOnline = parseFloat(onlineAmount || '0') || 0;
-  const chargePercent = gateway === 'paystack' ? 0.015 : 0.01;
+  const chargePercent = 0.01;
   const onlineFee = Math.round(grossOnline * chargePercent * 100) / 100;
   const netOnlineCredit = Math.max(0, Math.round((grossOnline - onlineFee) * 100) / 100);
   const [onlineSubmitting, setOnlineSubmitting] = useState(false);
@@ -709,41 +709,18 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
             </div>
 
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-4">
-              {/* Payment Gateway Selector */}
+              {/* Active Online Payment Gateway: Payvessel (Paystack switched off) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">Select Payment Gateway</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setGateway('payvessel')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      gateway === 'payvessel'
-                        ? 'bg-sky-500/15 border-sky-400 text-white ring-1 ring-sky-400'
-                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-black text-white font-display">Payvessel</span>
-                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">Instant</span>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">Payment Gateway</label>
+                <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-400/40 text-left">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-white font-display">Payvessel Instant Transfer</span>
+                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">Active</span>
                     </div>
-                    <p className="text-[10px] text-slate-400 leading-tight">Instant Transfer • 1% fee</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setGateway('paystack')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      gateway === 'paystack'
-                        ? 'bg-emerald-500/15 border-emerald-400 text-white ring-1 ring-emerald-400'
-                        : 'bg-slate-900/60 border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-black text-white font-display">Paystack</span>
-                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">Active</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 leading-tight">Card, USSD & Bank • 1.5% fee</p>
-                  </button>
+                    <span className="text-[10px] text-sky-400 font-bold">1% charge</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-tight">Instant Bank Transfer & USSD Checkout</p>
                 </div>
               </div>
 

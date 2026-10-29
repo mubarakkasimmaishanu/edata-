@@ -1234,6 +1234,12 @@ function MainApp() {
       return;
     }
 
+    if (targetView === 'support') {
+      import('./services/chatwootService').then(({ openChatwoot }) => {
+        openChatwoot();
+      }).catch(() => {});
+    }
+
     if (targetView !== activeView) {
       if (targetView === 'dashboard') {
         activeViewRef.current = 'dashboard';
