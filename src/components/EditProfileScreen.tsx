@@ -15,6 +15,8 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
   const [firstname, setFirstname] = useState(currentUser.firstname || currentUser.name?.split(' ')[0] || '');
   const [lastname, setLastname] = useState(currentUser.lastname || currentUser.name?.split(' ').slice(1).join(' ') || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
+  const [whatsapp, setWhatsapp] = useState(currentUser.whatsapp || currentUser.phone || '');
+  const [syncSame, setSyncSame] = useState(!currentUser.whatsapp || currentUser.whatsapp === currentUser.phone);
 
   const existingNinMasked =
     currentUser.nin_masked ||
@@ -57,16 +59,19 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
 
     setLoading(true);
     try {
+      const resolvedWhatsapp = (syncSame ? phone : whatsapp).trim();
       const payload: {
         firstname: string;
         lastname: string;
         phone: string;
+        whatsapp?: string;
         nin?: string;
         bvn?: string;
       } = {
         firstname: firstname.trim(),
         lastname: lastname.trim(),
         phone: phone.trim(),
+        whatsapp: resolvedWhatsapp,
       };
       if (!existingNinMasked && cleanNin.length === 11) {
         payload.nin = cleanNin;
@@ -91,6 +96,7 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
           lastname: lastname.trim(),
           name: fullName || prev.name,
           phone: phone.trim(),
+          whatsapp: resolvedWhatsapp,
           ...(newNinMasked
             ? { nin: newNinMasked, nin_masked: newNinMasked, ninMasked: newNinMasked, hasKyc: true, has_kyc: true }
             : {}),
@@ -189,9 +195,42 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setPhone(val);
+                  if (syncSame) setWhatsapp(val);
+                }}
                 placeholder="e.g. 08142233864"
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-white font-mono font-medium focus:outline-none focus:border-sky-500 transition-all"
+              />
+            </div>
+
+            {/* WhatsApp Number Field */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                  WhatsApp Number
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={syncSame}
+                    onChange={(e) => {
+                      setSyncSame(e.target.checked);
+                      if (e.target.checked) setWhatsapp(phone);
+                    }}
+                    className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-800 text-emerald-500 accent-emerald-500"
+                  />
+                  <span>Same as Phone</span>
+                </label>
+              </div>
+              <input
+                type="tel"
+                disabled={syncSame}
+                value={syncSame ? phone : whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
+                placeholder="e.g. 08142233864"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-white font-mono font-medium focus:outline-none focus:border-emerald-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 

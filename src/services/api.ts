@@ -164,7 +164,7 @@ export const api = {
     return request('/profile', {}, silent);
   },
 
-  async updateProfile(data: { firstname?: string; lastname?: string; phone?: string; nin?: string; bvn?: string }) {
+  async updateProfile(data: { firstname?: string; lastname?: string; phone?: string; whatsapp?: string; nin?: string; bvn?: string }) {
     return request('/update-profile', {
       method: 'POST',
       body: JSON.stringify(data),

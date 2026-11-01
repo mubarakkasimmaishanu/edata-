@@ -1,3 +1,16 @@
+export interface ContactPromptData {
+  should_show: boolean;
+  is_forced: boolean;
+  has_phone: boolean;
+  has_whatsapp: boolean;
+  phone?: string;
+  whatsapp?: string;
+  tx_count?: number;
+  balance?: number;
+  min_tx_count?: number;
+  min_balance?: number;
+}
+
 export interface UserProfile {
   id?: number | string;
   name: string;
@@ -5,6 +18,8 @@ export interface UserProfile {
   lastname?: string;
   email: string;
   phone: string;
+  whatsapp?: string;
+  contact_prompt?: ContactPromptData;
   walletBalance: number;
   mainWallet?: number;
   commissionWallet?: number;

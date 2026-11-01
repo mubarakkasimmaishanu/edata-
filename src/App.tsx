@@ -6,6 +6,8 @@ import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem, Popup
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
+import ContactInfoModal from './components/ContactInfoModal';
+import { ContactPromptData } from './types';
 import { AppVersionData } from './types';
 import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate, getInstalledAppVersion, compareSemver, isIosPlatform, openStoreLink } from './services/appUpdateService';
 import ForceUpdateScreen from './components/ForceUpdateScreen';
@@ -187,6 +189,8 @@ function MainApp() {
     })()
   ));
   const sessionDismissedPopupsRef = useRef<Set<string>>(new Set());
+  const [contactPromptData, setContactPromptData] = useState<ContactPromptData | null>(null);
+  const [contactPromptDismissed, setContactPromptDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('edata_current_user');
@@ -612,6 +616,11 @@ function MainApp() {
       }
     }
 
+    const incomingPrompt: ContactPromptData | null = profileRes?.data?.contact_prompt || walletRes?.data?.contact_prompt || user?.contact_prompt || null;
+    if (incomingPrompt) {
+      setContactPromptData(incomingPrompt);
+    }
+
     const parsedBalance = (extractedBalance !== null && !isNaN(extractedBalance))
       ? extractedBalance
       : currentUser.walletBalance;
@@ -700,6 +709,8 @@ function MainApp() {
       lastname: lastName || currentUser.lastname || '',
       email: user.email || currentUser.email || '',
       phone: user.phone || user.mobile || currentUser.phone || '',
+      whatsapp: user.whatsapp || currentUser.whatsapp || '',
+      contact_prompt: incomingPrompt || currentUser.contact_prompt,
       walletBalance: totalEff > 0 ? totalEff : parsedBalance,
       mainWallet: mainW,
       commissionWallet: commW,
@@ -1065,6 +1076,20 @@ function MainApp() {
         JSON.stringify(Array.from(dismissedPopupsRef.current))
       );
     } catch { }
+  };
+
+  const handleSaveContactInfo = async (phone: string, whatsapp: string) => {
+    await api.updateProfile({ phone, whatsapp });
+    handleSetCurrentUser((prev) => ({
+      ...prev,
+      phone,
+      whatsapp,
+    }));
+    setContactPromptData((prev) => (prev ? { ...prev, should_show: false, has_phone: true, has_whatsapp: true, phone, whatsapp } : null));
+  };
+
+  const handleDismissContactPrompt = () => {
+    setContactPromptDismissed(true);
   };
 
   const handlePopupDismiss = () => {
@@ -1639,6 +1664,17 @@ function MainApp() {
             onDismiss={handlePopupDismiss}
             onAction={handlePopupAction}
             onSecondary={handlePopupAction}
+          />
+        )}
+
+        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'dashboard' && (
+          <ContactInfoModal
+            isOpen={true}
+            isForced={Boolean(contactPromptData.is_forced)}
+            initialPhone={contactPromptData.phone || currentUser.phone}
+            initialWhatsapp={contactPromptData.whatsapp || currentUser.whatsapp}
+            onSave={handleSaveContactInfo}
+            onDismiss={handleDismissContactPrompt}
           />
         )}
       </div>

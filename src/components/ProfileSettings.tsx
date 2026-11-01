@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import {
-  ChevronLeft, Key, KeyRound, Lock, LogOut, Camera, User, Mail, Phone, Copy, Check,
+  ChevronLeft, Key, KeyRound, Lock, LogOut, Camera, User, Mail, Phone, MessageCircle, Copy, Check,
   Fingerprint, ShieldCheck, ShieldAlert, FileText, Trash2, Edit3, Sparkles, ChevronRight, Sun, Moon,
   Eye, EyeOff, Shield, Landmark, CreditCard, Building2
 } from 'lucide-react';
@@ -70,6 +70,8 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
           setCurrentUser((prev) => {
             const next: UserProfile = {
               ...prev,
+              phone: d.phone || prev.phone || '',
+              whatsapp: d.whatsapp || prev.whatsapp || '',
               bvn: d.bvn_masked || d.bvn || prev.bvn || '',
               nin: d.nin_masked || d.nin || prev.nin || '',
               bvn_masked: d.bvn_masked || d.bvn || prev.bvn_masked || '',
@@ -587,6 +589,25 @@ export default function ProfileSettings({ currentUser, setCurrentUser, onBack, o
                 className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
               >
                 {currentUser.phone ? 'Edit' : 'Add Phone'}
+              </button>
+            </div>
+
+            {/* WhatsApp Number Row */}
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-700/60">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                  <MessageCircle className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-display">WHATSAPP NUMBER</span>
+                  <span className="text-xs font-bold text-white font-mono">{currentUser.whatsapp || 'Not provided'}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setFullScreenView('edit_profile')}
+                className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                {currentUser.whatsapp ? 'Edit' : 'Add WhatsApp'}
               </button>
             </div>
 
