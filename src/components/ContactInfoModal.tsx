@@ -8,6 +8,10 @@ interface ContactInfoModalProps {
   isForced?: boolean;
   initialPhone?: string;
   initialWhatsapp?: string;
+  title?: string;
+  subtitle?: string;
+  submitButtonLabel?: string;
+  dismissButtonLabel?: string;
   onSave: (phone: string, whatsapp: string) => Promise<boolean | void>;
   onDismiss: () => void;
 }
@@ -49,6 +53,10 @@ export default function ContactInfoModal({
   isForced = false,
   initialPhone = '',
   initialWhatsapp = '',
+  title = 'Complete Contact Info',
+  subtitle = 'Provide your phone number and WhatsApp contact to receive instant SMS transaction receipts, token delivery, and dedicated customer support.',
+  submitButtonLabel = 'Save & Continue',
+  dismissButtonLabel = 'Remind Me Later',
   onSave,
   onDismiss,
 }: ContactInfoModalProps) {
@@ -174,7 +182,7 @@ export default function ContactInfoModal({
                 ACCOUNT VERIFICATION
               </span>
               <h2 className="text-base font-black text-white leading-tight font-display">
-                Complete Contact Info
+                {title}
               </h2>
             </div>
           </div>
@@ -194,7 +202,7 @@ export default function ContactInfoModal({
         </div>
 
         <p className="text-xs text-slate-300 leading-relaxed mb-4">
-          Provide your phone number and WhatsApp contact to receive instant SMS transaction receipts, token delivery, and dedicated customer support.
+          {subtitle}
         </p>
 
         {/* Contact Form */}
@@ -300,7 +308,7 @@ export default function ContactInfoModal({
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Save & Continue</span>
+                  <span>{submitButtonLabel}</span>
                 </>
               )}
             </button>
@@ -313,7 +321,7 @@ export default function ContactInfoModal({
                 disabled={saving}
                 className="w-full py-2 text-center text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
               >
-                Remind Me Later
+                {dismissButtonLabel}
               </button>
             )}
           </div>

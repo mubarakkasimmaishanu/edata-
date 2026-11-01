@@ -9,6 +9,10 @@ export interface ContactPromptData {
   balance?: number;
   min_tx_count?: number;
   min_balance?: number;
+  title?: string;
+  subtitle?: string;
+  submit_button_label?: string;
+  dismiss_button_label?: string;
 }
 
 export interface UserProfile {

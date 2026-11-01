@@ -1673,6 +1673,10 @@ function MainApp() {
             isForced={Boolean(contactPromptData.is_forced)}
             initialPhone={contactPromptData.phone || currentUser.phone}
             initialWhatsapp={contactPromptData.whatsapp || currentUser.whatsapp}
+            title={contactPromptData.title}
+            subtitle={contactPromptData.subtitle}
+            submitButtonLabel={contactPromptData.submit_button_label}
+            dismissButtonLabel={contactPromptData.dismiss_button_label}
             onSave={handleSaveContactInfo}
             onDismiss={handleDismissContactPrompt}
           />
