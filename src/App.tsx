@@ -515,6 +515,10 @@ function MainApp() {
           description: plan.description || plan.name || plan.plan_name || '',
           planTypeId: plan.plan_type_id ? Number(plan.plan_type_id) : null,
           planTypeName: plan.plan_type_name || '',
+          isTop: Boolean(plan.is_top),
+          priorityOrder: plan.priority_order !== undefined && plan.priority_order !== null ? Number(plan.priority_order) : undefined,
+          validityLabel: plan.validity_label || plan.duration || undefined,
+          durationDays: plan.duration_days ? Number(plan.duration_days) : undefined,
         });
       });
 

@@ -44,11 +44,15 @@ export function isValidRecipient(serviceType: string, recipient?: string): boole
     return false;
   }
   const clean = recipient.trim().replace(/\D/g, '');
+  // Reject dummy defaults and all-zero placeholders
+  if (!clean || clean === '08000000000' || /^0+$/.test(clean)) {
+    return false;
+  }
   if (st === 'airtime' || st === 'data' || st === 'a2c') {
     return isValidPhoneNumber(clean);
   }
   if (st === 'cable' || st === 'electricity') {
-    return clean.length >= 8 && clean.length <= 15;
+    return clean.length >= 6 && clean.length <= 22;
   }
   return clean.length >= 5;
 }

@@ -108,6 +108,10 @@ export interface ProductItem {
   planId?: number;
   bundle_id?: string | null;
   price?: number;
+  isTop?: boolean;
+  priorityOrder?: number;
+  validityLabel?: string;
+  durationDays?: number;
 }
 
 export interface ExamCardItem {
@@ -198,6 +202,8 @@ export interface PlanTypeItem {
   id: number;
   name: string;
   description?: string;
+  isTop?: boolean;
+  sortOrder?: number;
 }
 
 // ── Dynamic Popup / Banner ──────────────────────────────────────────────

@@ -263,6 +263,9 @@ export function formatPlanDisplayName(
   // 2. Remove double closing parentheses if any
   name = name.replace(/\)\)+/g, ')');
 
+  // Strip trailing provider notes/codes like "382 46750/47000" or "390 140250/141000"
+  name = name.replace(/\s+\d+\s+\d+(?:[\/\-]\d+)?\s*$/i, '').trim();
+
   // 3. Append type tag only if requested AND not already present in name
   if (includeType && pType && pType !== 'OTHER') {
     const pTypeLower = pType.toLowerCase();
@@ -320,6 +323,13 @@ export function parsePlanDurationDays(planName?: string, planTypeName?: string):
 
 export function parsePlanDataSizeMb(planName?: string): number {
   const pn = String(planName || '').toLowerCase().trim();
+
+  // Broadband Router Unlimited / Speed MBPS plans: slot after finite quotas (e.g. 300GB, 1TB)
+  if (pn.includes('unlimited') || pn.includes('mbps')) {
+    const mbpsMatch = pn.match(/(\d+(?:\.\d+)?)\s*mbps\b/i);
+    const mbps = mbpsMatch ? parseFloat(mbpsMatch[1]) : 0;
+    return 999999999 + mbps;
+  }
 
   const mTb = pn.match(/(\d+(?:\.\d+)?)\s*(?:tb)\b/i);
   if (mTb) return parseFloat(mTb[1]) * 1024 * 1024;
@@ -1665,8 +1675,16 @@ export default function ServiceForm(props: ServiceFormProps) {
                             const items = groups[key];
                             if (!items || items.length === 0) return null;
 
-                            // Sort plans under this plan type strictly in ascending order of duration, then data size, then price
+                            // Sort plans under this plan type strictly respecting admin Top/Priority, then duration, size, price
                             items.sort((a, b) => {
+                              const topA = a.isTop ? 1 : 0;
+                              const topB = b.isTop ? 1 : 0;
+                              if (topA !== topB) return topB - topA;
+
+                              if (a.priorityOrder !== undefined && b.priorityOrder !== undefined && a.priorityOrder !== b.priorityOrder) {
+                                return a.priorityOrder - b.priorityOrder;
+                              }
+
                               const durA = parsePlanDurationDays(a.name, a.planTypeName);
                               const durB = parsePlanDurationDays(b.name, b.planTypeName);
                               if (durA !== durB) return durA - durB;
@@ -1725,7 +1743,14 @@ export default function ServiceForm(props: ServiceFormProps) {
                                             : (isLight ? 'hover:bg-slate-200/60 text-slate-800 font-semibold' : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium')
                                         }`}
                                       >
-                                        <span className="leading-snug pr-2">{displayStr}</span>
+                                        <span className="leading-snug pr-2 flex items-center gap-1.5 flex-wrap">
+                                          <span>{displayStr}</span>
+                                          {p.isTop && (
+                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30">
+                                              TOP
+                                            </span>
+                                          )}
+                                        </span>
                                         {isSelected && (
                                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${activeNetworkTheme.modalActiveBadge}`}>
                                             Active
