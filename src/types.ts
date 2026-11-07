@@ -59,7 +59,7 @@ export interface UserProfile {
   has_bank_account?: boolean;
 }
 
-export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C';
+export type TransactionType = 'Airtime' | 'Data' | 'Electricity' | 'Cable TV' | 'Exam Token' | 'Wallet Funding' | 'Admin Transfer' | 'A2C' | 'Physical Product';
 
 export interface Transaction {
   id: string;
@@ -87,6 +87,9 @@ export interface Transaction {
   a2cBank?: string | null;
   fee?: number;
   grossAmount?: number;
+  request_status?: string | null;
+  product_name?: string | null;
+  physical_category?: string | null;
 }
 
 export interface ProductItem {
@@ -443,4 +446,109 @@ export interface AppVersionData {
   market_url?: string;
   direct_apk_url?: string | null;
   support_whatsapp?: string;
+}
+
+// ==========================================
+// PHYSICAL PRODUCTS & HARDWARE SERVICES TYPES
+// ==========================================
+export type PhysicalProductCategory = 'prepaid_meter' | 'installment_phone' | 'pos_device' | 'others';
+
+export interface PhysicalProductServiceCard {
+  key: PhysicalProductCategory;
+  title: string;
+  description: string;
+  icon: string;
+  badge: string;
+  admin_fee: number;
+  meter_types?: string[];
+  discos?: { id: string; name: string }[];
+  brands?: string[];
+  types?: string[];
+}
+
+export interface PhysicalProductPlan {
+  id: number;
+  plan_name: string;
+  duration_value: number;
+  duration_type: string;
+  frequency_label: string;
+  installment_amount: number;
+  total_amount: number;
+  shipping_badge?: string | null;
+}
+
+export interface PhysicalProductItem {
+  id: number;
+  name: string;
+  slug: string;
+  category: PhysicalProductCategory;
+  brand?: string | null;
+  model_name?: string | null;
+  model_number?: string | null;
+  price: number;
+  basic_admin_fee: number;
+  premium_admin_fee: number;
+  effective_admin_fee: number;
+  featured_image?: string | null;
+  gallery_images: string[];
+  specs?: Record<string, any>;
+  specifications?: Record<string, any>;
+  description?: string | null;
+  in_stock: boolean;
+  plans: PhysicalProductPlan[];
+  post_payment_notice?: string | null;
+}
+
+export interface NigeriaLga {
+  id: number;
+  name: string;
+}
+
+export interface NigeriaState {
+  id: number;
+  name: string;
+  zone?: string | null;
+  lgas: NigeriaLga[];
+}
+
+export interface PhysicalProductSubmitPayload {
+  service_type: PhysicalProductCategory;
+  product_id?: number;
+  plan_id?: number;
+  buying_for: 'personal' | 'third_party';
+  applicant_name: string;
+  applicant_phone: string;
+  applicant_nin?: string;
+  applicant_bvn?: string;
+  state: string;
+  lga: string;
+  delivery_address: string;
+  transaction_pin: string;
+  disco?: string;
+  meter_type?: string;
+  has_old_meter?: boolean | number;
+  old_meter_number?: string;
+  name_on_bill?: string;
+  brand?: string;
+  pos_type?: string;
+  selected_specs?: string;
+  notes?: string;
+}
+
+export interface PhysicalProductSubmitResponse {
+  success: boolean;
+  message?: string;
+  reference?: string;
+  request_id?: number;
+  admin_fee_paid?: number;
+  wallet_balance?: number;
+  post_payment_notice?: string;
+  live_chat_url?: string;
+  error?: string;
+  error_code?: string;
+  remaining_attempts?: number;
+  lockout_remaining_seconds?: number;
+  required_amount?: number;
+  available_balance?: number;
+  shortfall?: number;
 }

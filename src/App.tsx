@@ -45,6 +45,7 @@ const Notifications = React.lazy(() => import('./components/Notifications'));
 const ServicesCatalog = React.lazy(() => import('./components/ServicesCatalog'));
 const ResellerUpgrade = React.lazy(() => import('./components/ResellerUpgrade'));
 const ReferralScreen = React.lazy(() => import('./components/ReferralScreen'));
+const PhysicalProductsHub = React.lazy(() => import('./components/physical/PhysicalProductsHub'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
 // so the transition is silent (no white flash, no jarring spinner).
@@ -73,7 +74,12 @@ type ActiveView =
   | 'support'
   | 'notifications'
   | 'upgrade'
-  | 'referral';
+  | 'referral'
+  | 'physical-products'
+  | 'prepaid-meter'
+  | 'installment-phone'
+  | 'pos-device'
+  | 'others';
 
 function MainApp() {
   const toast = useToast();
@@ -1583,6 +1589,26 @@ function MainApp() {
                     currentUser={currentUser}
                     onBack={handleGoBack}
                     onNavigate={navigateTo}
+                  />
+                )}
+
+                {(activeView === 'physical-products' || activeView === 'prepaid-meter' || activeView === 'installment-phone' || activeView === 'pos-device' || activeView === 'others') && (
+                  <PhysicalProductsHub
+                    currentUser={currentUser}
+                    initialService={
+                      activeView === 'prepaid-meter'
+                        ? 'prepaid_meter'
+                        : activeView === 'installment-phone'
+                        ? 'installment_phone'
+                        : activeView === 'pos-device'
+                        ? 'pos_device'
+                        : activeView === 'others'
+                        ? 'others'
+                        : null
+                    }
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
                   />
                 )}
               </React.Suspense>

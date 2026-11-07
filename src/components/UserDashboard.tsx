@@ -3,7 +3,7 @@ import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types'
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Building2
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -323,6 +323,7 @@ export default function UserDashboard({
     { id: 'electricity', name: 'Electricity', icon: Lightbulb,  adminGated: true },
     { id: 'a2c',         name: 'A2C',         icon: Repeat,     adminGated: true },
     { id: 'exams',       name: 'Exam Card',   icon: BookOpen,   adminGated: true },
+    { id: 'physical-products', name: 'Physical Hub', icon: Building2 },
     { id: 'support',     name: 'Support',     icon: Headphones },
   ];
   const services = allServiceTiles.filter(tile =>

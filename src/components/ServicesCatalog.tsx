@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import {
   Smartphone, Wifi, Tv, Lightbulb, BookOpen, Repeat, Plus, Headphones,
-  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft
+  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Building2, CreditCard
 } from 'lucide-react';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -35,7 +35,7 @@ interface ServicesCatalogProps {
 
 export default function ServicesCatalog({ currentUser, serviceCategories = [], onNavigate, onBack }: ServicesCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'all' | 'telecom' | 'bills' | 'education'>('all');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'telecom' | 'bills' | 'education' | 'hardware'>('all');
 
   const categories = [
     { id: 'all', label: 'All' },
@@ -65,6 +65,12 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     { id: 'electricity', name: 'Electricity', desc: 'Prepaid & Postpaid', category: 'bills', icon: Lightbulb, adminGated: true },
     // Education
     { id: 'exams', name: 'Exam Card', desc: 'WAEC, NECO, NABTEB', category: 'education', icon: BookOpen, adminGated: true },
+        // Physical Products & Utilities
+    { id: 'physical-products', name: 'Physical Products Hub', desc: 'Meters, phones, POS & electronics', category: 'hardware', icon: Building2 },
+    { id: 'prepaid-meter', name: 'Prepaid Meter', desc: 'DisCo certified meter onboarding', category: 'hardware', icon: Zap },
+    { id: 'installment-phone', name: 'Installment Phone', desc: 'Brand new phones with weekly/monthly plans', category: 'hardware', icon: Smartphone },
+    { id: 'pos-device', name: 'POS Device Purchase', desc: 'Android & MPOS terminals with 60-day protection', category: 'hardware', icon: CreditCard },
+    { id: 'others', name: 'Other Electronics', desc: 'Smart TVs, solar inverters & appliances', category: 'hardware', icon: Tv },
     // Other
     { id: 'referral', name: 'Referral', desc: 'Invite & earn', category: 'telecom', icon: Gift },
     { id: 'support', name: 'Support', desc: '24/7 help desk', category: 'telecom', icon: Headphones },

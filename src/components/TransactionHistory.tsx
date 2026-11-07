@@ -161,6 +161,7 @@ const TransactionRow = React.memo(function TransactionRow({ tx, onOpen }: Transa
     tx.type === 'Exam Token' ? '📝' :
     tx.type === 'Wallet Funding' ? '💰' :
     tx.type === 'A2C' ? '🔄' :
+    tx.type === 'Physical Product' ? '📦' :
     '💳';
 
   return (
@@ -198,13 +199,14 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
 
   const handleOpenReceipt = useCallback((tx: Transaction) => setActiveReceipt(tx), []);
 
-  const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'Funding', 'A2C'];
+  const categories = ['All', 'Airtime', 'Data', 'Cable TV', 'Electricity', 'Exam Token', 'Funding', 'Physical', 'A2C'];
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesCategory =
       categoryFilter === 'All' ||
       tx.type === categoryFilter ||
-      (categoryFilter === 'Funding' && tx.type === 'Wallet Funding');
+      (categoryFilter === 'Funding' && tx.type === 'Wallet Funding') ||
+      (categoryFilter === 'Physical' && tx.type === 'Physical Product');
     const matchesSearch =
       (tx.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (tx.reference || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,6 +250,8 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
       onNavigate('electricity');
     } else if (typeLower.includes('exam')) {
       onNavigate('exams');
+    } else if (typeLower.includes('physical')) {
+      onNavigate('physical-products');
     } else {
       onNavigate('dashboard');
     }
@@ -688,6 +692,8 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
                         ? 'Smartcard'
                         : activeReceipt.type === 'Exam Token'
                         ? 'Recipient'
+                        : activeReceipt.type === 'Physical Product'
+                        ? 'Applicant Phone'
                         : 'Phone / Target'}
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -715,6 +721,22 @@ export default function TransactionHistory({ transactions, onBack, onNavigate }:
                     </div>
                   </div>
                 )}
+
+              {/* Request Status (if Physical Product) */}
+              {activeReceipt.request_status && (
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">
+                  <span className="text-slate-400 font-medium">Request Status</span>
+                  <span className={`font-bold capitalize ${
+                    activeReceipt.request_status === 'delivered' ? 'text-emerald-500' :
+                    activeReceipt.request_status === 'approved' ? 'text-sky-500' :
+                    activeReceipt.request_status === 'processing' ? 'text-indigo-400' :
+                    activeReceipt.request_status === 'rejected' ? 'text-rose-500' :
+                    'text-amber-500'
+                  }`}>
+                    {activeReceipt.request_status}
+                  </span>
+                </div>
+              )}
 
               {/* Reference */}
               <div className="flex justify-between items-center py-0.5 border-b border-slate-100 dark:border-slate-800/80">

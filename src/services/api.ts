@@ -39,6 +39,9 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
     // when one is sent.
     '/popups',
     '/app-config',
+    '/physical-products-services',
+    '/physical-products-catalog',
+    '/physical-products-states-lgas',
   ];
 
   const isPublic = publicEndpoints.some(p => endpoint.startsWith(p));
@@ -579,5 +582,33 @@ export const api = {
         ...(platform ? { 'X-Platform': platform } : {}),
       }
     }, silent);
+  },
+
+  // --- Physical Products & Hardware Requests ---
+  async getPhysicalProductServices() {
+    return request('/physical-products-services');
+  },
+
+  async getPhysicalProductsStatesLgas() {
+    return request('/physical-products-states-lgas');
+  },
+
+  async getPhysicalProductsCatalog(category?: string, search?: string) {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (search) params.append('search', search);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/physical-products-catalog${query}`);
+  },
+
+  async getPhysicalProductsProfileData() {
+    return request('/physical-products-profile-data');
+  },
+
+  async submitPhysicalProductRequest(data: any) {
+    return request('/physical-products-submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };
