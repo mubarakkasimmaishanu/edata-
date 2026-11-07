@@ -16,6 +16,32 @@ import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNoti
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
 import { initChatwoot, syncChatwootUser, clearChatwootIdentity } from './services/chatwootService';
 import { App as CapApp } from '@capacitor/app';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Helper to auto-recover when a chunk hash changed after deployment
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return React.lazy(async () => {
+    try {
+      return await factory();
+    } catch (error: any) {
+      const isChunkError =
+        error?.message?.includes('Failed to fetch dynamically imported module') ||
+        error?.message?.includes('Importing a module script failed') ||
+        error?.message?.includes('Loading chunk') ||
+        error?.name === 'ChunkLoadError';
+
+      const lastReload = sessionStorage.getItem('edata_chunk_reload');
+      const now = Date.now();
+      if (isChunkError && (!lastReload || now - parseInt(lastReload, 10) > 10000)) {
+        sessionStorage.setItem('edata_chunk_reload', String(now));
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+}
 
 // Eager: always visible on cold start OR needed instantly (no route wait
 // is acceptable). Dashboard is the entry point, BottomNav sits over every
@@ -31,21 +57,21 @@ import PinScreen from './components/PinScreen';
 // the user navigates to it — cold start bundle shrinks by ~300 KB and
 // each chunk downloads in <200 ms on typical mobile networks. Suspense
 // boundary below shows a minimal dot loader during the fetch.
-const BuyAirtime = React.lazy(() => import('./components/BuyAirtime'));
-const BuyData = React.lazy(() => import('./components/BuyData'));
-const CableTV = React.lazy(() => import('./components/CableTV'));
-const ElectricityBill = React.lazy(() => import('./components/ElectricityBill'));
-const ExamPins = React.lazy(() => import('./components/ExamPins'));
-const AirtimeToCash = React.lazy(() => import('./components/AirtimeToCash'));
-const FundWallet = React.lazy(() => import('./components/FundWallet'));
-const TransactionHistory = React.lazy(() => import('./components/TransactionHistory'));
-const ProfileSettings = React.lazy(() => import('./components/ProfileSettings'));
-const HelpSupport = React.lazy(() => import('./components/HelpSupport'));
-const Notifications = React.lazy(() => import('./components/Notifications'));
-const ServicesCatalog = React.lazy(() => import('./components/ServicesCatalog'));
-const ResellerUpgrade = React.lazy(() => import('./components/ResellerUpgrade'));
-const ReferralScreen = React.lazy(() => import('./components/ReferralScreen'));
-const PhysicalProductsHub = React.lazy(() => import('./components/physical/PhysicalProductsHub'));
+const BuyAirtime = lazyWithRetry(() => import('./components/BuyAirtime'));
+const BuyData = lazyWithRetry(() => import('./components/BuyData'));
+const CableTV = lazyWithRetry(() => import('./components/CableTV'));
+const ElectricityBill = lazyWithRetry(() => import('./components/ElectricityBill'));
+const ExamPins = lazyWithRetry(() => import('./components/ExamPins'));
+const AirtimeToCash = lazyWithRetry(() => import('./components/AirtimeToCash'));
+const FundWallet = lazyWithRetry(() => import('./components/FundWallet'));
+const TransactionHistory = lazyWithRetry(() => import('./components/TransactionHistory'));
+const ProfileSettings = lazyWithRetry(() => import('./components/ProfileSettings'));
+const HelpSupport = lazyWithRetry(() => import('./components/HelpSupport'));
+const Notifications = lazyWithRetry(() => import('./components/Notifications'));
+const ServicesCatalog = lazyWithRetry(() => import('./components/ServicesCatalog'));
+const ResellerUpgrade = lazyWithRetry(() => import('./components/ResellerUpgrade'));
+const ReferralScreen = lazyWithRetry(() => import('./components/ReferralScreen'));
+const PhysicalProductsHub = lazyWithRetry(() => import('./components/physical/PhysicalProductsHub'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
 // so the transition is silent (no white flash, no jarring spinner).
@@ -1466,7 +1492,8 @@ function MainApp() {
               {/* Lazy routes — each screen is its own chunk. Suspense shows a
                   quiet dot loader for the ~50-200 ms of first fetch; subsequent
                   visits to the same route render instantly from cache. */}
-              <React.Suspense fallback={<RouteFallback />}>
+              <ErrorBoundary onReset={() => setActiveView('dashboard')}>
+                <React.Suspense fallback={<RouteFallback />}>
                 {activeView === 'services' && (
                   <ServicesCatalog
                     currentUser={currentUser}
@@ -1615,6 +1642,7 @@ function MainApp() {
                   />
                 )}
               </React.Suspense>
+              </ErrorBoundary>
 
               {/* Floating Glassmorphic Bottom Navigation */}
               <BottomNav activeView={activeView} onNavigate={navigateTo} />
