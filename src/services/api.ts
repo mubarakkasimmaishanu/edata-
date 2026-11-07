@@ -1,4 +1,15 @@
-export const API_BASE_URL = (import.meta as any).env.VITE_YII_API_URL || 'https://edata.com.ng/api';
+import { Capacitor } from '@capacitor/core';
+
+export const API_BASE_URL = (() => {
+  if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost/edata/api';
+    }
+    return `${window.location.origin}/api`;
+  }
+  return (import.meta as any).env.VITE_YII_API_URL || 'https://edata.com.ng/api';
+})();
 
 export function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;

@@ -1507,11 +1507,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                 <button
                   type="button"
                   onClick={() => setIsPackageModalOpen(true)}
-                  className={`w-full ${isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#161a20] text-white shadow-md'} ${activeNetworkTheme.accentLightBorder} hover:${activeNetworkTheme.accentBorder} rounded-2xl px-4 py-4 flex items-center justify-between text-xs font-bold transition-all cursor-pointer active:scale-[0.99]`}
+                  className={`w-full ${isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#161a20] text-white shadow-md'} ${activeNetworkTheme.accentLightBorder} hover:${activeNetworkTheme.accentBorder} rounded-2xl px-4 py-3.5 flex items-center justify-between text-sm font-bold transition-all cursor-pointer active:scale-[0.99]`}
                 >
-                  <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
+                  <div className="flex items-center gap-2.5 text-left overflow-hidden">
                     <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeNetworkTheme.accentColor}`} />
-                    <span className={`truncate ${selectedProduct ? (isLight ? 'text-slate-900 font-black' : 'text-white font-bold') : (isLight ? 'text-slate-400 font-semibold' : 'text-slate-400 font-semibold')}`}>
+                    <span className={`truncate text-sm ${selectedProduct ? (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
                         ? `${formatPlanDisplayName(selectedProduct, detectedOperator)} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
                         : 'Select package'}
@@ -1723,11 +1723,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                                     const isSelected = selectedProduct?.id === p.id;
                                     const dynamicPrice = getDynamicPrice(p);
                                     const opName = p.operator || detectedOperator || 'MTN';
-                                    // Rows live under a plan-type section
-                                    // header — suppress the trailing
-                                    // `(TYPE)` tag so it doesn't duplicate
-                                    // the header text.
-                                    const displayStr = `${formatPlanDisplayName(p, opName, false)} — ₦${dynamicPrice.toLocaleString('en-NG')}`;
+                                    const planTitle = formatPlanDisplayName(p, opName, false);
 
                                     return (
                                       <div
@@ -1737,20 +1733,36 @@ export default function ServiceForm(props: ServiceFormProps) {
                                           setCheckoutAmount(dynamicPrice.toString());
                                           setIsPackageModalOpen(false);
                                         }}
-                                        className={`py-3 px-3 rounded-xl transition-all cursor-pointer text-xs font-mono flex items-center justify-between ${
+                                        className={`py-3.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                                           isSelected
                                             ? activeNetworkTheme.modalActiveRow
-                                            : (isLight ? 'hover:bg-slate-200/60 text-slate-800 font-semibold' : 'hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium')
+                                            : (isLight ? 'hover:bg-slate-200/60 text-slate-800' : 'hover:bg-slate-800/80 text-slate-200 hover:text-white')
                                         }`}
                                       >
-                                        <span className="leading-snug pr-2 flex items-center gap-1.5 flex-wrap">
-                                          <span>{displayStr}</span>
+                                        <div className="flex items-center gap-2 flex-wrap min-w-0 pr-1">
+                                          <span className={`text-[14.5px] sm:text-[15px] font-bold tracking-tight ${
+                                            isSelected
+                                              ? 'text-inherit font-extrabold'
+                                              : (isLight ? 'text-slate-900' : 'text-slate-100')
+                                          }`}>
+                                            {planTitle}
+                                          </span>
+                                          <span className={`text-sm select-none ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            —
+                                          </span>
+                                          <span className={`text-[14.5px] sm:text-[15px] font-extrabold tracking-tight tabular-nums ${
+                                            isSelected
+                                              ? 'text-inherit font-black'
+                                              : (isLight ? 'text-slate-900' : 'text-white')
+                                          }`}>
+                                            ₦{dynamicPrice.toLocaleString('en-NG')}
+                                          </span>
                                           {p.isTop && (
-                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30">
+                                            <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30 shrink-0">
                                               TOP
                                             </span>
                                           )}
-                                        </span>
+                                        </div>
                                         {isSelected && (
                                           <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${activeNetworkTheme.modalActiveBadge}`}>
                                             Active
@@ -1804,11 +1816,11 @@ export default function ServiceForm(props: ServiceFormProps) {
                     isLight
                       ? 'bg-white border-slate-300 text-slate-900 shadow-sm hover:border-sky-400'
                       : 'bg-slate-900 border-slate-700/80 text-white shadow-md hover:border-sky-500'
-                  } border rounded-2xl px-4 py-3.5 flex items-center justify-between text-xs font-bold transition-all cursor-pointer active:scale-[0.99]`}
+                  } border rounded-2xl px-4 py-3.5 flex items-center justify-between text-sm font-bold transition-all cursor-pointer active:scale-[0.99]`}
                 >
-                  <div className="flex items-center gap-2.5 font-mono text-left overflow-hidden">
+                  <div className="flex items-center gap-2.5 text-left overflow-hidden">
                     <Tv className="w-4 h-4 shrink-0 text-sky-400" />
-                    <span className={`truncate ${selectedProduct ? (isLight ? 'text-slate-900 font-black' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
+                    <span className={`truncate text-sm ${selectedProduct ? (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
                         ? `${selectedProduct.name} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
                         : `Select ${currentOp} Package`}
@@ -1910,7 +1922,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <span className={`text-xs font-black truncate ${
+                                    <span className={`text-[14.5px] sm:text-[15px] font-bold truncate ${
                                       isSelected
                                         ? (isLight ? 'text-sky-950 font-black' : 'text-sky-300 font-black')
                                         : (isLight ? 'text-slate-900 font-bold' : 'text-slate-100 font-bold')
