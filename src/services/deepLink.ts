@@ -1,5 +1,6 @@
 import { App, URLOpenListenerEvent } from '@capacitor/app';
 import { registerPlugin, Capacitor } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 
 export const PENDING_REFERRAL_KEY = 'edata_pending_referral';
 export const PENDING_CLICK_ID_KEY = 'edata_pending_click_id';
@@ -200,25 +201,43 @@ export async function checkPlayInstallReferrer(): Promise<string | null> {
  */
 export async function checkClipboardForReferral(): Promise<string | null> {
   try {
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const clipText = await navigator.clipboard.readText();
-      if (clipText && typeof clipText === 'string') {
-        const trimmed = clipText.trim();
-        if (trimmed.startsWith('edata-ref:')) {
-          const code = trimmed.replace('edata-ref:', '').trim().toUpperCase();
-          if (code) {
-            console.log('[DeepLink] Captured referral code from clipboard bridge:', code);
-            savePendingReferral(code);
-            try {
-              await navigator.clipboard.writeText('');
-            } catch {}
-            return code;
+    let clipText = '';
+
+    // 1. Try native Capacitor Clipboard first (works without user gesture on native iOS/Android)
+    try {
+      const res = await Clipboard.read();
+      if (res && res.value) {
+        clipText = res.value;
+      }
+    } catch {
+      // Fallback to web clipboard API
+    }
+
+    // 2. Fall back to navigator.clipboard for Web/PWA
+    if (!clipText && navigator.clipboard && navigator.clipboard.readText) {
+      try {
+        clipText = await navigator.clipboard.readText();
+      } catch {}
+    }
+
+    if (clipText && typeof clipText === 'string') {
+      const trimmed = clipText.trim();
+      if (trimmed.startsWith('edata-ref:')) {
+        const code = trimmed.replace('edata-ref:', '').trim().toUpperCase();
+        if (code) {
+          console.log('[DeepLink] Captured referral code from clipboard bridge:', code);
+          savePendingReferral(code);
+          try {
+            await Clipboard.write({ string: '' });
+          } catch {
+            try { await navigator.clipboard.writeText(''); } catch {}
           }
+          return code;
         }
       }
     }
   } catch (err) {
-    // Clipboard permission denied or unavailable without user gesture — silently ignored
+    console.warn('[DeepLink] checkClipboardForReferral error:', err);
   }
   return null;
 }
@@ -260,4 +279,7 @@ export function initDeepLinking(): void {
 
   // 3. Query native Google Play Install Referrer API
   checkPlayInstallReferrer();
+
+  // 4. Check device clipboard for deferred iOS/Magic Code referral bridge
+  checkClipboardForReferral();
 }

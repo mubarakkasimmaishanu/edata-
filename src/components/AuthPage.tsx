@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { ArrowRight, AlertCircle, RefreshCw, Eye, EyeOff, ShieldCheck, Sun, Moon, Check } from 'lucide-react';
 import edataLogo from '../assets/edata_logo.png';
 import { api, setAuthToken } from '../services/api';
-import { getPendingReferral, clearPendingReferral, onReferralCaptured } from '../services/deepLink';
+import { getPendingReferral, clearPendingReferral, onReferralCaptured, checkClipboardForReferral } from '../services/deepLink';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { UserProfile } from '../types';
@@ -50,6 +50,14 @@ export default function AuthPage({
     if (pending && pending.trim()) {
       setAuthPromo(pending.trim().toUpperCase());
       setIsRegistering(true);
+    } else {
+      // Check clipboard for iOS/Magic Code deferred referral if not yet loaded
+      checkClipboardForReferral().then(clipCode => {
+        if (clipCode && clipCode.trim()) {
+          setAuthPromo(clipCode.trim().toUpperCase());
+          setIsRegistering(true);
+        }
+      }).catch(() => {});
     }
     const unsub = onReferralCaptured((code) => {
       setAuthPromo(code);

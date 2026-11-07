@@ -6,6 +6,8 @@
 	<array>
 		<string>applinks:edata.com.ng</string>
 		<string>applinks:www.edata.com.ng</string>
+		<string>webcredentials:edata.com.ng</string>
+		<string>webcredentials:www.edata.com.ng</string>
 	</array>
 </dict>
 </plist>
