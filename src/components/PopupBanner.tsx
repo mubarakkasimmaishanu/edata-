@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import React, { useEffect } from 'react';
 import {
   X, Download, Star, Info, Gift, Megaphone, ExternalLink, ArrowRight,
@@ -75,7 +76,7 @@ export default function PopupBanner({
   const { theme } = useTheme();
   const style = resolveTypeStyle(popup.type);
 
-  const dismissible = popup.dismissible !== false;
+  const dismissible = !Capacitor.isNativePlatform() || popup.dismissible !== false;
   const hasPrimary = Boolean(popup.action_label && popup.action_url);
   const hasSecondary = Boolean(popup.secondary_label);
 

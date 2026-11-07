@@ -15,13 +15,13 @@ export function isIosPlatform(platformHint?: string | null): boolean {
   if (platformHint) {
     const clean = platformHint.trim().toLowerCase();
     if (clean === 'ios') return true;
-    if (clean === 'android') return false;
+    if (clean === 'android' || clean === 'web') return false;
   }
-  const capPlat = Capacitor.getPlatform();
-  if (capPlat === 'ios') return true;
-  if (capPlat === 'android') return false;
-  if (typeof navigator !== 'undefined' && navigator.userAgent) {
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // Only evaluate as iOS if running natively inside the Capacitor mobile app.
+  // Web visitors on Safari/Chrome on iPhone/iPad are Web users and should not be locked into store updates.
+  if (Capacitor.isNativePlatform()) {
+    const capPlat = Capacitor.getPlatform();
+    return capPlat === 'ios';
   }
   return false;
 }
@@ -110,6 +110,10 @@ export async function getInstalledAppVersion(): Promise<string> {
  * Evaluates minimum version, grace period deadline, and days to expire.
  */
 export async function checkAppUpdate(platform?: string): Promise<AppVersionData | null> {
+  // Web browsers never need native mobile app store updates
+  if (!Capacitor.isNativePlatform()) {
+    return null;
+  }
   try {
     const activePlatform = platform || (isIosPlatform() ? 'ios' : 'android');
     const version = await getInstalledAppVersion();

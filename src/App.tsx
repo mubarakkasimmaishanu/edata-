@@ -1019,8 +1019,9 @@ function MainApp() {
   // interrupt the user, just quietly leave popups off.
   const fetchPopups = async () => {
     try {
-      const version = await getInstalledAppVersion();
-      const activePlatform = isIosPlatform() ? 'ios' : 'android';
+      const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+      const version = isNative ? await getInstalledAppVersion() : 'web';
+      const activePlatform = isNative ? (isIosPlatform() ? 'ios' : 'android') : 'web';
       const res: any = await api.getPopups(true, version, activePlatform);
       const list: PopupBannerType[] =
         res?.data?.popups
@@ -1030,6 +1031,8 @@ function MainApp() {
       if (Array.isArray(list)) {
         // Filter out popups that are out of bounds for the current client version
         const filtered = list.filter(p => {
+          // Web browsers should NEVER display native mobile app store update lockouts
+          if (!isNative && p.type === 'update') return false;
           if (p.min_app_version && compareSemver(version, p.min_app_version) < 0) return false;
           if (p.max_app_version && compareSemver(version, p.max_app_version) > 0) return false;
           return true;
