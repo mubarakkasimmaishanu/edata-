@@ -260,7 +260,7 @@ export default function OtherProductsFlow({
           </button>
           <div className="flex flex-col items-center">
             <h1 className="text-base font-bold font-display tracking-tight flex items-center gap-1.5">
-              <Tv className="w-4 h-4 text-primary" />
+              <Tv className="w-4 h-4 text-sky-500" />
               <span>Other Physical Products</span>
             </h1>
             <span className="text-[10px] text-slate-500 font-medium">Smart TVs, Solar &amp; Utilities</span>
@@ -271,7 +271,7 @@ export default function OtherProductsFlow({
         <main className="max-w-md mx-auto px-4 pt-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+              <Loader2 className="w-8 h-8 animate-spin text-sky-500 mb-2" />
               <span className="text-xs">Loading available products...</span>
             </div>
           ) : products.length === 0 ? (
@@ -294,7 +294,7 @@ export default function OtherProductsFlow({
                     <div>
                       <div className="relative aspect-square rounded-xl bg-slate-50 dark:bg-slate-800 overflow-hidden mb-2.5 flex items-center justify-center">
                         <img src={img} alt={p.name} className="w-full h-full object-contain p-2 hover:scale-105 transition-transform" />
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary text-white shadow-xs">
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-600 text-white shadow-xs">
                           {p.gallery_images?.length || 1}+ Photos
                         </span>
                       </div>
@@ -304,7 +304,7 @@ export default function OtherProductsFlow({
                     </div>
 
                     <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <div className="text-xs font-black text-primary dark:text-emerald-400">
+                      <div className="text-xs font-black text-sky-500 dark:text-emerald-400">
                         ₦{p.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                       </div>
                       <div className="text-[10px] text-slate-400 font-medium">
@@ -392,7 +392,7 @@ export default function OtherProductsFlow({
                   key={idx}
                   onClick={() => setActiveSlideIndex(idx)}
                   className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                    activeSlideIndex === idx ? 'w-5 bg-primary dark:bg-emerald-400' : 'w-1.5 bg-slate-300 dark:bg-slate-700'
+                    activeSlideIndex === idx ? 'w-5 bg-sky-600 dark:bg-emerald-400' : 'w-1.5 bg-slate-300 dark:bg-slate-700'
                   }`}
                 />
               ))}
@@ -406,7 +406,7 @@ export default function OtherProductsFlow({
                 {selectedProduct.name}
               </h2>
 
-              <div className="mt-2 text-2xl font-black font-display text-primary dark:text-emerald-400">
+              <div className="mt-2 text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
                 ₦{selectedProduct.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </div>
 
@@ -447,7 +447,7 @@ export default function OtherProductsFlow({
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex items-center justify-between max-w-md mx-auto z-30">
           <div>
             <span className="text-[10px] text-slate-400 font-medium">Processing Fee</span>
-            <div className="text-base font-black text-primary dark:text-emerald-400">
+            <div className="text-base font-black text-sky-500 dark:text-emerald-400">
               ₦{adminFee.toLocaleString()}
             </div>
           </div>
@@ -455,7 +455,7 @@ export default function OtherProductsFlow({
           <button
             type="button"
             onClick={() => setViewState('apply')}
-            className="py-3 px-6 rounded-2xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="py-3 px-6 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
           >
             <span>Request This Product</span>
             <ChevronRight className="w-4 h-4" />
@@ -499,7 +499,7 @@ export default function OtherProductsFlow({
               onClick={() => handleToggleBuyingFor('personal')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'personal'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -513,7 +513,7 @@ export default function OtherProductsFlow({
               onClick={() => handleToggleBuyingFor('third_party')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'third_party'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -528,7 +528,7 @@ export default function OtherProductsFlow({
         {/* Form Fields */}
         <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
           <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <MapPin className="w-3.5 h-3.5 text-sky-500" />
             <span>Delivery Destination</span>
           </h4>
 
@@ -634,7 +634,7 @@ export default function OtherProductsFlow({
           <button
             type="button"
             onClick={handleInitiateApply}
-            className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Pay ₦{adminFee.toLocaleString()} Administrative Fee &amp; Submit</span>

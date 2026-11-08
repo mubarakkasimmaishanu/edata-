@@ -62,7 +62,7 @@ export default function PhysicalPinModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary dark:text-emerald-400">
+            <div className="w-8 h-8 rounded-full bg-sky-500/10 dark:bg-sky-500/20 flex items-center justify-center text-sky-500 dark:text-emerald-400">
               <Lock className="w-4 h-4" />
             </div>
             <div>
@@ -83,7 +83,7 @@ export default function PhysicalPinModal({
         {/* Fee & Wallet Balance Strip */}
         <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-            <Wallet className="w-4 h-4 text-primary dark:text-emerald-400" />
+            <Wallet className="w-4 h-4 text-sky-500 dark:text-emerald-400" />
             <span>Wallet Balance:</span>
           </div>
           <span className="font-bold text-slate-900 dark:text-white">
@@ -122,7 +122,7 @@ export default function PhysicalPinModal({
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Non-Refundable Admin Processing Fee
               </span>
-              <div className="text-2xl font-black font-display text-primary dark:text-emerald-400 mt-0.5">
+              <div className="text-2xl font-black font-display text-sky-500 dark:text-emerald-400 mt-0.5">
                 ₦{adminFee.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
@@ -150,7 +150,7 @@ export default function PhysicalPinModal({
                     key={idx}
                     className={`w-11 h-12 rounded-xl border-2 flex items-center justify-center text-lg font-bold transition-all ${
                       pin[idx]
-                        ? 'border-primary bg-primary/5 text-primary dark:border-emerald-500 dark:text-emerald-300'
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-500 dark:border-emerald-500 dark:text-emerald-300'
                         : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40'
                     }`}
                   >
@@ -202,7 +202,7 @@ export default function PhysicalPinModal({
               <button
                 type="submit"
                 disabled={pin.length !== 4 || isSubmitting}
-                className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>

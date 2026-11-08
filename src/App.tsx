@@ -26,15 +26,19 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
     try {
       return await factory();
     } catch (error: any) {
+      const msg = String(error?.message || '');
       const isChunkError =
-        error?.message?.includes('Failed to fetch dynamically imported module') ||
-        error?.message?.includes('Importing a module script failed') ||
-        error?.message?.includes('Loading chunk') ||
-        error?.name === 'ChunkLoadError';
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('Importing a module script failed') ||
+        msg.includes('Loading chunk') ||
+        msg.includes('Unexpected token') ||
+        msg.includes('is not a valid JavaScript MIME type') ||
+        error?.name === 'ChunkLoadError' ||
+        error instanceof SyntaxError;
 
       const lastReload = sessionStorage.getItem('edata_chunk_reload');
       const now = Date.now();
-      if (isChunkError && (!lastReload || now - parseInt(lastReload, 10) > 10000)) {
+      if (isChunkError && (!lastReload || now - parseInt(lastReload, 10) > 8000)) {
         sessionStorage.setItem('edata_chunk_reload', String(now));
         window.location.reload();
       }
@@ -106,6 +110,51 @@ type ActiveView =
   | 'installment-phone'
   | 'pos-device'
   | 'others';
+
+function getInitialViewFromUrl(): ActiveView {
+  if (typeof window !== 'undefined') {
+    const raw = window.location.pathname
+      .replace(/^\/(?:edata\/)?(?:app\/)?/, '')
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+
+    const viewAliases: Record<string, ActiveView> = {
+      'installment-phone': 'installment-phone',
+      'installment-phones': 'installment-phone',
+      'phones': 'installment-phone',
+      'phone': 'installment-phone',
+      'prepaid-meter': 'prepaid-meter',
+      'prepaid-meters': 'prepaid-meter',
+      'meter': 'prepaid-meter',
+      'meters': 'prepaid-meter',
+      'pos-device': 'pos-device',
+      'pos-devices': 'pos-device',
+      'pos': 'pos-device',
+      'physical-products': 'physical-products',
+      'physical': 'physical-products',
+      'services': 'services',
+      'airtime': 'airtime',
+      'data': 'data',
+      'cable': 'cable',
+      'electricity': 'electricity',
+      'exams': 'exams',
+      'exam': 'exams',
+      'a2c': 'a2c',
+      'fund': 'fund',
+      'history': 'history',
+      'profile': 'profile',
+      'support': 'support',
+      'notifications': 'notifications',
+      'referral': 'referral',
+      'upgrade': 'upgrade',
+    };
+
+    if (viewAliases[raw]) {
+      return viewAliases[raw];
+    }
+  }
+  return 'dashboard';
+}
 
 function MainApp() {
   const toast = useToast();
@@ -277,11 +326,16 @@ function MainApp() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
+  const initialViewFromUrl = getInitialViewFromUrl();
+  const isDirectBrowsingView = [
+    'installment-phone', 'prepaid-meter', 'pos-device', 'physical-products', 'services', 'others'
+  ].includes(initialViewFromUrl);
+
   const [currentScreen, setCurrentScreen] = useState<'auth' | 'app'>(() => {
-    return getAuthToken() ? 'app' : 'auth';
+    return (getAuthToken() || isDirectBrowsingView) ? 'app' : 'auth';
   });
-  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const [viewHistory, setViewHistory] = useState<ActiveView[]>(['dashboard']);
+  const [activeView, setActiveView] = useState<ActiveView>(initialViewFromUrl);
+  const [viewHistory, setViewHistory] = useState<ActiveView[]>([initialViewFromUrl]);
 
   // Synchronous refs to guarantee atomic, race-free navigation stack updates in React 19
   const viewHistoryRef = useRef<ActiveView[]>(['dashboard']);
@@ -1264,6 +1318,15 @@ function MainApp() {
     setViewHistory(['dashboard']);
   };
 
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const target = (e.state?.view || getInitialViewFromUrl()) as ActiveView;
+      setActiveView(target);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
     let targetView = (view || 'data') as ActiveView;
     let targetNetwork = params?.network || '';
@@ -1305,6 +1368,12 @@ function MainApp() {
     }
 
     if (targetView !== activeView) {
+      if (typeof window !== 'undefined' && window.history && window.history.pushState) {
+        const urlPath = targetView === 'dashboard' ? '/' : `/${targetView}`;
+        if (window.location.pathname !== urlPath) {
+          window.history.pushState({ view: targetView }, '', urlPath);
+        }
+      }
       if (targetView === 'dashboard') {
         activeViewRef.current = 'dashboard';
         viewHistoryRef.current = ['dashboard'];

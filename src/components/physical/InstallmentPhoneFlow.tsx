@@ -170,11 +170,14 @@ export default function InstallmentPhoneFlow({
 
   // Filter products by search and brand
   const filteredProducts = products.filter(p => {
+    const pName = p?.name || '';
+    const pBrand = p?.brand || '';
+    const q = (searchQuery || '').toLowerCase();
     const matchSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.brand && p.brand.toLowerCase().includes(searchQuery.toLowerCase()));
+      pName.toLowerCase().includes(q) ||
+      pBrand.toLowerCase().includes(q);
     const matchBrand =
-      selectedBrandFilter === 'All' || (p.brand && p.brand.toLowerCase() === selectedBrandFilter.toLowerCase());
+      selectedBrandFilter === 'All' || (pBrand && pBrand.toLowerCase() === selectedBrandFilter.toLowerCase());
     return matchSearch && matchBrand;
   });
 
@@ -194,6 +197,16 @@ export default function InstallmentPhoneFlow({
 
   // Open Checkout
   const handleInitiateApply = () => {
+    if (!currentUser || !currentUser.id) {
+      toast.warning('Please log in or create an account to submit your installment application.');
+      if (onNavigate) {
+        onNavigate('auth');
+      } else {
+        window.location.reload();
+      }
+      return;
+    }
+
     if (!currentUser.has_kyc && !currentUser.hasKyc) {
       toast.error('KYC verification required. Please complete your identity verification in Profile settings.');
       return;
@@ -283,7 +296,7 @@ export default function InstallmentPhoneFlow({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-base font-bold font-display tracking-tight flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4 text-primary" />
+              <Smartphone className="w-4 h-4 text-sky-500" />
               <span>Installment Phones</span>
             </h1>
             <div className="w-8" />
@@ -298,7 +311,7 @@ export default function InstallmentPhoneFlow({
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search Samsung, iPhone, Xiaomi..."
               className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs border outline-none transition-all ${
-                isLight ? 'bg-slate-100 border-transparent focus:bg-white focus:border-primary' : 'bg-slate-800 border-slate-700 focus:border-emerald-500'
+                isLight ? 'bg-slate-100 border-transparent focus:bg-white focus:border-sky-500' : 'bg-slate-800 border-slate-700 focus:border-emerald-500'
               }`}
             />
           </div>
@@ -312,7 +325,7 @@ export default function InstallmentPhoneFlow({
                 onClick={() => setSelectedBrandFilter(brand)}
                 className={`py-1.5 px-3 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   selectedBrandFilter === brand
-                    ? 'bg-primary text-white shadow-sm'
+                    ? 'bg-sky-600 text-white shadow-sm'
                     : isLight
                     ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -328,7 +341,7 @@ export default function InstallmentPhoneFlow({
         <main className="max-w-md mx-auto px-4 pt-3">
           {isLoadingCatalog ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+              <Loader2 className="w-8 h-8 animate-spin text-sky-500 mb-2" />
               <span className="text-xs">Loading available devices...</span>
             </div>
           ) : filteredProducts.length === 0 ? (
@@ -372,12 +385,12 @@ export default function InstallmentPhoneFlow({
 
                     <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
                       {lowestPlan && (
-                        <div className="text-[11px] font-black text-primary dark:text-emerald-400">
-                          ₦{lowestPlan.installment_amount.toLocaleString()}{lowestPlan.frequency_label}
+                        <div className="text-[11px] font-black text-sky-500 dark:text-emerald-400">
+                          ₦{Number(lowestPlan.installment_amount || 0).toLocaleString()}{lowestPlan.frequency_label || ''}
                         </div>
                       )}
                       <div className="text-[10px] text-slate-400 font-medium">
-                        Outright: ₦{product.price.toLocaleString()}
+                        Outright: ₦{Number(product.price || 0).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -445,7 +458,7 @@ export default function InstallmentPhoneFlow({
                   key={idx}
                   onClick={() => setSelectedImageIndex(idx)}
                   className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                    selectedImageIndex === idx ? 'w-5 bg-primary' : 'w-1.5 bg-slate-300 dark:bg-slate-700'
+                    selectedImageIndex === idx ? 'w-5 bg-sky-600' : 'w-1.5 bg-slate-300 dark:bg-slate-700'
                   }`}
                 />
               ))}
@@ -470,8 +483,8 @@ export default function InstallmentPhoneFlow({
                 {selectedProduct.name}
               </h2>
 
-              <div className="mt-2 text-2xl font-black font-display text-primary dark:text-emerald-400">
-                ₦{selectedProduct.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              <div className="mt-2 text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
+                ₦{Number(selectedProduct.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -491,7 +504,7 @@ export default function InstallmentPhoneFlow({
                         onClick={() => setSelectedPlan(plan)}
                         className={`p-3 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-primary/5 border-primary ring-2 ring-primary/20 dark:bg-emerald-950/20 dark:border-emerald-500'
+                            ? 'bg-sky-500/10 border-sky-500 ring-2 ring-sky-500/20 dark:bg-emerald-950/20 dark:border-emerald-500'
                             : isLight
                             ? 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                             : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700'
@@ -502,10 +515,10 @@ export default function InstallmentPhoneFlow({
                             <span className="text-xs font-bold text-slate-800 dark:text-white">
                               {plan.plan_name}
                             </span>
-                            {isSelected && <Check className="w-4 h-4 text-primary dark:text-emerald-400" />}
+                            {isSelected && <Check className="w-4 h-4 text-sky-500 dark:text-emerald-400" />}
                           </div>
-                          <div className="text-sm font-black text-primary dark:text-emerald-400 mt-1">
-                            ₦{plan.installment_amount.toLocaleString()}{plan.frequency_label}
+                          <div className="text-sm font-black text-sky-500 dark:text-emerald-400 mt-1">
+                            ₦{Number(plan.installment_amount || 0).toLocaleString()}{plan.frequency_label || ''}
                           </div>
                         </div>
 
@@ -599,7 +612,7 @@ export default function InstallmentPhoneFlow({
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex items-center justify-between max-w-md mx-auto z-30">
           <div>
             <span className="text-[10px] text-slate-400 font-medium">Selected Installment</span>
-            <div className="text-base font-black text-primary dark:text-emerald-400">
+            <div className="text-base font-black text-sky-500 dark:text-emerald-400">
               {selectedPlan ? `₦${selectedPlan.installment_amount.toLocaleString()}${selectedPlan.frequency_label}` : 'Select a Plan'}
             </div>
           </div>
@@ -607,7 +620,7 @@ export default function InstallmentPhoneFlow({
           <button
             type="button"
             onClick={() => setViewState('apply')}
-            className="py-3 px-6 rounded-2xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="py-3 px-6 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
           >
             <span>Order on Installment</span>
             <ChevronRight className="w-4 h-4" />
@@ -651,7 +664,7 @@ export default function InstallmentPhoneFlow({
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400">Admin Fee</span>
-            <div className="text-base font-black text-primary dark:text-emerald-400">₦{adminFee.toLocaleString()}</div>
+            <div className="text-base font-black text-sky-500 dark:text-emerald-400">₦{adminFee.toLocaleString()}</div>
           </div>
         </div>
 
@@ -666,7 +679,7 @@ export default function InstallmentPhoneFlow({
               onClick={() => handleToggleBuyingFor('personal')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'personal'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -680,7 +693,7 @@ export default function InstallmentPhoneFlow({
               onClick={() => handleToggleBuyingFor('third_party')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'third_party'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -692,7 +705,7 @@ export default function InstallmentPhoneFlow({
           </div>
 
           {buyingFor === 'third_party' && (
-            <p className="text-[11px] text-primary dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
+            <p className="text-[11px] text-sky-500 dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               Your account details will automatically be attached as the Guarantor.
             </p>
@@ -808,7 +821,7 @@ export default function InstallmentPhoneFlow({
           <button
             type="button"
             onClick={handleInitiateApply}
-            className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Pay ₦{adminFee.toLocaleString()} Administrative Fee &amp; Submit</span>

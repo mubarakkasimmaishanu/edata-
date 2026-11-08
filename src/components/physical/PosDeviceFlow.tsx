@@ -247,7 +247,7 @@ export default function PosDeviceFlow({
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-base font-bold font-display tracking-tight flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4 text-primary" />
+            <CreditCard className="w-4 h-4 text-sky-500" />
             <span>POS Device Purchase</span>
           </h1>
           <span className="text-[10px] text-slate-500 font-medium">Agency Banking Terminals</span>
@@ -284,7 +284,7 @@ export default function PosDeviceFlow({
                 onClick={() => setSelectedBrand(b)}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
                   selectedBrand === b
-                    ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
+                    ? 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-500/20'
                     : isLight
                     ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -307,7 +307,7 @@ export default function PosDeviceFlow({
               onClick={() => handleToggleBuyingFor('personal')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'personal'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -321,7 +321,7 @@ export default function PosDeviceFlow({
               onClick={() => handleToggleBuyingFor('third_party')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'third_party'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -333,7 +333,7 @@ export default function PosDeviceFlow({
           </div>
 
           {buyingFor === 'third_party' && (
-            <p className="text-[11px] text-primary dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
+            <p className="text-[11px] text-sky-500 dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               Your account details will automatically be attached as Guarantor.
             </p>
@@ -368,7 +368,7 @@ export default function PosDeviceFlow({
         {/* 4. Merchant Identification Details */}
         <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
           <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-            <Building2 className="w-3.5 h-3.5 text-primary" />
+            <Building2 className="w-3.5 h-3.5 text-sky-500" />
             <span>Merchant &amp; Settlement Details</span>
           </h4>
 
@@ -497,7 +497,7 @@ export default function PosDeviceFlow({
           <button
             type="button"
             onClick={handleInitiatePayment}
-            className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Pay ₦{adminFee.toLocaleString()} Administrative Fee &amp; Submit</span>

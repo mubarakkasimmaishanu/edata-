@@ -11,13 +11,9 @@ if (!fs.existsSync(srcDir)) {
 
 if (!fs.existsSync(destDir)) {
   fs.mkdirSync(destDir, { recursive: true });
-} else {
-  // Clean old assets directory to remove stale bundle hashes
-  const assetsDir = path.join(destDir, 'assets');
-  if (fs.existsSync(assetsDir)) {
-    fs.rmSync(assetsDir, { recursive: true, force: true });
-  }
 }
 
+// Seamlessly copy dist into destDir without wiping old chunk hashes
+// so users with active sessions don't get 404 or SyntaxError during deployments.
 fs.cpSync(srcDir, destDir, { recursive: true });
 console.log('[Web Deploy] Successfully synced clean production web build to ' + destDir);

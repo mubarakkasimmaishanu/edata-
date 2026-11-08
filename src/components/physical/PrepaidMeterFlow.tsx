@@ -285,7 +285,7 @@ export default function PrepaidMeterFlow({
               onClick={() => handleToggleBuyingFor('personal')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'personal'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -299,7 +299,7 @@ export default function PrepaidMeterFlow({
               onClick={() => handleToggleBuyingFor('third_party')}
               className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 buyingFor === 'third_party'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-sky-600 text-white shadow-sm'
                   : isLight
                   ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -311,7 +311,7 @@ export default function PrepaidMeterFlow({
           </div>
 
           {buyingFor === 'third_party' && (
-            <p className="text-[11px] text-primary dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
+            <p className="text-[11px] text-sky-500 dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               Your logged-in profile will automatically be recorded as the Guarantor.
             </p>
@@ -375,7 +375,7 @@ export default function PrepaidMeterFlow({
               type="button"
               onClick={() => setHasOldMeter(!hasOldMeter)}
               className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                hasOldMeter ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
+                hasOldMeter ? 'bg-sky-600' : 'bg-slate-300 dark:bg-slate-700'
               }`}
             >
               <div
@@ -424,7 +424,7 @@ export default function PrepaidMeterFlow({
         {/* 4. Applicant Details & Location */}
         <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
           <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <MapPin className="w-3.5 h-3.5 text-sky-500" />
             <span>Applicant & Installation Address</span>
           </h4>
 
@@ -519,7 +519,7 @@ export default function PrepaidMeterFlow({
           <button
             type="button"
             onClick={handleInitiatePayment}
-            className="w-full py-3.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Pay ₦{adminFee.toLocaleString()} & Submit Application</span>

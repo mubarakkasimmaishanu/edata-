@@ -77,7 +77,7 @@ export default function PhysicalSuccessModal({
             <button
               type="button"
               onClick={handleCopyRef}
-              className="flex items-center gap-1.5 text-xs font-mono font-bold text-primary dark:text-emerald-400 hover:underline"
+              className="flex items-center gap-1.5 text-xs font-mono font-bold text-sky-500 dark:text-emerald-400 hover:underline"
             >
               <span>{reference}</span>
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}

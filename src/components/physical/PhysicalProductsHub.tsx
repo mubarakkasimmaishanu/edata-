@@ -157,7 +157,7 @@ export default function PhysicalProductsHub({
       case 'prepaid_meter':
         return <Zap className="w-6 h-6 text-amber-500 fill-amber-500" />;
       case 'installment_phone':
-        return <Smartphone className="w-6 h-6 text-primary dark:text-emerald-400" />;
+        return <Smartphone className="w-6 h-6 text-sky-500 dark:text-emerald-400" />;
       case 'pos_device':
         return <CreditCard className="w-6 h-6 text-blue-500" />;
       case 'others':
@@ -198,7 +198,7 @@ export default function PhysicalProductsHub({
 
       <main className="max-w-md mx-auto px-4 pt-4 space-y-4">
         {/* Intro Banner */}
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-primary via-emerald-800 to-teal-900 text-white shadow-lg relative overflow-hidden">
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-sky-600 via-emerald-800 to-teal-900 text-white shadow-lg relative overflow-hidden">
           <div className="relative z-10">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-white/15 text-white backdrop-blur-md mb-2">
               <Sparkles className="w-3 h-3 text-amber-300" />
@@ -222,7 +222,7 @@ export default function PhysicalProductsHub({
 
           {isLoading && services.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+              <Loader2 className="w-8 h-8 animate-spin text-sky-500 mb-2" />
               <span className="text-xs">Loading services from admin...</span>
             </div>
           ) : (
@@ -254,13 +254,13 @@ export default function PhysicalProductsHub({
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                       {item.description}
                     </p>
-                    <div className="mt-2 text-[11px] font-bold text-primary dark:text-emerald-400">
+                    <div className="mt-2 text-[11px] font-bold text-sky-500 dark:text-emerald-400">
                       Admin Fee: ₦{item.admin_fee.toLocaleString()} (Non-Refundable)
                     </div>
                   </div>
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2">
+                <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-sky-500 group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2">
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
