@@ -267,7 +267,7 @@ export default function InstallmentPhoneFlow({
   };
 
   // -------------------------------------------------------------
-  // RENDER VIEW 1: CATALOG GRID (CDcare Style Reference Image 3)
+  // RENDER VIEW 1: CATALOG GRID
   // -------------------------------------------------------------
   if (viewState === 'catalog') {
     return (
@@ -303,7 +303,7 @@ export default function InstallmentPhoneFlow({
             />
           </div>
 
-          {/* Brand & Filter Tabs (CDcare Style) */}
+          {/* Brand & Filter Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-3 pt-1">
             {['All', 'Samsung', 'Xiaomi', 'Apple', 'Infinix'].map(brand => (
               <button
@@ -358,7 +358,7 @@ export default function InstallmentPhoneFlow({
                           alt={product.name}
                           className="w-full h-full object-contain p-2 hover:scale-105 transition-transform"
                         />
-                        {/* Ships Now Badge (CDcare style) */}
+                        {/* Ships Now Badge */}
                         <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white shadow-xs">
                           Ships now
                         </span>
@@ -391,7 +391,7 @@ export default function InstallmentPhoneFlow({
   }
 
   // -------------------------------------------------------------
-  // RENDER VIEW 2: PRODUCT DETAIL PAGE (CDcare Style Images 1 & 2)
+  // RENDER VIEW 2: PRODUCT DETAIL PAGE
   // -------------------------------------------------------------
   if (viewState === 'detail' && selectedProduct) {
     const gallery =
@@ -425,7 +425,7 @@ export default function InstallmentPhoneFlow({
         </header>
 
         <main className="max-w-md mx-auto space-y-4">
-          {/* Image Slider with Carousel Count Tag (e.g. 2/3) (CDcare Style Image 1) */}
+          {/* Image Slider with Carousel Count Tag (e.g. 2/3) */}
           <div className="relative aspect-square w-full bg-white dark:bg-slate-900 flex items-center justify-center border-b border-slate-100 dark:border-slate-800 overflow-hidden">
             <img
               src={resolveImageUrl(gallery[selectedImageIndex]) || gallery[selectedImageIndex]}
@@ -433,7 +433,7 @@ export default function InstallmentPhoneFlow({
               className="w-full h-full object-contain p-6"
             />
 
-            {/* Counter pill: 1/6 (CDcare standard) */}
+            {/* Counter pill: 1/6 */}
             <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md">
               {selectedImageIndex + 1}/{gallery.length}
             </div>
@@ -453,7 +453,7 @@ export default function InstallmentPhoneFlow({
           </div>
 
           <div className="px-4 space-y-4">
-            {/* Title, Badges, Price (CDcare Style Image 1) */}
+            {/* Title, Badges, Price */}
             <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200">
@@ -475,10 +475,10 @@ export default function InstallmentPhoneFlow({
               </div>
             </div>
 
-            {/* CDcare Plan Selector Cards (Reference Image 2) */}
+            {/* Installment Plan Selector Cards */}
             <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
               <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-2.5">
-                Choose Installment Plan (CDcare Model)
+                Choose Installment Plan
               </h3>
 
               <div className="grid grid-cols-2 gap-2.5">

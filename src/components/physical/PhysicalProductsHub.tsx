@@ -129,7 +129,7 @@ export default function PhysicalProductsHub({
       title: 'Installment Phone',
       description: 'Original smartphones with weekly or monthly flexible installment plans.',
       icon: 'smartphone',
-      badge: 'CDcare Model',
+      badge: 'Zero Collateral',
       admin_fee: 5000,
     },
     {

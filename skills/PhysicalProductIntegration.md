@@ -31,14 +31,14 @@ This specification defines the complete end-to-end architecture, backend control
   8. Submission as `Pending Request` in Admin Dashboard.
   9. Direct link to Live Chat Agent on WhatsApp.
 
-### 2.2 Installment Phones (CDcare Design Reference)
+### 2.2 Installment Phones (Flexible Pay-Small-Small)
 - **Category Code**: `installment_phone`
 - **Icon**: Smartphone / Device Brand
-- **Visual Design Reference**: Strictly mirrors the CDcare mobile interface:
+- **Visual Design Reference**: Modern device installment interface:
   - 2-Column Catalog Grid with product thumbnail, price badge, product name, and available installment options.
   - Detail View with:
     - Multiple gallery images with counter pill (`1/6`).
-    - Prominent outright cash price and CDcare-style installment plan cards:
+    - Prominent outright cash price and flexible installment plan cards:
       - 2 Months (Monthly breakdown)
       - 4 Weeks (Weekly breakdown)
       - 3 Months, 6 Months, etc.
@@ -194,7 +194,7 @@ php yii pos-monitor/sweep
 - **UI Components** (`src/components/physical/`):
   - `PhysicalProductsHub.tsx`: Master navigation hub.
   - `PrepaidMeterFlow.tsx`: DisCo, meter type, old bill check, address, fee payment.
-  - `InstallmentPhoneFlow.tsx`: CDcare catalog, image counter, plan cards, guarantee card, NIN.
+  - `InstallmentPhoneFlow.tsx`: Smartphone catalog, image counter, plan cards, guarantee card, NIN.
   - `PosDeviceFlow.tsx`: Brand, terminal type, 60-day warning card, NIN, BVN.
   - `OtherProductsFlow.tsx`: Dynamic catalog with > 5 image auto-sliding carousel (3.5s interval).
   - `PhysicalPinModal.tsx`: Secure 4-digit PIN sheet with wallet balance check & shortfall prompt.
