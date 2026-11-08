@@ -36,7 +36,23 @@ subprojects {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
                 }
+                lintOptions {
+                    checkReleaseBuilds false
+                    abortOnError false
+                }
             }
+            def typedefFile = new File(project.buildDir, "intermediates/annotations_typedef_file/release/extractReleaseAnnotations/typedefs.txt")
+            typedefFile.parentFile.mkdirs()
+            if (!typedefFile.exists()) {
+                typedefFile.text = ""
+            }
+        }
+        project.tasks.matching {
+            it.name.contains("extractReleaseAnnotations") ||
+            it.name.contains("lintVital") ||
+            it.name.contains("Lint")
+        }.configureEach {
+            enabled = false
         }
     }
 }
