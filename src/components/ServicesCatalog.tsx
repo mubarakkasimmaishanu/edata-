@@ -71,7 +71,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     { id: 'installment-phone', name: 'Phones', desc: 'Original smartphones with weekly/monthly flexible plans', category: 'hardware', icon: Smartphone, isNew: true },
     { id: 'pos-device', name: 'POS Terminal', desc: 'Android & MPOS terminals with instant settlement', category: 'hardware', icon: CreditCard, isNew: true },
     { id: 'prepaid-meter', name: 'Prepaid Meter', desc: 'DisCo certified 1 Phase, 3 Phase & MD meters', category: 'hardware', icon: Zap },
-    { id: 'others', name: 'Solar & Inverter', desc: 'Solar systems, inverters, smart TVs & home appliances', category: 'hardware', icon: Sun },
+    { id: 'solar', name: 'Solar & Inverter', desc: 'Hybrid solar inverters, lithium batteries & PV panels', category: 'hardware', icon: Sun, isNew: true },
     // Other
     { id: 'referral', name: 'Referral', desc: 'Invite & earn', category: 'telecom', icon: Gift },
     { id: 'support', name: 'Support', desc: '24/7 help desk', category: 'telecom', icon: Headphones },

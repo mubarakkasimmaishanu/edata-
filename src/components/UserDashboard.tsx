@@ -324,7 +324,7 @@ export default function UserDashboard({
     { id: 'installment-phone', name: 'Phones',         icon: Smartphone, isNew: true },
     { id: 'pos-device',        name: 'POS',            icon: CreditCard, isNew: true },
     { id: 'prepaid-meter',     name: 'Prepaid Meter',  icon: Zap,        isNew: true },
-    { id: 'others',            name: 'Solar',          icon: Sun,        isNew: true },
+    { id: 'solar',             name: 'Solar',          icon: Sun,        isNew: true },
     { id: 'a2c',               name: 'A2C',            icon: Repeat,     adminGated: true },
     { id: 'exams',             name: 'Exam Card',      icon: BookOpen,   adminGated: true },
   ];

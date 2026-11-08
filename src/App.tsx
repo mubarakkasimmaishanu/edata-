@@ -79,6 +79,7 @@ const ReferralScreen = lazyWithRetry(() => import('./components/ReferralScreen')
 const InstallmentPhoneFlow = lazyWithRetry(() => import('./components/physical/InstallmentPhoneFlow'));
 const PrepaidMeterFlow = lazyWithRetry(() => import('./components/physical/PrepaidMeterFlow'));
 const PosDeviceFlow = lazyWithRetry(() => import('./components/physical/PosDeviceFlow'));
+const SolarFlow = lazyWithRetry(() => import('./components/physical/SolarFlow'));
 const OtherProductsFlow = lazyWithRetry(() => import('./components/physical/OtherProductsFlow'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
@@ -113,6 +114,7 @@ type ActiveView =
   | 'prepaid-meter'
   | 'installment-phone'
   | 'pos-device'
+  | 'solar'
   | 'others';
 
 function getInitialViewFromUrl(): ActiveView {
@@ -134,6 +136,13 @@ function getInitialViewFromUrl(): ActiveView {
       'pos-device': 'pos-device',
       'pos-devices': 'pos-device',
       'pos': 'pos-device',
+      'solar': 'solar',
+      'solars': 'solar',
+      'solar-inverter': 'solar',
+      'solar-inverters': 'solar',
+      'inverter': 'solar',
+      'inverters': 'solar',
+      'others': 'solar',
       'physical-products': 'physical-products',
       'physical': 'physical-products',
       'services': 'services',
@@ -332,7 +341,7 @@ function MainApp() {
 
   const initialViewFromUrl = getInitialViewFromUrl();
   const isDirectBrowsingView = [
-    'installment-phone', 'prepaid-meter', 'pos-device', 'physical-products', 'services', 'others'
+    'installment-phone', 'prepaid-meter', 'pos-device', 'solar', 'others', 'physical-products', 'services'
   ].includes(initialViewFromUrl);
 
   const [currentScreen, setCurrentScreen] = useState<'auth' | 'app'>(() => {
@@ -1722,8 +1731,8 @@ function MainApp() {
                   />
                 )}
 
-                {activeView === 'others' && (
-                  <OtherProductsFlow
+                {(activeView === 'solar' || activeView === 'others') && (
+                  <SolarFlow
                     currentUser={currentUser}
                     onBack={handleGoBack}
                     onNavigate={navigateTo}
