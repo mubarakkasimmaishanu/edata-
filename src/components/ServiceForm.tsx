@@ -346,6 +346,58 @@ export function parsePlanDataSizeMb(planName?: string): number {
   return 0;
 }
 
+export function formatPlanRowText(
+  p: ProductItem,
+  defaultOperator: string = 'MTN'
+): string {
+  let name = (p.name || '').trim();
+  const op = (p.operator || defaultOperator || 'MTN').trim();
+
+  // 1. Remove duplicate leading operator (e.g. "MTN 1GB Daily Plan (1 Day)" -> "1GB Daily Plan (1 Day)")
+  if (op && name.toLowerCase().startsWith(op.toLowerCase())) {
+    name = name.slice(op.length).trim();
+  }
+  for (const net of ['mtn', 'airtel', 'glo', '9mobile']) {
+    if (name.toLowerCase().startsWith(net)) {
+      name = name.slice(net.length).trim();
+      break;
+    }
+  }
+
+  // 2. Remove provider technical trailing codes like "382 46750/47000"
+  name = name.replace(/\s+\d+\s+\d+(?:[\/\-]\d+)?\s*$/i, '').trim();
+
+  // 3. Clean dangling parentheses or double parentheses
+  name = name.replace(/\)\)+/g, ')');
+  name = name.replace(/\(\s*$/, '').trim();
+
+  // 4. Remove redundant "Daily Plan", "Monthly Plan", "Weekly Plan", "Binge Plan" words
+  name = name.replace(/\b(?:daily|monthly|weekly|binge)\s+plan\b/gi, '').trim();
+
+  // 5. If plan has pattern like "1GB 30DAYS", format to "1GB (30 DAYS)"
+  name = name.replace(/(\d+(?:\.\d+)?\s*(?:GB|MB|TB))\s+(\d+)\s*(?:days|day|d)\b/gi, '$1 ($2 DAYS)');
+
+  // 6. Uppercase duration in parens like "(7 days)" -> "(7 DAYS)" or "(1 day)" -> "(1 DAY)"
+  name = name.replace(/\(\s*(\d+(?:\s*-\s*\d+)?)\s*(days?|hrs?|hours?|months?|weeks?)\s*\)/gi, (_m, num, unit) => {
+    return `(${num.toUpperCase()} ${unit.toUpperCase()})`;
+  });
+
+  // 7. Ensure clean spacing before parens e.g. "15GB(520MB" -> "15GB (520MB"
+  name = name.replace(/(\d+(?:\.\d+)?(?:GB|MB))\s*\(/gi, '$1 (');
+
+  // 8. If no duration is inside parentheses, check if duration can be parsed from plan info
+  if (!name.includes('(')) {
+    const durDays = parsePlanDurationDays(p.name, p.planTypeName);
+    if (durDays > 0) {
+      name = `${name} (${durDays} DAYS)`;
+    }
+  }
+
+  name = name.replace(/\s{2,}/g, ' ').trim();
+  return name;
+}
+
+
 interface ServiceFormProps {
   dynamicDiscos?: ElectricityDisco[];
   dynamicCableProviders?: CableProvider[];
@@ -1513,7 +1565,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                     <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeNetworkTheme.accentColor}`} />
                     <span className={`truncate text-sm ${selectedProduct ? (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
-                        ? `${formatPlanDisplayName(selectedProduct, detectedOperator)} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
+                        ? `${formatPlanRowText(selectedProduct, detectedOperator)} = ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
                         : 'Select package'}
                     </span>
                   </div>
@@ -1706,24 +1758,25 @@ export default function ServiceForm(props: ServiceFormProps) {
                             };
 
                             return (
-                              <div key={key} className={`space-y-1.5 p-2.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'}`}>
+                              <div key={key} className={`rounded-2xl border overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181a20] border-zinc-800'}`}>
                                 {/* Group Header inside modal */}
-                                <div className="px-2 py-1 flex items-center justify-between border-b border-slate-800">
+                                <div className={`px-3.5 py-2 flex items-center justify-between border-b ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900/80 border-zinc-800'}`}>
                                   <span className={`text-xs font-black font-display uppercase tracking-wider flex items-center gap-1.5 ${meta.color}`}>
                                     <Zap className="w-3.5 h-3.5" />
                                     {meta.title}
                                   </span>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isLight ? 'bg-slate-200 text-slate-700' : 'bg-zinc-800 text-zinc-300'}`}>
                                     {items.length} {items.length === 1 ? 'Plan' : 'Plans'}
                                   </span>
                                 </div>
 
-                                <div className="divide-y divide-slate-800/80">
+                                <div className={`divide-y ${isLight ? 'divide-slate-200' : 'divide-zinc-800'}`}>
                                   {items.map((p) => {
                                     const isSelected = selectedProduct?.id === p.id;
                                     const dynamicPrice = getDynamicPrice(p);
                                     const opName = p.operator || detectedOperator || 'MTN';
-                                    const planTitle = formatPlanDisplayName(p, opName, false);
+                                    const planRowText = formatPlanRowText(p, opName);
+                                    const formattedPrice = `₦${dynamicPrice.toLocaleString('en-NG')}`;
 
                                     return (
                                       <div
@@ -1733,29 +1786,19 @@ export default function ServiceForm(props: ServiceFormProps) {
                                           setCheckoutAmount(dynamicPrice.toString());
                                           setIsPackageModalOpen(false);
                                         }}
-                                        className={`py-3.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                                        className={`py-3.5 sm:py-4 px-3.5 sm:px-4 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                                           isSelected
-                                            ? activeNetworkTheme.modalActiveRow
-                                            : (isLight ? 'hover:bg-slate-200/60 text-slate-800' : 'hover:bg-slate-800/80 text-slate-200 hover:text-white')
+                                            ? (isLight ? 'bg-sky-50/80 text-sky-950 font-bold' : 'bg-white/[0.08] text-white font-bold')
+                                            : (isLight ? 'hover:bg-slate-100/90 text-slate-800' : 'hover:bg-zinc-800/50 text-zinc-100')
                                         }`}
                                       >
                                         <div className="flex items-center gap-2 flex-wrap min-w-0 pr-1">
-                                          <span className={`text-[14.5px] sm:text-[15px] font-bold tracking-tight ${
+                                          <span className={`text-[16px] sm:text-[17px] font-bold tracking-tight ${
                                             isSelected
-                                              ? 'text-inherit font-extrabold'
-                                              : (isLight ? 'text-slate-900' : 'text-slate-100')
+                                              ? (isLight ? 'text-sky-950 font-extrabold' : 'text-white font-extrabold')
+                                              : (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold')
                                           }`}>
-                                            {planTitle}
-                                          </span>
-                                          <span className={`text-sm select-none ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                                            —
-                                          </span>
-                                          <span className={`text-[14.5px] sm:text-[15px] font-extrabold tracking-tight tabular-nums ${
-                                            isSelected
-                                              ? 'text-inherit font-black'
-                                              : (isLight ? 'text-slate-900' : 'text-white')
-                                          }`}>
-                                            ₦{dynamicPrice.toLocaleString('en-NG')}
+                                            {planRowText} = {formattedPrice}
                                           </span>
                                           {p.isTop && (
                                             <span className="text-[9.5px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30 shrink-0">
@@ -1763,11 +1806,19 @@ export default function ServiceForm(props: ServiceFormProps) {
                                             </span>
                                           )}
                                         </div>
-                                        {isSelected && (
-                                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${activeNetworkTheme.modalActiveBadge}`}>
-                                            Active
-                                          </span>
-                                        )}
+
+                                        {/* Circular Radio Button matching reference image */}
+                                        <div
+                                          className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                                            isSelected
+                                              ? (isLight ? 'border-sky-600 bg-sky-600' : 'border-white bg-white')
+                                              : (isLight ? 'border-slate-400' : 'border-zinc-500')
+                                          }`}
+                                        >
+                                          {isSelected && (
+                                            <div className={`w-2 h-2 rounded-full ${isLight ? 'bg-white' : 'bg-slate-950'}`} />
+                                          )}
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -1820,9 +1871,9 @@ export default function ServiceForm(props: ServiceFormProps) {
                 >
                   <div className="flex items-center gap-2.5 text-left overflow-hidden">
                     <Tv className="w-4 h-4 shrink-0 text-sky-400" />
-                    <span className={`truncate text-sm ${selectedProduct ? (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
+                    <span className={`truncate text-[15px] sm:text-base ${selectedProduct ? (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold') : 'text-slate-400 font-semibold'}`}>
                       {selectedProduct
-                        ? `${selectedProduct.name} — ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                        ? `${selectedProduct.name} = ₦${getDynamicPrice(selectedProduct).toLocaleString('en-NG')}`
                         : `Select ${currentOp} Package`}
                     </span>
                   </div>
@@ -1898,66 +1949,57 @@ export default function ServiceForm(props: ServiceFormProps) {
                               : 'No matching packages found.'}
                           </div>
                         ) : (
-                          filteredPackages.map((p) => {
-                            const isSelected = selectedProduct && String(selectedProduct.id) === String(p.id);
-                            const dynamicPrice = getDynamicPrice(p);
+                          <div className={`divide-y rounded-2xl border overflow-hidden ${isLight ? 'divide-slate-200 bg-slate-50 border-slate-200' : 'divide-zinc-800 bg-[#181a20] border-zinc-800'}`}>
+                            {filteredPackages.map((p) => {
+                              const isSelected = selectedProduct && String(selectedProduct.id) === String(p.id);
+                              const dynamicPrice = getDynamicPrice(p);
+                              const formattedPrice = `₦${dynamicPrice.toLocaleString('en-NG')}`;
 
-                            return (
-                              <div
-                                key={String(p.id)}
-                                onClick={() => {
-                                  setSelectedProduct(p);
-                                  setCheckoutAmount(dynamicPrice.toString());
-                                  setIsCableModalOpen(false);
-                                }}
-                                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                                  isSelected
-                                    ? (isLight
-                                        ? 'bg-sky-50 border-sky-400 ring-2 ring-sky-300/40'
-                                        : 'bg-sky-500/15 border-sky-500 ring-2 ring-sky-500/30')
-                                    : (isLight
-                                        ? 'bg-slate-50/80 hover:bg-slate-100/90 border-slate-200'
-                                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800')
-                                }`}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`text-[14.5px] sm:text-[15px] font-bold truncate ${
-                                      isSelected
-                                        ? (isLight ? 'text-sky-950 font-black' : 'text-sky-300 font-black')
-                                        : (isLight ? 'text-slate-900 font-bold' : 'text-slate-100 font-bold')
-                                    }`}>
-                                      {p.name}
-                                    </span>
-                                  </div>
-                                  {p.description && p.description !== p.name && (
-                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                                      {p.description}
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`text-xs font-black font-mono px-2.5 py-1 rounded-xl border ${
+                              return (
+                                <div
+                                  key={String(p.id)}
+                                  onClick={() => {
+                                    setSelectedProduct(p);
+                                    setCheckoutAmount(dynamicPrice.toString());
+                                    setIsCableModalOpen(false);
+                                  }}
+                                  className={`py-3.5 sm:py-4 px-3.5 sm:px-4 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                                     isSelected
-                                      ? (isLight
-                                          ? 'bg-sky-500 text-white border-sky-600 shadow-xs'
-                                          : 'bg-sky-500 text-slate-950 border-sky-400 font-black')
-                                      : (isLight
-                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                          : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30')
-                                  }`}>
-                                    ₦{dynamicPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-                                  </span>
-                                  {isSelected && (
-                                    <div className="w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0">
-                                      <Check className="w-3 h-3 stroke-[3]" />
-                                    </div>
-                                  )}
+                                      ? (isLight ? 'bg-sky-50/80 text-sky-950 font-bold' : 'bg-white/[0.08] text-white font-bold')
+                                      : (isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-zinc-800/50 text-zinc-100')
+                                  }`}
+                                >
+                                  <div className="flex-1 min-w-0 pr-1">
+                                    <span className={`text-[16px] sm:text-[17px] font-bold tracking-tight block ${
+                                      isSelected
+                                        ? (isLight ? 'text-sky-950 font-extrabold' : 'text-white font-extrabold')
+                                        : (isLight ? 'text-slate-900 font-bold' : 'text-white font-bold')
+                                    }`}>
+                                      {p.name} = {formattedPrice}
+                                    </span>
+                                    {p.description && p.description !== p.name && (
+                                      <p className="text-xs text-slate-400 truncate mt-0.5">
+                                        {p.description}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Circular Radio Button matching reference image */}
+                                  <div
+                                    className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                                      isSelected
+                                        ? (isLight ? 'border-sky-600 bg-sky-600' : 'border-white bg-white')
+                                        : (isLight ? 'border-slate-400' : 'border-zinc-500')
+                                    }`}
+                                  >
+                                    {isSelected && (
+                                      <div className={`w-2 h-2 rounded-full ${isLight ? 'bg-white' : 'bg-slate-950'}`} />
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
