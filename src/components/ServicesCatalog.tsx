@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import {
   Smartphone, Wifi, Tv, Lightbulb, BookOpen, Repeat, Plus, Headphones,
-  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Building2, CreditCard
+  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Package, CreditCard
 } from 'lucide-react';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -54,6 +54,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     category: string;
     icon: any;
     adminGated?: boolean;
+    isNew?: boolean;
   }[] = [
     // Telecom
     { id: 'airtime', name: 'Airtime', desc: 'Instant VTU top-up', category: 'telecom', icon: Smartphone, adminGated: true },
@@ -66,7 +67,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     // Education
     { id: 'exams', name: 'Exam Card', desc: 'WAEC, NECO, NABTEB', category: 'education', icon: BookOpen, adminGated: true },
         // Physical Products & Utilities
-    { id: 'physical-products', name: 'Physical Products Hub', desc: 'Meters, phones, POS & electronics', category: 'hardware', icon: Building2 },
+    { id: 'physical-products', name: 'Physical Products Hub', desc: 'Meters, phones, POS & electronics', category: 'hardware', icon: Package, isNew: true },
     { id: 'prepaid-meter', name: 'Prepaid Meter', desc: 'DisCo certified meter onboarding', category: 'hardware', icon: Zap },
     { id: 'installment-phone', name: 'Installment Phone', desc: 'Brand new phones with weekly/monthly plans', category: 'hardware', icon: Smartphone },
     { id: 'pos-device', name: 'POS Device Purchase', desc: 'Android & MPOS terminals with 60-day protection', category: 'hardware', icon: CreditCard },
@@ -155,8 +156,13 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
                     onClick={() => onNavigate(srv.id)}
                     className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
                   >
-                    <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200">
-                      <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm" />
+                    <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200 relative">
+                      <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm group-hover:scale-105 transition-transform" />
+                      {srv.isNew && (
+                        <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider bg-sky-500 text-white shadow-md shadow-sky-500/30 border border-sky-400/40 font-display">
+                          NEW
+                        </span>
+                      )}
                     </div>
                     <div className="text-center">
                       <span className="text-[10.5px] font-bold text-slate-300 font-display tracking-tight leading-tight group-hover:text-white transition-colors block">

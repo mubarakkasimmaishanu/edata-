@@ -3,7 +3,7 @@ import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types'
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Building2
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -316,14 +316,14 @@ export default function UserDashboard({
   // backend returns no active ServiceType in that category, the tile is
   // hidden here. `support` is an app-level nav item, not an admin-managed
   // service category, so it always shows.
-  const allServiceTiles: { id: string; name: string; icon: any; adminGated?: boolean }[] = [
+  const allServiceTiles: { id: string; name: string; icon: any; adminGated?: boolean; isNew?: boolean }[] = [
     { id: 'airtime',     name: 'Airtime',     icon: Smartphone, adminGated: true },
     { id: 'data',        name: 'Data',        icon: Layers,     adminGated: true },
     { id: 'cable',       name: 'Cable TV',    icon: Tv,         adminGated: true },
     { id: 'electricity', name: 'Electricity', icon: Lightbulb,  adminGated: true },
     { id: 'a2c',         name: 'A2C',         icon: Repeat,     adminGated: true },
     { id: 'exams',       name: 'Exam Card',   icon: BookOpen,   adminGated: true },
-    { id: 'physical-products', name: 'Physical Hub', icon: Building2 },
+    { id: 'physical-products', name: 'Physical Hub', icon: Package, isNew: true },
     { id: 'support',     name: 'Support',     icon: Headphones },
   ];
   const services = allServiceTiles.filter(tile =>
@@ -651,8 +651,13 @@ export default function UserDashboard({
                   onClick={() => onNavigate(srv.id)}
                   className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
                 >
-                  <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200">
-                    <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm" />
+                  <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200 relative">
+                    <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm group-hover:scale-105 transition-transform" />
+                    {srv.isNew && (
+                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider bg-sky-500 text-white shadow-md shadow-sky-500/30 border border-sky-400/40 font-display">
+                        NEW
+                      </span>
+                    )}
                   </div>
                   <span className="text-[10.5px] font-bold text-slate-300 font-display tracking-tight text-center leading-tight group-hover:text-white transition-colors">
                     {srv.name}

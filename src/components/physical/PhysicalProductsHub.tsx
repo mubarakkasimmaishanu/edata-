@@ -7,7 +7,7 @@ import {
   Tv,
   ChevronRight,
   ShieldCheck,
-  Building2,
+  Package,
   Sparkles,
   Loader2,
   HelpCircle,
@@ -179,7 +179,7 @@ export default function PhysicalProductsHub({
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-base font-bold font-display tracking-tight flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-primary" />
+            <Package className="w-4.5 h-4.5 text-sky-400" />
             <span>Physical Products &amp; Utilities</span>
           </h1>
           <span className="text-[10px] text-slate-500 font-medium">Hardware Marketplace</span>

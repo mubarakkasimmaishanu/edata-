@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Layers, Headphones, User } from 'lucide-react';
+import { Home, LayoutGrid, Headphones, User } from 'lucide-react';
 
 interface BottomNavProps {
   activeView: string;
@@ -9,7 +9,7 @@ interface BottomNavProps {
 export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: Home },
-    { id: 'services', label: 'Services', icon: Layers },
+    { id: 'services', label: 'Services', icon: LayoutGrid },
     { id: 'support', label: 'Support', icon: Headphones },
     { id: 'profile', label: 'Profile', icon: User },
   ];
@@ -17,7 +17,7 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
   return (
     <nav className="fixed bottom-4 left-4 right-4 h-16 bg-slate-900/90 backdrop-blur-2xl border border-slate-800/90 shadow-2xl shadow-slate-950/80 rounded-[2rem] flex justify-around items-center px-3 z-50 max-w-lg mx-auto safe-bottom animate-slide-up">
       {navItems.map((item) => {
-        const isActive = activeView === item.id || (item.id === 'services' && ['services', 'airtime', 'data', 'cable', 'electricity', 'exams', 'a2c', 'fund'].includes(activeView));
+        const isActive = activeView === item.id || (item.id === 'services' && ['services', 'airtime', 'data', 'cable', 'electricity', 'exams', 'a2c', 'fund', 'physical-products', 'prepaid-meter', 'installment-phone', 'pos-device', 'others'].includes(activeView));
         const Icon = item.icon;
 
         return (
