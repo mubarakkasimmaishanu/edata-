@@ -100,6 +100,8 @@ export interface ProductItem {
   priceNormal: number;
   priceReferred: number;
   pricePremium: number;
+  cost_price?: number;
+  costPrice?: number;
   active: boolean;
   description?: string;
   planTypeId?: number | null;

@@ -16,6 +16,7 @@ import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNoti
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
 import { initChatwoot, syncChatwootUser, clearChatwootIdentity } from './services/chatwootService';
 import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Helper to auto-recover when a chunk hash changed after deployment
@@ -317,8 +318,8 @@ function MainApp() {
         email: currentUser.email,
         phone: currentUser.phone,
         avatar: currentUser.avatar,
-        balance: currentUser.balance,
-        role: currentUser.role,
+        balance: currentUser.walletBalance,
+        role: currentUser.category,
       });
     } else {
       clearChatwootIdentity();
@@ -1816,7 +1817,7 @@ function MainApp() {
           />
         )}
 
-        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'dashboard' && (
+        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'app' && activeView === 'dashboard' && (
           <ContactInfoModal
             isOpen={true}
             isForced={Boolean(contactPromptData.is_forced)}

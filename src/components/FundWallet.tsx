@@ -219,7 +219,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   };
 
   // Online funding state (Paystack & Payvessel)
-  const [gateway] = useState<'payvessel'>('payvessel');
+  const [gateway] = useState<'payvessel' | 'paystack'>('payvessel');
   const [onlineAmount, setOnlineAmount] = useState('2000');
   const grossOnline = parseFloat(onlineAmount || '0') || 0;
   const chargePercent = 0.01;
