@@ -75,7 +75,10 @@ const Notifications = lazyWithRetry(() => import('./components/Notifications'));
 const ServicesCatalog = lazyWithRetry(() => import('./components/ServicesCatalog'));
 const ResellerUpgrade = lazyWithRetry(() => import('./components/ResellerUpgrade'));
 const ReferralScreen = lazyWithRetry(() => import('./components/ReferralScreen'));
-const PhysicalProductsHub = lazyWithRetry(() => import('./components/physical/PhysicalProductsHub'));
+const InstallmentPhoneFlow = lazyWithRetry(() => import('./components/physical/InstallmentPhoneFlow'));
+const PrepaidMeterFlow = lazyWithRetry(() => import('./components/physical/PrepaidMeterFlow'));
+const PosDeviceFlow = lazyWithRetry(() => import('./components/physical/PosDeviceFlow'));
+const OtherProductsFlow = lazyWithRetry(() => import('./components/physical/OtherProductsFlow'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
 // so the transition is silent (no white flash, no jarring spinner).
@@ -1691,20 +1694,36 @@ function MainApp() {
                   />
                 )}
 
-                {(activeView === 'physical-products' || activeView === 'prepaid-meter' || activeView === 'installment-phone' || activeView === 'pos-device' || activeView === 'others') && (
-                  <PhysicalProductsHub
+                {activeView === 'installment-phone' && (
+                  <InstallmentPhoneFlow
                     currentUser={currentUser}
-                    initialService={
-                      activeView === 'prepaid-meter'
-                        ? 'prepaid_meter'
-                        : activeView === 'installment-phone'
-                        ? 'installment_phone'
-                        : activeView === 'pos-device'
-                        ? 'pos_device'
-                        : activeView === 'others'
-                        ? 'others'
-                        : null
-                    }
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
+
+                {activeView === 'pos-device' && (
+                  <PosDeviceFlow
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
+
+                {activeView === 'prepaid-meter' && (
+                  <PrepaidMeterFlow
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
+
+                {activeView === 'others' && (
+                  <OtherProductsFlow
+                    currentUser={currentUser}
                     onBack={handleGoBack}
                     onNavigate={navigateTo}
                     onRefreshWallet={handleGlobalRefresh}

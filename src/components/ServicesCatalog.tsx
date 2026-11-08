@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import {
   Smartphone, Wifi, Tv, Lightbulb, BookOpen, Repeat, Plus, Headphones,
-  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Package, CreditCard
+  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Package, CreditCard, Sun
 } from 'lucide-react';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -41,6 +41,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     { id: 'all', label: 'All' },
     { id: 'telecom', label: 'Airtime & Data' },
     { id: 'bills', label: 'TV & Utilities' },
+    { id: 'hardware', label: 'Devices & Solar' },
     { id: 'education', label: 'Exams & Pins' },
   ];
 
@@ -66,12 +67,11 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     { id: 'electricity', name: 'Electricity', desc: 'Prepaid & Postpaid', category: 'bills', icon: Lightbulb, adminGated: true },
     // Education
     { id: 'exams', name: 'Exam Card', desc: 'WAEC, NECO, NABTEB', category: 'education', icon: BookOpen, adminGated: true },
-        // Physical Products & Utilities
-    { id: 'physical-products', name: 'Physical Products Hub', desc: 'Meters, phones, POS & electronics', category: 'hardware', icon: Package, isNew: true },
-    { id: 'prepaid-meter', name: 'Prepaid Meter', desc: 'DisCo certified meter onboarding', category: 'hardware', icon: Zap },
-    { id: 'installment-phone', name: 'Installment Phone', desc: 'Brand new phones with weekly/monthly plans', category: 'hardware', icon: Smartphone },
-    { id: 'pos-device', name: 'POS Device Purchase', desc: 'Android & MPOS terminals with 60-day protection', category: 'hardware', icon: CreditCard },
-    { id: 'others', name: 'Other Electronics', desc: 'Smart TVs, solar inverters & appliances', category: 'hardware', icon: Tv },
+    // Hardware, Devices & Solar
+    { id: 'installment-phone', name: 'Phones', desc: 'Original smartphones with weekly/monthly flexible plans', category: 'hardware', icon: Smartphone, isNew: true },
+    { id: 'pos-device', name: 'POS Terminal', desc: 'Android & MPOS terminals with instant settlement', category: 'hardware', icon: CreditCard, isNew: true },
+    { id: 'prepaid-meter', name: 'Prepaid Meter', desc: 'DisCo certified 1 Phase, 3 Phase & MD meters', category: 'hardware', icon: Zap },
+    { id: 'others', name: 'Solar & Inverter', desc: 'Solar systems, inverters, smart TVs & home appliances', category: 'hardware', icon: Sun },
     // Other
     { id: 'referral', name: 'Referral', desc: 'Invite & earn', category: 'telecom', icon: Gift },
     { id: 'support', name: 'Support', desc: '24/7 help desk', category: 'telecom', icon: Headphones },

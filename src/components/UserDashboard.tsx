@@ -3,7 +3,7 @@ import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types'
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package, CreditCard, Zap
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -317,20 +317,25 @@ export default function UserDashboard({
   // hidden here. `support` is an app-level nav item, not an admin-managed
   // service category, so it always shows.
   const allServiceTiles: { id: string; name: string; icon: any; adminGated?: boolean; isNew?: boolean }[] = [
-    { id: 'airtime',     name: 'Airtime',     icon: Smartphone, adminGated: true },
-    { id: 'data',        name: 'Data',        icon: Layers,     adminGated: true },
-    { id: 'cable',       name: 'Cable TV',    icon: Tv,         adminGated: true },
-    { id: 'electricity', name: 'Electricity', icon: Lightbulb,  adminGated: true },
-    { id: 'a2c',         name: 'A2C',         icon: Repeat,     adminGated: true },
-    { id: 'exams',       name: 'Exam Card',   icon: BookOpen,   adminGated: true },
-    { id: 'physical-products', name: 'Physical Hub', icon: Package, isNew: true },
-    { id: 'support',     name: 'Support',     icon: Headphones },
+    { id: 'airtime',           name: 'Airtime',        icon: Smartphone, adminGated: true },
+    { id: 'data',              name: 'Data',           icon: Layers,     adminGated: true },
+    { id: 'cable',             name: 'Cable TV',       icon: Tv,         adminGated: true },
+    { id: 'electricity',       name: 'Electricity',    icon: Lightbulb,  adminGated: true },
+    { id: 'installment-phone', name: 'Phones',         icon: Smartphone, isNew: true },
+    { id: 'pos-device',        name: 'POS',            icon: CreditCard, isNew: true },
+    { id: 'prepaid-meter',     name: 'Prepaid Meter',  icon: Zap,        isNew: true },
+    { id: 'others',            name: 'Solar',          icon: Sun,        isNew: true },
+    { id: 'a2c',               name: 'A2C',            icon: Repeat,     adminGated: true },
+    { id: 'exams',             name: 'Exam Card',      icon: BookOpen,   adminGated: true },
   ];
   const services = allServiceTiles.filter(tile =>
     !tile.adminGated
     || serviceCategories.length === 0 // no sync yet — show everything so nothing looks broken
     || serviceCategories.includes(tile.id)
   );
+  // Display exactly 7 primary services on the dashboard, with the 8th tile as 'More' (+)
+  const MAX_DASHBOARD_SERVICES = 7;
+  const displayedServices = services.slice(0, MAX_DASHBOARD_SERVICES);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-36">
@@ -643,7 +648,7 @@ export default function UserDashboard({
           </div>
 
           <div className="grid grid-cols-4 gap-2.5">
-            {services.map((srv) => {
+            {displayedServices.map((srv) => {
               const Icon = srv.icon;
               return (
                 <button
@@ -666,15 +671,19 @@ export default function UserDashboard({
               );
             })}
 
-            {/* "More" navigation card — same style as service cards */}
+            {/* "More" navigation card with Plus (+) icon */}
             <button
               onClick={() => onNavigate('services')}
               className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
+              title="View all services"
             >
-              <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200">
-                <MoreHorizontal className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm" />
+              <div className="w-full aspect-square rounded-2xl bg-sky-500/10 border border-sky-500/40 flex items-center justify-center shadow-md group-hover:border-sky-400 group-hover:bg-sky-500/20 group-active:bg-sky-500/30 transition-all duration-200 relative">
+                <Plus className="w-7 h-7 text-sky-400 stroke-[2.4] drop-shadow-sm group-hover:scale-110 transition-transform" />
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider bg-sky-500 text-white shadow-md shadow-sky-500/30 border border-sky-400/40 font-display">
+                  MORE
+                </span>
               </div>
-              <span className="text-[10.5px] font-bold text-slate-300 font-display tracking-tight text-center leading-tight group-hover:text-white transition-colors">
+              <span className="text-[10.5px] font-bold text-sky-300 font-display tracking-tight text-center leading-tight group-hover:text-white transition-colors">
                 More
               </span>
             </button>
