@@ -65,6 +65,48 @@ export default function InstallmentPhoneFlow({
   const [selectedPlan, setSelectedPlan] = useState<PhysicalProductPlan | null>(null);
   const [selectedStorage, setSelectedStorage] = useState('128GB');
   const [selectedColor, setSelectedColor] = useState('Phantom Black');
+  const [customColor, setCustomColor] = useState('');
+
+  // Dynamic brand-tailored color palettes with visual swatches
+  const getBrandColors = (product: PhysicalProductItem | null): { name: string; hex: string }[] => {
+    const brand = (product?.brand || '').toLowerCase();
+    const name = (product?.name || '').toLowerCase();
+    if (brand.includes('apple') || name.includes('iphone')) {
+      return [
+        { name: 'Space Black', hex: '#1c1c1e' },
+        { name: 'Natural Titanium', hex: '#9e9992' },
+        { name: 'Silver / White', hex: '#e3e4e5' },
+        { name: 'Gold', hex: '#fae7cf' },
+        { name: 'Deep Purple', hex: '#483d4e' },
+        { name: 'Blue', hex: '#1e3a5f' },
+      ];
+    }
+    if (brand.includes('samsung')) {
+      return [
+        { name: 'Phantom Black', hex: '#111111' },
+        { name: 'Marble Gray', hex: '#7a7e80' },
+        { name: 'Cobalt Violet', hex: '#483860' },
+        { name: 'Amber Yellow', hex: '#f0c868' },
+        { name: 'Awesome Navy', hex: '#1e293b' },
+        { name: 'Ice Blue', hex: '#bfdbfe' },
+      ];
+    }
+    if (brand.includes('xiaomi') || brand.includes('redmi')) {
+      return [
+        { name: 'Midnight Black', hex: '#0f172a' },
+        { name: 'Glacier Silver', hex: '#cbd5e1' },
+        { name: 'Ocean Blue', hex: '#0284c7' },
+        { name: 'Forest Green', hex: '#059669' },
+      ];
+    }
+    return [
+      { name: 'Midnight Black', hex: '#0f172a' },
+      { name: 'Titanium Gray', hex: '#64748b' },
+      { name: 'Royal Blue', hex: '#1d4ed8' },
+      { name: 'Sunset Gold', hex: '#d97706' },
+      { name: 'Emerald Green', hex: '#047857' },
+    ];
+  };
 
   // Application Form State
   const [buyingFor, setBuyingFor] = useState<'personal' | 'third_party'>('personal');
@@ -145,6 +187,11 @@ export default function InstallmentPhoneFlow({
     setSelectedProduct(product);
     setSelectedImageIndex(0);
     setAdminFee(product.effective_admin_fee || 5000);
+    const brandColors = getBrandColors(product);
+    if (brandColors.length > 0) {
+      setSelectedColor(brandColors[0].name);
+    }
+    setCustomColor('');
 
     if (product.plans && product.plans.length > 0) {
       setSelectedPlan(product.plans[0]);
@@ -254,7 +301,7 @@ export default function InstallmentPhoneFlow({
         state: stateName,
         lga: lgaName,
         delivery_address: deliveryAddress.trim(),
-        selected_specs: `${selectedStorage} | ${selectedColor}`,
+        selected_specs: `${selectedStorage} | Color: ${customColor.trim() ? customColor.trim() : selectedColor}`,
         transaction_pin: enteredPin,
       };
 
@@ -562,24 +609,65 @@ export default function InstallmentPhoneFlow({
               </div>
 
               <div>
-                <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Color</span>
-                <div className="flex gap-2">
-                  {['Phantom Black', 'Marble Gray', 'Cobalt Violet'].map(col => (
-                    <button
-                      key={col}
-                      type="button"
-                      onClick={() => setSelectedColor(col)}
-                      className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        selectedColor === col
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                          : isLight
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      {col}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Device Color Option
+                  </span>
+                  <span className="text-[11px] font-bold text-sky-500 dark:text-emerald-400">
+                    {customColor.trim() ? customColor.trim() : selectedColor}
+                  </span>
+                </div>
+
+                {/* Color Swatch Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {getBrandColors(selectedProduct).map(c => {
+                    const isSelected = selectedColor === c.name && !customColor.trim();
+                    return (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => {
+                          setSelectedColor(c.name);
+                          setCustomColor('');
+                        }}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border ${
+                          isSelected
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-sky-500 dark:bg-white dark:text-slate-900 dark:border-white'
+                            : isLight
+                            ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                            : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0"
+                          style={{ backgroundColor: c.hex }}
+                        />
+                        <span>{c.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom / Alternative Color input for maximum customer flexibility */}
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    value={customColor}
+                    onChange={e => setCustomColor(e.target.value)}
+                    placeholder="Or type custom color preference (e.g. Natural Titanium, Emerald, Gold)..."
+                    className={`w-full py-2.5 px-3.5 rounded-xl text-xs border outline-none transition-all ${
+                      customColor.trim()
+                        ? 'border-sky-500 ring-2 ring-sky-500/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
+                        : isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                        : 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
+                    }`}
+                  />
+                  {customColor.trim() && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                      ✓ Custom color &quot;{customColor.trim()}&quot; will be dispatched by admin.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -658,9 +746,17 @@ export default function InstallmentPhoneFlow({
           <div>
             <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300">Selected Device & Plan</span>
             <h3 className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">{selectedProduct?.name}</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              {selectedStorage} | {selectedColor} | {selectedPlan?.plan_name} (₦{selectedPlan?.installment_amount.toLocaleString()}{selectedPlan?.frequency_label})
-            </p>
+            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs">
+                {selectedStorage}
+              </span>
+              <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-400/30">
+                Color: {customColor.trim() ? customColor.trim() : selectedColor}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500">
+                • {selectedPlan?.plan_name} (₦{selectedPlan?.installment_amount.toLocaleString()}{selectedPlan?.frequency_label})
+              </span>
+            </div>
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400">Admin Fee</span>
