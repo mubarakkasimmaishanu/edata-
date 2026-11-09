@@ -81,6 +81,7 @@ const PrepaidMeterFlow = lazyWithRetry(() => import('./components/physical/Prepa
 const PosDeviceFlow = lazyWithRetry(() => import('./components/physical/PosDeviceFlow'));
 const SolarFlow = lazyWithRetry(() => import('./components/physical/SolarFlow'));
 const OtherProductsFlow = lazyWithRetry(() => import('./components/physical/OtherProductsFlow'));
+const PhysicalProductsHub = lazyWithRetry(() => import('./components/physical/PhysicalProductsHub'));
 
 // Minimal in-app route loader — matches the existing dot-loading utility
 // so the transition is silent (no white flash, no jarring spinner).
@@ -1731,8 +1732,26 @@ function MainApp() {
                   />
                 )}
 
-                {(activeView === 'solar' || activeView === 'others') && (
+                {activeView === 'solar' && (
                   <SolarFlow
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
+
+                {activeView === 'others' && (
+                  <OtherProductsFlow
+                    currentUser={currentUser}
+                    onBack={handleGoBack}
+                    onNavigate={navigateTo}
+                    onRefreshWallet={handleGlobalRefresh}
+                  />
+                )}
+
+                {activeView === 'physical-products' && (
+                  <PhysicalProductsHub
                     currentUser={currentUser}
                     onBack={handleGoBack}
                     onNavigate={navigateTo}
@@ -1742,8 +1761,10 @@ function MainApp() {
               </React.Suspense>
               </ErrorBoundary>
 
-              {/* Floating Glassmorphic Bottom Navigation */}
-              <BottomNav activeView={activeView} onNavigate={navigateTo} />
+              {/* Floating Glassmorphic Bottom Navigation (Hidden on physical/hardware flows so submit buttons are completely unobstructed) */}
+              {!['installment-phone', 'pos-device', 'prepaid-meter', 'solar', 'others', 'physical-products'].includes(activeView) && (
+                <BottomNav activeView={activeView} onNavigate={navigateTo} />
+              )}
 
               {/* ── Direct Quick Action PIN Checkout Screen ── */}
               {pinScreenMode && (

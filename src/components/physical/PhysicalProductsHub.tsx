@@ -4,6 +4,7 @@ import {
   Zap,
   Smartphone,
   CreditCard,
+  Sun,
   Tv,
   ChevronRight,
   ShieldCheck,
@@ -20,6 +21,7 @@ import { UserProfile, PhysicalProductServiceCard, PhysicalProductCategory } from
 import PrepaidMeterFlow from './PrepaidMeterFlow';
 import InstallmentPhoneFlow from './InstallmentPhoneFlow';
 import PosDeviceFlow from './PosDeviceFlow';
+import SolarFlow from './SolarFlow';
 import OtherProductsFlow from './OtherProductsFlow';
 
 interface PhysicalProductsHubProps {
@@ -103,6 +105,17 @@ export default function PhysicalProductsHub({
     );
   }
 
+  if (activeSubFlow === 'solar') {
+    return (
+      <SolarFlow
+        currentUser={currentUser}
+        onBack={() => setActiveSubFlow(null)}
+        onNavigate={onNavigate}
+        onRefreshWallet={onRefreshWallet}
+      />
+    );
+  }
+
   if (activeSubFlow === 'others') {
     return (
       <OtherProductsFlow
@@ -141,6 +154,14 @@ export default function PhysicalProductsHub({
       admin_fee: 5000,
     },
     {
+      key: 'solar',
+      title: 'Solar & Inverter Systems',
+      description: 'Hybrid solar inverters, lithium battery banks & clean energy power stations.',
+      icon: 'sun',
+      badge: 'Clean Energy',
+      admin_fee: 5000,
+    },
+    {
       key: 'others',
       title: 'Others (Electronics & Utilities)',
       description: 'Smart TVs, inverters, solar generators, and verified home appliances.',
@@ -160,6 +181,8 @@ export default function PhysicalProductsHub({
         return <Smartphone className="w-6 h-6 text-sky-500 dark:text-emerald-400" />;
       case 'pos_device':
         return <CreditCard className="w-6 h-6 text-blue-500" />;
+      case 'solar':
+        return <Sun className="w-6 h-6 text-amber-500 fill-amber-500" />;
       case 'others':
       default:
         return <Tv className="w-6 h-6 text-indigo-500" />;
@@ -208,7 +231,7 @@ export default function PhysicalProductsHub({
               Hardware &amp; Utility Requests
             </h2>
             <p className="text-xs text-emerald-100/90 mt-1 leading-relaxed">
-              Order DisCo prepaid meters, smartphones on installments, POS devices, and home appliances directly to your location.
+              Order DisCo prepaid meters, smartphones on installments, POS devices, solar setups, and home appliances directly to your location.
             </p>
           </div>
           <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />

@@ -333,8 +333,8 @@ export default function UserDashboard({
     || serviceCategories.length === 0 // no sync yet — show everything so nothing looks broken
     || serviceCategories.includes(tile.id)
   );
-  // Display exactly 7 primary services on the dashboard, with the 8th tile as 'More' (+)
-  const MAX_DASHBOARD_SERVICES = 7;
+  // Display up to 11 services on the dashboard so all 4 new hardware services (Phones, POS, Meter, Solar) are directly visible, with the 12th tile as 'More' (+) in a clean 3x4 grid
+  const MAX_DASHBOARD_SERVICES = 11;
   const displayedServices = services.slice(0, MAX_DASHBOARD_SERVICES);
 
   return (

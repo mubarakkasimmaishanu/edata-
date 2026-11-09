@@ -284,7 +284,7 @@ export default function InstallmentPhoneFlow({
   // -------------------------------------------------------------
   if (viewState === 'catalog') {
     return (
-      <div className={`min-h-screen pb-24 ${isLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-950 text-white'}`}>
+      <div className={`min-h-screen pb-36 ${isLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-950 text-white'}`}>
         {/* Top App Header */}
         <header className="sticky top-0 z-30 px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-3">
@@ -620,9 +620,9 @@ export default function InstallmentPhoneFlow({
           <button
             type="button"
             onClick={() => setViewState('apply')}
-            className="py-3 px-6 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            className="py-3 px-5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
-            <span>Order on Installment</span>
+            <span>Continue to Submit</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -816,21 +816,31 @@ export default function InstallmentPhoneFlow({
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="pt-2">
+      </main>
+
+      {/* Sticky Bottom Submit Bar */}
+      <div className="fixed bottom-0 inset-x-0 p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 z-40 max-w-md mx-auto shadow-2xl safe-bottom">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Admin Fee</span>
+            <div className="text-base font-black text-sky-500 dark:text-emerald-400 font-mono">
+              ₦{adminFee.toLocaleString()}
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={handleInitiateApply}
-            className="w-full py-3.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>Pay ₦{adminFee.toLocaleString()} Administrative Fee &amp; Submit</span>
+            <span>Submit Application to Admin</span>
           </button>
-          <p className="text-[11px] text-center text-slate-400 mt-2">
-            Non-refundable administrative fee is debited directly from your eData wallet
-          </p>
         </div>
-      </main>
+        <p className="text-[10px] text-center text-slate-400 mt-1.5">
+          Admin fee is deducted from your wallet balance upon PIN confirmation
+        </p>
+      </div>
 
       {/* PIN Confirmation Modal */}
       <PhysicalPinModal

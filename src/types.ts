@@ -453,7 +453,7 @@ export interface AppVersionData {
 // ==========================================
 // PHYSICAL PRODUCTS & HARDWARE SERVICES TYPES
 // ==========================================
-export type PhysicalProductCategory = 'prepaid_meter' | 'installment_phone' | 'pos_device' | 'others';
+export type PhysicalProductCategory = 'prepaid_meter' | 'installment_phone' | 'pos_device' | 'solar' | 'others';
 
 export interface PhysicalProductServiceCard {
   key: PhysicalProductCategory;

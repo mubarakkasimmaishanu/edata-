@@ -571,7 +571,7 @@ export default function SolarFlow({
               onClick={() => setViewState('apply')}
               className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-md shadow-amber-500/25 active:scale-95 flex items-center gap-1.5"
             >
-              <span>Request Solar Setup</span>
+              <span>Continue to Submit Solar Specs</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -790,7 +790,7 @@ export default function SolarFlow({
             onClick={handleInitiateApply}
             className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-md shadow-amber-500/25 active:scale-95 flex items-center gap-1.5"
           >
-            <span>Confirm &amp; Authorize</span>
+            <span>Submit Solar Application to Admin</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
