@@ -60,8 +60,23 @@ export default function OtherProductsFlow({
   const [lgaName, setLgaName] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedColor, setSelectedColor] = useState('Standard Black');
-  const [customColor, setCustomColor] = useState('');
+  const [selectedSpec, setSelectedSpec] = useState('50-Inch (Standard)');
+
+  // Dynamic specification / screen size multipliers
+  const SPEC_OPTIONS: { label: string; multiplier: number }[] = [
+    { label: '43-Inch', multiplier: 0.85 },
+    { label: '50-Inch (Standard)', multiplier: 1.0 },
+    { label: '55-Inch', multiplier: 1.20 },
+    { label: '65-Inch', multiplier: 1.50 },
+  ];
+
+  const getDynamicPrice = (product: PhysicalProductItem | null, specLabel: string): number => {
+    if (!product) return 0;
+    const base = Number(product.price) || 0;
+    const found = SPEC_OPTIONS.find(s => s.label === specLabel);
+    const mult = found ? found.multiplier : 1.0;
+    return Math.round((base * mult) / 100) * 100;
+  };
 
   // States & LGAs
   const [statesList, setStatesList] = useState<NigeriaState[]>([]);
@@ -221,7 +236,7 @@ export default function OtherProductsFlow({
         state: stateName,
         lga: lgaName,
         delivery_address: deliveryAddress.trim(),
-        notes: `Preferred Color: ${customColor.trim() ? customColor.trim() : selectedColor}${notes.trim() ? ' | ' + notes.trim() : ''}`,
+        notes: `Selected Spec: ${selectedSpec} (Price: ₦${getDynamicPrice(selectedProduct, selectedSpec).toLocaleString()})${notes.trim() ? ' | ' + notes.trim() : ''}`,
         transaction_pin: enteredPin,
       };
 
@@ -408,8 +423,13 @@ export default function OtherProductsFlow({
                 {selectedProduct.name}
               </h2>
 
-              <div className="mt-2 text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
-                ₦{selectedProduct.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
+                  ₦{getDynamicPrice(selectedProduct, selectedSpec).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-[11px] font-bold text-slate-400">
+                  ({selectedSpec})
+                </span>
               </div>
 
               <div className="mt-2 text-xs text-slate-500 flex items-center gap-2">
@@ -420,61 +440,41 @@ export default function OtherProductsFlow({
               </div>
             </div>
 
-            {/* Color / Finish Preference */}
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
-              <div className="flex items-center justify-between mb-2">
+            {/* Specification / Variant Selector with Dynamic Pricing */}
+            <div className={`p-4 rounded-2xl border space-y-2.5 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
+              <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Color / Finish Preference
+                  Select Size / Specification
                 </span>
                 <span className="text-[11px] font-bold text-sky-500 dark:text-emerald-400">
-                  {customColor.trim() ? customColor.trim() : selectedColor}
+                  ₦{getDynamicPrice(selectedProduct, selectedSpec).toLocaleString()}
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { name: 'Standard Black', hex: '#111111' },
-                  { name: 'Silver / Metallic', hex: '#94a3b8' },
-                  { name: 'White / Off-White', hex: '#e2e8f0' },
-                ].map(c => {
-                  const isSelected = selectedColor === c.name && !customColor.trim();
+              <div className="grid grid-cols-2 gap-2">
+                {SPEC_OPTIONS.map(opt => {
+                  const isSelected = selectedSpec === opt.label;
+                  const priceForOpt = getDynamicPrice(selectedProduct, opt.label);
                   return (
                     <button
-                      key={c.name}
+                      key={opt.label}
                       type="button"
-                      onClick={() => {
-                        setSelectedColor(c.name);
-                        setCustomColor('');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border ${
+                      onClick={() => setSelectedSpec(opt.label)}
+                      className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border ${
                         isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-sky-500 dark:bg-white dark:text-slate-900 dark:border-white'
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-sky-500 dark:bg-white dark:text-slate-900 dark:border-white'
                           : isLight
                           ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                           : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
                       }`}
                     >
-                      <span className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0" style={{ backgroundColor: c.hex }} />
-                      <span>{c.name}</span>
+                      <span className="block text-xs font-bold">{opt.label}</span>
+                      <span className={`block text-[10.5px] font-extrabold mt-0.5 ${isSelected ? (isLight ? 'text-sky-300' : 'text-sky-600') : 'text-sky-600 dark:text-emerald-400'}`}>
+                        ₦{priceForOpt.toLocaleString()}
+                      </span>
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="mt-3">
-                <input
-                  type="text"
-                  value={customColor}
-                  onChange={e => setCustomColor(e.target.value)}
-                  placeholder="Or specify custom color preference (e.g. Matte Gray, Rose Gold)..."
-                  className={`w-full py-2.5 px-3.5 rounded-xl text-xs border outline-none ${
-                    customColor.trim()
-                      ? 'border-sky-500 ring-2 ring-sky-500/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
-                      : isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
-                      : 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
-                  }`}
-                />
               </div>
             </div>
 
@@ -551,11 +551,16 @@ export default function OtherProductsFlow({
         {/* Product & Color Summary */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 via-sky-500/5 to-transparent border border-sky-200 dark:border-sky-800/60 flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-300">Selected Product</span>
+            <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-300">Selected Product & Spec</span>
             <h3 className="text-xs font-bold text-slate-900 dark:text-white mt-0.5">{selectedProduct?.name}</h3>
-            <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-400/30">
-              Color: {customColor.trim() ? customColor.trim() : selectedColor}
-            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs">
+                {selectedSpec}
+              </span>
+              <span className="text-[11px] font-black text-sky-600 dark:text-sky-400">
+                ₦{getDynamicPrice(selectedProduct, selectedSpec).toLocaleString()}
+              </span>
+            </div>
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400">Admin Fee</span>

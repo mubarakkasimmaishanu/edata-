@@ -64,48 +64,44 @@ export default function InstallmentPhoneFlow({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState<PhysicalProductPlan | null>(null);
   const [selectedStorage, setSelectedStorage] = useState('128GB');
-  const [selectedColor, setSelectedColor] = useState('Phantom Black');
-  const [customColor, setCustomColor] = useState('');
 
-  // Dynamic brand-tailored color palettes with visual swatches
-  const getBrandColors = (product: PhysicalProductItem | null): { name: string; hex: string }[] => {
-    const brand = (product?.brand || '').toLowerCase();
-    const name = (product?.name || '').toLowerCase();
-    if (brand.includes('apple') || name.includes('iphone')) {
-      return [
-        { name: 'Space Black', hex: '#1c1c1e' },
-        { name: 'Natural Titanium', hex: '#9e9992' },
-        { name: 'Silver / White', hex: '#e3e4e5' },
-        { name: 'Gold', hex: '#fae7cf' },
-        { name: 'Deep Purple', hex: '#483d4e' },
-        { name: 'Blue', hex: '#1e3a5f' },
-      ];
-    }
-    if (brand.includes('samsung')) {
-      return [
-        { name: 'Phantom Black', hex: '#111111' },
-        { name: 'Marble Gray', hex: '#7a7e80' },
-        { name: 'Cobalt Violet', hex: '#483860' },
-        { name: 'Amber Yellow', hex: '#f0c868' },
-        { name: 'Awesome Navy', hex: '#1e293b' },
-        { name: 'Ice Blue', hex: '#bfdbfe' },
-      ];
-    }
-    if (brand.includes('xiaomi') || brand.includes('redmi')) {
-      return [
-        { name: 'Midnight Black', hex: '#0f172a' },
-        { name: 'Glacier Silver', hex: '#cbd5e1' },
-        { name: 'Ocean Blue', hex: '#0284c7' },
-        { name: 'Forest Green', hex: '#059669' },
-      ];
-    }
-    return [
-      { name: 'Midnight Black', hex: '#0f172a' },
-      { name: 'Titanium Gray', hex: '#64748b' },
-      { name: 'Royal Blue', hex: '#1d4ed8' },
-      { name: 'Sunset Gold', hex: '#d97706' },
-      { name: 'Emerald Green', hex: '#047857' },
-    ];
+  // Dynamic storage tier multipliers & pricing logic
+  const STORAGE_MULTIPLIERS: Record<string, number> = {
+    '64GB': 0.85,
+    '128GB': 1.0,
+    '256GB': 1.15,
+    '512GB': 1.35,
+    '1TB': 1.60,
+  };
+
+  const AVAILABLE_STORAGES = ['128GB', '256GB', '512GB', '1TB'];
+
+  const getBaseStorage = (product: PhysicalProductItem | null): string => {
+    const name = (product?.name || '').toUpperCase();
+    if (name.includes('1TB')) return '1TB';
+    if (name.includes('512GB')) return '512GB';
+    if (name.includes('256GB')) return '256GB';
+    if (name.includes('64GB')) return '64GB';
+    return '128GB';
+  };
+
+  const getDynamicPrice = (product: PhysicalProductItem | null, storage: string): number => {
+    if (!product) return 0;
+    const baseStorage = getBaseStorage(product);
+    const basePrice = Number(product.price) || 0;
+    const baseMult = STORAGE_MULTIPLIERS[baseStorage] || 1.0;
+    const targetMult = STORAGE_MULTIPLIERS[storage] || 1.0;
+    const ratio = targetMult / baseMult;
+    return Math.round((basePrice * ratio) / 100) * 100;
+  };
+
+  const getDynamicPlanAmount = (plan: PhysicalProductPlan, product: PhysicalProductItem | null, storage: string): number => {
+    if (!product) return plan.installment_amount;
+    const baseStorage = getBaseStorage(product);
+    const baseMult = STORAGE_MULTIPLIERS[baseStorage] || 1.0;
+    const targetMult = STORAGE_MULTIPLIERS[storage] || 1.0;
+    const ratio = targetMult / baseMult;
+    return Math.round((plan.installment_amount * ratio) / 100) * 100;
   };
 
   // Application Form State
@@ -187,11 +183,7 @@ export default function InstallmentPhoneFlow({
     setSelectedProduct(product);
     setSelectedImageIndex(0);
     setAdminFee(product.effective_admin_fee || 5000);
-    const brandColors = getBrandColors(product);
-    if (brandColors.length > 0) {
-      setSelectedColor(brandColors[0].name);
-    }
-    setCustomColor('');
+    setSelectedStorage(getBaseStorage(product));
 
     if (product.plans && product.plans.length > 0) {
       setSelectedPlan(product.plans[0]);
@@ -301,7 +293,7 @@ export default function InstallmentPhoneFlow({
         state: stateName,
         lga: lgaName,
         delivery_address: deliveryAddress.trim(),
-        selected_specs: `${selectedStorage} | Color: ${customColor.trim() ? customColor.trim() : selectedColor}`,
+        selected_specs: `${selectedStorage} Storage (Outright: ₦${getDynamicPrice(selectedProduct, selectedStorage).toLocaleString()})`,
         transaction_pin: enteredPin,
       };
 
@@ -459,6 +451,9 @@ export default function InstallmentPhoneFlow({
         ? selectedProduct.gallery_images
         : [selectedProduct.featured_image || 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500'];
 
+    const currentDynamicPrice = getDynamicPrice(selectedProduct, selectedStorage);
+    const activeDynamicPlanAmount = selectedPlan ? getDynamicPlanAmount(selectedPlan, selectedProduct, selectedStorage) : 0;
+
     return (
       <div className={`min-h-screen pb-28 ${isLight ? 'bg-slate-50 text-slate-800' : 'bg-slate-950 text-white'}`}>
         {/* Header */}
@@ -530,8 +525,13 @@ export default function InstallmentPhoneFlow({
                 {selectedProduct.name}
               </h2>
 
-              <div className="mt-2 text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
-                ₦{Number(selectedProduct.price || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-display text-sky-500 dark:text-emerald-400">
+                  ₦{currentDynamicPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-[11px] font-bold text-slate-400">
+                  Outright ({selectedStorage})
+                </span>
               </div>
             </div>
 
@@ -565,7 +565,7 @@ export default function InstallmentPhoneFlow({
                             {isSelected && <Check className="w-4 h-4 text-sky-500 dark:text-emerald-400" />}
                           </div>
                           <div className="text-sm font-black text-sky-500 dark:text-emerald-400 mt-1">
-                            ₦{Number(plan.installment_amount || 0).toLocaleString()}{plan.frequency_label || ''}
+                            ₦{getDynamicPlanAmount(plan, selectedProduct, selectedStorage).toLocaleString()}{plan.frequency_label || ''}
                           </div>
                         </div>
 
@@ -584,92 +584,49 @@ export default function InstallmentPhoneFlow({
               </div>
             </div>
 
-            {/* Storage & Color Pills (Reference Image 2) */}
-            <div className={`p-4 rounded-2xl border space-y-3 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
-              <div>
-                <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Storage Option</span>
-                <div className="flex gap-2">
-                  {['128GB', '256GB', '512GB'].map(st => (
+            {/* Storage Option Selector with Real-time Dynamic Pricing */}
+            <div className={`p-4 rounded-2xl border space-y-2.5 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Select Storage Capacity
+                </span>
+                <span className="text-[11px] font-bold text-sky-500 dark:text-emerald-400">
+                  {selectedStorage} • ₦{currentDynamicPrice.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {AVAILABLE_STORAGES.map(st => {
+                  const isSelected = selectedStorage === st;
+                  const stPrice = getDynamicPrice(selectedProduct, st);
+                  const baseP = getDynamicPrice(selectedProduct, getBaseStorage(selectedProduct));
+                  const diff = stPrice - baseP;
+                  const diffLabel = diff === 0 ? 'Base' : diff > 0 ? `+₦${(diff / 1000).toFixed(0)}k` : `-₦${Math.abs(diff / 1000).toFixed(0)}k`;
+
+                  return (
                     <button
                       key={st}
                       type="button"
                       onClick={() => setSelectedStorage(st)}
-                      className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        selectedStorage === st
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                      className={`py-2 px-1.5 rounded-xl text-center transition-all cursor-pointer border ${
+                        isSelected
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-sky-500 dark:bg-white dark:text-slate-900 dark:border-white'
                           : isLight
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                          ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
                       }`}
                     >
-                      {st}
+                      <span className="block text-xs font-black">{st}</span>
+                      <span className={`block text-[9px] font-bold mt-0.5 ${isSelected ? (isLight ? 'text-sky-300' : 'text-sky-600') : 'text-slate-400'}`}>
+                        {diffLabel}
+                      </span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Device Color Option
-                  </span>
-                  <span className="text-[11px] font-bold text-sky-500 dark:text-emerald-400">
-                    {customColor.trim() ? customColor.trim() : selectedColor}
-                  </span>
-                </div>
-
-                {/* Color Swatch Buttons */}
-                <div className="flex flex-wrap gap-2">
-                  {getBrandColors(selectedProduct).map(c => {
-                    const isSelected = selectedColor === c.name && !customColor.trim();
-                    return (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => {
-                          setSelectedColor(c.name);
-                          setCustomColor('');
-                        }}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border ${
-                          isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-sky-500 dark:bg-white dark:text-slate-900 dark:border-white'
-                            : isLight
-                            ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                            : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-                        }`}
-                      >
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0"
-                          style={{ backgroundColor: c.hex }}
-                        />
-                        <span>{c.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Custom / Alternative Color input for maximum customer flexibility */}
-                <div className="mt-3">
-                  <input
-                    type="text"
-                    value={customColor}
-                    onChange={e => setCustomColor(e.target.value)}
-                    placeholder="Or type custom color preference (e.g. Natural Titanium, Emerald, Gold)..."
-                    className={`w-full py-2.5 px-3.5 rounded-xl text-xs border outline-none transition-all ${
-                      customColor.trim()
-                        ? 'border-sky-500 ring-2 ring-sky-500/20 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
-                        : isLight
-                        ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
-                        : 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
-                    }`}
-                  />
-                  {customColor.trim() && (
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                      ✓ Custom color &quot;{customColor.trim()}&quot; will be dispatched by admin.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Installment plans and outright valuation adjust dynamically based on chosen storage.
+              </p>
             </div>
 
             {/* Guarantee / Disclaimer Box (Reference Image 4) */}
@@ -701,7 +658,7 @@ export default function InstallmentPhoneFlow({
           <div>
             <span className="text-[10px] text-slate-400 font-medium">Selected Installment</span>
             <div className="text-base font-black text-sky-500 dark:text-emerald-400">
-              {selectedPlan ? `₦${selectedPlan.installment_amount.toLocaleString()}${selectedPlan.frequency_label}` : 'Select a Plan'}
+              {selectedPlan ? `₦${activeDynamicPlanAmount.toLocaleString()}${selectedPlan.frequency_label}` : 'Select a Plan'}
             </div>
           </div>
 
@@ -750,11 +707,11 @@ export default function InstallmentPhoneFlow({
               <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs">
                 {selectedStorage}
               </span>
-              <span className="px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-400/30">
-                Color: {customColor.trim() ? customColor.trim() : selectedColor}
-              </span>
               <span className="text-[11px] font-medium text-slate-500">
-                • {selectedPlan?.plan_name} (₦{selectedPlan?.installment_amount.toLocaleString()}{selectedPlan?.frequency_label})
+                • {selectedPlan?.plan_name} (₦{selectedPlan ? getDynamicPlanAmount(selectedPlan, selectedProduct, selectedStorage).toLocaleString() : '0'}{selectedPlan?.frequency_label})
+              </span>
+              <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400">
+                (Outright: ₦{getDynamicPrice(selectedProduct, selectedStorage).toLocaleString()})
               </span>
             </div>
           </div>

@@ -67,6 +67,21 @@ export default function SolarFlow({
   const [lgaName, setLgaName] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [loadRequirements, setLoadRequirements] = useState('');
+  const [selectedBatteryTier, setSelectedBatteryTier] = useState('Standard Capacity (Included)');
+
+  const BATTERY_TIERS: { label: string; multiplier: number }[] = [
+    { label: 'Standard Capacity (Included)', multiplier: 1.0 },
+    { label: 'Extended Storage (+30%)', multiplier: 1.30 },
+    { label: 'Double Battery Bank (+60%)', multiplier: 1.60 },
+  ];
+
+  const getDynamicSolarPrice = (product: PhysicalProductItem | null, tierLabel: string): number => {
+    if (!product) return 0;
+    const base = Number(product.price) || 0;
+    const found = BATTERY_TIERS.find(t => t.label === tierLabel);
+    const mult = found ? found.multiplier : 1.0;
+    return Math.round((base * mult) / 100) * 100;
+  };
 
   // States & LGAs
   const [statesList, setStatesList] = useState<NigeriaState[]>([]);
@@ -239,7 +254,7 @@ export default function SolarFlow({
         state: stateName,
         lga: lgaName,
         delivery_address: deliveryAddress.trim(),
-        notes: loadRequirements.trim(),
+        notes: `Battery Tier: ${selectedBatteryTier} (Valuation: ₦${getDynamicSolarPrice(selectedProduct, selectedBatteryTier).toLocaleString()})${loadRequirements.trim() ? ' | Loads: ' + loadRequirements.trim() : ''}`,
         transaction_pin: enteredPin,
       };
 
@@ -505,9 +520,47 @@ export default function SolarFlow({
             </h2>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-xl font-black text-amber-500 dark:text-amber-400 font-display">
-                ₦{selectedProduct.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                ₦{getDynamicSolarPrice(selectedProduct, selectedBatteryTier).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
               </span>
-              <span className="text-xs text-slate-400">Total System Valuation</span>
+              <span className="text-xs text-slate-400">System Valuation ({selectedBatteryTier.split(' ')[0]})</span>
+            </div>
+          </div>
+
+          {/* Battery Storage Tier with Dynamic Valuation */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 mb-4 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-slate-800'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Battery Storage Configuration
+              </span>
+              <span className="text-[11px] font-bold text-amber-500">
+                ₦{getDynamicSolarPrice(selectedProduct, selectedBatteryTier).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {BATTERY_TIERS.map(t => {
+                const isSelected = selectedBatteryTier === t.label;
+                const priceForTier = getDynamicSolarPrice(selectedProduct, t.label);
+                return (
+                  <button
+                    key={t.label}
+                    type="button"
+                    onClick={() => setSelectedBatteryTier(t.label)}
+                    className={`p-2.5 rounded-xl text-center transition-all cursor-pointer border ${
+                      isSelected
+                        ? 'bg-amber-500 text-white border-amber-500 shadow-md ring-2 ring-amber-500/30'
+                        : isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="block text-[11px] font-bold">{t.label.split(' ')[0]}</span>
+                    <span className={`block text-[10px] font-extrabold mt-0.5 ${isSelected ? 'text-amber-100' : 'text-amber-500'}`}>
+                      ₦{priceForTier.toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -612,7 +665,7 @@ export default function SolarFlow({
               <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider block">Selected System</span>
               <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">{selectedProduct.name}</h3>
               <div className="text-xs font-black text-amber-500 mt-0.5">
-                ₦{selectedProduct.price.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                ₦{getDynamicSolarPrice(selectedProduct, selectedBatteryTier).toLocaleString('en-NG', { minimumFractionDigits: 2 })} ({selectedBatteryTier})
               </div>
             </div>
           </div>
