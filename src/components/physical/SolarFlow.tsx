@@ -591,7 +591,11 @@ export default function SolarFlow({
                 <span>Technical Specifications</span>
               </h3>
               <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                {selectedProduct.specifications}
+                {typeof selectedProduct.specifications === 'string'
+                  ? selectedProduct.specifications
+                  : Object.entries(selectedProduct.specifications)
+                    .map(([label, value]) => `${label}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
+                    .join('\n')}
               </p>
             </div>
           )}
@@ -858,8 +862,9 @@ export default function SolarFlow({
         onConfirm={handleConfirmPin}
         isSubmitting={isSubmitting}
         errorMessage={pinErrorMessage}
-        title="Authorize Solar Application"
-        amount={adminFee}
+        serviceTitle="Solar & Inverter Setup"
+        adminFee={adminFee}
+        walletBalance={currentUser.walletBalance}
       />
 
       {/* Success Modal */}
@@ -870,7 +875,10 @@ export default function SolarFlow({
           setViewState('catalog');
           if (onBack) onBack();
         }}
-        data={successData}
+        reference={successData?.reference || ''}
+        adminFeePaid={successData?.admin_fee_paid ?? adminFee}
+        postPaymentNotice={successData?.post_payment_notice || ''}
+        liveChatUrl={successData?.live_chat_url}
         serviceTitle="Solar & Inverter Setup"
       />
     </div>
