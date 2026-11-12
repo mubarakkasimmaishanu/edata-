@@ -1,5 +1,13 @@
 import { Capacitor } from '@capacitor/core';
 
+export function getClientPlatform(): 'android' | 'ios' | 'web' {
+  if (Capacitor.isNativePlatform()) {
+    const p = Capacitor.getPlatform();
+    return p === 'ios' ? 'ios' : 'android';
+  }
+  return 'web';
+}
+
 export const API_BASE_URL = (() => {
   if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
     const host = window.location.hostname;
@@ -63,6 +71,7 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
 
   const headers = {
     'Content-Type': 'application/json',
+    'X-Platform': getClientPlatform(),
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
@@ -129,10 +138,25 @@ async function request(endpoint: string, options: RequestInit = {}, silent: bool
 }
 
 export const api = {
+  async logout(pushToken?: string) {
+    try {
+      await request('/logout', {
+        method: 'POST',
+        body: JSON.stringify({
+          platform: getClientPlatform(),
+          ...(pushToken ? { push_token: pushToken } : {}),
+        }),
+      }, true);
+    } catch {
+      // Best-effort logout
+    } finally {
+      setAuthToken(null);
+    }
+  },
   async login(email: string, password: string) {
     const data = await request('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, platform: getClientPlatform() }),
     });
     if (data.success && data.data?.token) {
       setAuthToken(data.data.token);
@@ -151,12 +175,14 @@ export const api = {
     referral_code?: string;
     install_referrer?: string;
     click_id?: string;
+    platform?: string;
   }) {
     const refCode = params.referral_code || localStorage.getItem('edata_pending_referral') || undefined;
     const installReferrer = params.install_referrer || localStorage.getItem('edata_raw_install_referrer') || undefined;
     const clickId = params.click_id || localStorage.getItem('edata_pending_click_id') || undefined;
 
     const payload = {
+      platform: getClientPlatform(),
       ...params,
       ...(refCode ? { referral_code: refCode } : {}),
       ...(installReferrer ? { install_referrer: installReferrer } : {}),

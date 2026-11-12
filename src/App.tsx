@@ -1304,6 +1304,9 @@ function MainApp() {
   };
 
   const handleLogout = () => {
+    const pushToken = localStorage.getItem('edata_push_token') || undefined;
+    api.logout(pushToken).catch(() => {});
+
     setAuthToken(null);
     // Clear user-specific private data (tokens, profile, wallet, transactions).
     // The public catalog (plans, plan types, quick actions) is retained so the next
