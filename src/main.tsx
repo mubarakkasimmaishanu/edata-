@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
+import { captureBrowserReferral } from './services/deepLink';
+
+captureBrowserReferral();
 
 // Automatically handle stale chunks / deployment desyncs without blank screens
 function triggerAutoReload(reason: string) {

@@ -21,6 +21,7 @@ const InstallReferrer = registerPlugin<InstallReferrerPluginType>('InstallReferr
 
 type ReferralCallback = (code: string) => void;
 const referralListeners: ReferralCallback[] = [];
+let pendingReferralInMemory: string | null = null;
 
 /**
  * Register a listener to be notified whenever a referral code is captured.
@@ -50,7 +51,8 @@ export function savePendingReferral(code: string): string | null {
   if (!code || typeof code !== 'string') return null;
   const cleanCode = code.trim().toUpperCase();
   if (cleanCode.length > 0) {
-    localStorage.setItem(PENDING_REFERRAL_KEY, cleanCode);
+    pendingReferralInMemory = cleanCode;
+    try { localStorage.setItem(PENDING_REFERRAL_KEY, cleanCode); } catch {}
     notifyListeners(cleanCode);
     return cleanCode;
   }
@@ -61,6 +63,7 @@ export function savePendingReferral(code: string): string | null {
  * Get currently stored pending referral code
  */
 export function getPendingReferral(): string | null {
+  if (pendingReferralInMemory) return pendingReferralInMemory;
   try {
     return localStorage.getItem(PENDING_REFERRAL_KEY);
   } catch {
@@ -94,9 +97,21 @@ export function getRawInstallReferrer(): string | null {
  * Clear pending referral code after successful registration
  */
 export function clearPendingReferral(): void {
+  pendingReferralInMemory = null;
   try {
     localStorage.removeItem(PENDING_REFERRAL_KEY);
   } catch {}
+}
+
+/** Capture web referral links before the authentication screen mounts. */
+export function captureBrowserReferral(): void {
+  if (Capacitor.isNativePlatform() || typeof window === 'undefined') return;
+  const code = extractReferralFromUrl(window.location.href);
+  if (code) savePendingReferral(code);
+  const clickId = extractClickIdFromUrl(window.location.href);
+  if (clickId) {
+    try { localStorage.setItem(PENDING_CLICK_ID_KEY, clickId); } catch {}
+  }
 }
 
 /**
@@ -246,6 +261,7 @@ export async function checkClipboardForReferral(): Promise<string | null> {
  * Initialize Deep Linking system (Google Play Install Referrer + Direct App Links)
  */
 export function initDeepLinking(): void {
+  if (!Capacitor.isNativePlatform()) return;
   // 1. Listen for App Links while running or launching
   App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
     console.log('[DeepLink] appUrlOpen event:', event.url);

@@ -27,7 +27,9 @@ export default function AuthPage({
   const toast = useToast();
   const { theme, toggleTheme } = useTheme();
   const [screenMode, setScreenMode] = useState<'auth' | 'otp' | 'password_create'>('auth');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(() =>
+    Boolean(getPendingReferral()) || new URLSearchParams(window.location.search).get('mode') === 'signup'
+  );
 
   // Form Fields
   const [authEmail, setAuthEmail] = useState('');
