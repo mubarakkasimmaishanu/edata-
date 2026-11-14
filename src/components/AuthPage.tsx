@@ -95,7 +95,7 @@ export default function AuthPage({
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
 
   // Google Client ID (Web Client ID from Firebase / Google Cloud Console)
-  const GOOGLE_CLIENT_ID = '452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
   // iOS OAuth Client ID (Google Cloud Console → Credentials → OAuth client → type "iOS",
   // bundle ID com.eDATA.app). The Web client ID above CANNOT be used by the native iOS SDK.
   // When set, also add its reversed form (com.googleusercontent.apps.XXXX) to
@@ -110,7 +110,7 @@ export default function AuthPage({
       if (isIOS) {
         if (!GOOGLE_IOS_CLIENT_ID) return;
         // iOS: native SDK needs the iOS client ID; serverClientId (from capacitor.config)
-        // makes the returned ID token's audience the Web client ID the backend verifies.
+        // makes the returned ID token's audience the native client audience the backend verifies.
         import('@codetrix-studio/capacitor-google-auth')
           .then(({ GoogleAuth }) =>
             GoogleAuth.initialize({ clientId: GOOGLE_IOS_CLIENT_ID, scopes: ['profile', 'email'], grantOfflineAccess: true })
