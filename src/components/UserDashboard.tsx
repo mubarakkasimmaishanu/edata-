@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, Transaction, QuickAction, VirtualAccount } from '../types';
+import { UserProfile, Transaction, QuickAction, VirtualAccount, DvaProviderInfo } from '../types';
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package, CreditCard, Zap
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package, CreditCard, Zap, X
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -94,6 +94,7 @@ function getActionIcon(iconName?: string, network?: string): string {
 
 interface UserDashboardProps {
   currentUser: UserProfile;
+  setCurrentUser?: (user: UserProfile) => void;
   transactions: Transaction[];
   quickActions?: QuickAction[];
   /**
@@ -113,6 +114,7 @@ interface UserDashboardProps {
 
 export default function UserDashboard({
   currentUser,
+  setCurrentUser,
   transactions,
   quickActions = [],
   serviceCategories = [],
@@ -127,9 +129,17 @@ export default function UserDashboard({
   const toast = useToast();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [copiedModalAccount, setCopiedModalAccount] = useState(false);
   const [isGeneratingAccount, setIsGeneratingAccount] = useState(false);
   const [priorityProviderCode, setPriorityProviderCode] = useState<string>('');
   const [priorityProviderName, setPriorityProviderName] = useState<string>('');
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
+  const [kycValue, setKycValue] = useState('');
+  const [kycSubmitting, setKycSubmitting] = useState(false);
+  const [targetProviderInfo, setTargetProviderInfo] = useState<DvaProviderInfo | null>(null);
+  const [showDvaSuccessModal, setShowDvaSuccessModal] = useState(false);
+  const [generatedAccountDetails, setGeneratedAccountDetails] = useState<VirtualAccount | null>(null);
   const [localVirtualAccount, setLocalVirtualAccount] = useState<VirtualAccount | null>(() => {
     try {
       const saved = localStorage.getItem('edata_virtual_account');
@@ -206,93 +216,170 @@ export default function UserDashboard({
   const handleGenerateVirtualAccount = async () => {
     setIsGeneratingAccount(true);
     try {
-      let fetchedAcc: VirtualAccount | null = null;
-      let targetPriorityCode: string | undefined = priorityProviderCode || undefined;
-
+      // 1. Detect dynamic priority provider configured by admin
+      let targetProvider: DvaProviderInfo | null = null;
       try {
-        const dvaInfo = await api.getDvaProviders(true);
-        if (dvaInfo?.data?.dashboard_priority_code) {
-          targetPriorityCode = dvaInfo.data.dashboard_priority_code;
-          setPriorityProviderCode(dvaInfo.data.dashboard_priority_code);
+        const dvaRes = await api.getDvaProviders(true);
+        if (dvaRes?.data?.providers && Array.isArray(dvaRes.data.providers)) {
+          const list: DvaProviderInfo[] = dvaRes.data.providers;
+          const priCode = dvaRes.data.dashboard_priority_code;
+          targetProvider = list.find((p) => p.code === priCode || p.is_dashboard_priority) || list[0];
+          if (targetProvider) {
+            setPriorityProviderCode(targetProvider.code);
+            setPriorityProviderName(targetProvider.name);
+          }
         }
-        if (dvaInfo?.data?.dashboard_priority_name) {
-          setPriorityProviderName(dvaInfo.data.dashboard_priority_name);
-        }
-      } catch {}
-
-      // 1. Generate priority DVA virtual account via backend API
-      try {
-        const unmaskedBvn = currentUser.bvn && /^\d{11}$/.test(currentUser.bvn) ? currentUser.bvn : undefined;
-        const unmaskedNin = currentUser.nin && /^\d{11}$/.test(currentUser.nin) ? currentUser.nin : undefined;
-        const kycPayload = (unmaskedBvn || unmaskedNin) ? {
-          bvn: unmaskedBvn,
-          nin: unmaskedNin,
-        } : undefined;
-        const genRes = targetPriorityCode
-          ? await api.generateDvaAccount(targetPriorityCode, kycPayload)
-          : await api.generateVirtualAccount(kycPayload);
-        if (genRes?.require_kyc) {
-          toast.info('Please enter your BVN or NIN to assign your dedicated account.');
-          onNavigate('fund');
-          return;
-        }
-        const accData = genRes.data || genRes;
-        const raw = accData?.virtual_account || (Array.isArray(accData?.accounts) ? accData.accounts[0] : null) || accData;
-        if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
-          fetchedAcc = {
-            bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',
-            account_number: raw.account_number || raw.accountNo || raw.account_no,
-            account_name: raw.account_name || raw.accountName || displayName,
-            provider: raw.provider || targetPriorityCode,
-            is_primary: true,
-          };
-        }
-      } catch (e: any) {
-        console.warn('Direct virtual account generation warning:', e);
+      } catch (err) {
+        console.warn('Priority provider detection fallback:', err);
       }
 
-      // 2. Fetch fresh wallet accounts from server
-      if (!fetchedAcc || !fetchedAcc.account_number) {
-        const walletRes = await api.getWallet();
-        const priorityCode = walletRes.data?.dashboard_priority_code || walletRes.dashboard_priority_code || targetPriorityCode || '';
-        const rawAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || (walletRes.data?.virtual_account ? [walletRes.data.virtual_account] : walletRes.virtual_account ? [walletRes.virtual_account] : []);
-        const vAccounts = rawAccounts.filter((a: any) => {
-          const b = (a.bank_name || a.bank || '').toLowerCase();
-          const num = (a.account_number || a.accountNo || a.account_no || '').trim();
-          return !b.includes('wema') && num !== '0127189291';
-        });
+      if (!targetProvider) {
+        targetProvider = {
+          code: priorityProviderCode || 'katpay',
+          name: priorityProviderName || 'PalmPay',
+          provider_title: 'Dedicated Virtual Account',
+          requires_kyc: (priorityProviderCode || 'katpay') === 'payvessel',
+          is_active: true,
+          is_dashboard_priority: true,
+          priority_rank: 1,
+          has_account: false,
+          accounts: [],
+        };
+      }
+      setTargetProviderInfo(targetProvider);
 
-        const chosen = priorityCode
-          ? vAccounts.find((a: any) => a.is_primary === true || a.provider === priorityCode)
-          : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0]);
-        if (chosen && (chosen.account_number || chosen.account_no || chosen.accountNo)) {
-          fetchedAcc = {
-            bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
-            account_number: chosen.account_number || chosen.account_no || chosen.accountNo,
-            account_name: chosen.account_name || chosen.accountName || displayName,
-            provider: chosen.provider,
-            is_primary: chosen.is_primary,
-          };
-        }
+      const hasUserKyc = Boolean(
+        currentUser.has_kyc ||
+        (currentUser.bvn && /^\d{11}$/.test(currentUser.bvn)) ||
+        (currentUser.nin && /^\d{11}$/.test(currentUser.nin))
+      );
+
+      // Workflow 1: PayVessel (KYC Required)
+      // If priority provider requires KYC and user hasn't provided BVN or NIN yet:
+      // Open a pop-up form prompting BVN or NIN
+      if (targetProvider.requires_kyc && !hasUserKyc) {
+        setKycValue('');
+        setShowKycModal(true);
+        setIsGeneratingAccount(false);
+        return;
       }
 
-      if (fetchedAcc && fetchedAcc.account_number) {
-        setLocalVirtualAccount(fetchedAcc);
-        try {
-          localStorage.setItem('edata_virtual_account', JSON.stringify(fetchedAcc));
-        } catch {}
-        toast.success(`Virtual Account ${fetchedAcc.account_number} ready!`);
-        if (onRefresh) onRefresh();
-      } else {
-        toast.info('Opening wallet funding options...');
-        onNavigate('fund');
-      }
+      // Workflow 2: KatPay (Zero KYC Required) or User already has KYC:
+      // Automatically initiate account generation without requesting BVN or NIN
+      await executeAccountGeneration(targetProvider.code);
     } catch (err: any) {
-      toast.error(err?.message || 'Opening funding options...');
-      onNavigate('fund');
-    } finally {
+      toast.error(err?.message || 'Unable to start account generation.');
       setIsGeneratingAccount(false);
     }
+  };
+
+  const executeAccountGeneration = async (providerCode: string, manualKyc?: { bvn?: string; nin?: string }) => {
+    setIsGeneratingAccount(true);
+    try {
+      const kycPayload = manualKyc || (
+        (currentUser.bvn && /^\d{11}$/.test(currentUser.bvn)) ? { bvn: currentUser.bvn } :
+        ((currentUser.nin && /^\d{11}$/.test(currentUser.nin)) ? { nin: currentUser.nin } : undefined)
+      );
+
+      const genRes = await api.generateDvaAccount(providerCode, kycPayload);
+
+      if (genRes?.require_kyc && !manualKyc) {
+        setShowKycModal(true);
+        setIsGeneratingAccount(false);
+        return;
+      }
+
+      if (genRes && !genRes.success && genRes.error) {
+        toast.error(genRes.error);
+        setIsGeneratingAccount(false);
+        return;
+      }
+
+      const accData = genRes.data || genRes;
+      const raw = accData?.virtual_account || (Array.isArray(accData?.accounts) ? accData.accounts[0] : null) || accData;
+
+      let newAccount: VirtualAccount | null = null;
+      if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
+        newAccount = {
+          bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',
+          account_number: raw.account_number || raw.accountNo || raw.account_no,
+          account_name: raw.account_name || raw.accountName || displayName,
+          provider: raw.provider || providerCode,
+          is_primary: true,
+          badge: raw.badge || (providerCode === 'katpay' ? 'Free Transfer • Instant' : 'Instant Funding'),
+        };
+      }
+
+      // Fallback: reload wallet to grab newly assigned accounts
+      if (!newAccount) {
+        const walletRes = await api.getWallet();
+        const rawAccounts: any[] = walletRes.data?.virtual_accounts || walletRes.virtual_accounts || [];
+        const chosen = rawAccounts.find((a: any) => a.provider === providerCode || a.is_primary === true) || rawAccounts[0];
+        if (chosen && (chosen.account_number || chosen.account_no)) {
+          newAccount = {
+            bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
+            account_number: chosen.account_number || chosen.account_no,
+            account_name: chosen.account_name || chosen.accountName || displayName,
+            provider: chosen.provider || providerCode,
+            is_primary: true,
+            badge: chosen.badge,
+          };
+        }
+      }
+
+      if (newAccount) {
+        setLocalVirtualAccount(newAccount);
+        try {
+          localStorage.setItem('edata_virtual_account', JSON.stringify(newAccount));
+        } catch {}
+
+        // Persist KYC to customer profile if entered
+        if (manualKyc?.bvn || manualKyc?.nin) {
+          const updatedUser: UserProfile = {
+            ...currentUser,
+            bvn: manualKyc.bvn || currentUser.bvn,
+            nin: manualKyc.nin || currentUser.nin,
+            has_kyc: true,
+            hasKyc: true,
+          };
+          if (setCurrentUser) {
+            setCurrentUser(updatedUser);
+          }
+          try {
+            localStorage.setItem('edata_current_user', JSON.stringify(updatedUser));
+          } catch {}
+          api.updateProfile({
+            ...(manualKyc.bvn ? { bvn: manualKyc.bvn } : {}),
+            ...(manualKyc.nin ? { nin: manualKyc.nin } : {}),
+          }).catch(() => {});
+        }
+
+        setShowKycModal(false);
+        setGeneratedAccountDetails(newAccount);
+        setShowDvaSuccessModal(true);
+        if (onRefresh) onRefresh();
+      } else {
+        toast.info('Dedicated virtual account created. Refreshing dashboard...');
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate virtual account.');
+    } finally {
+      setIsGeneratingAccount(false);
+      setKycSubmitting(false);
+    }
+  };
+
+  const handleKycSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = kycValue.replace(/\D/g, '');
+    if (clean.length !== 11) {
+      toast.error(`${kycType.toUpperCase()} must be exactly 11 digits.`);
+      return;
+    }
+    setKycSubmitting(true);
+    const provCode = targetProviderInfo?.code || priorityProviderCode || 'payvessel';
+    await executeAccountGeneration(provCode, { [kycType]: clean });
   };
 
   const avatarUrl = resolveImageUrl(currentUser.avatar || currentUser.picture || currentUser.photo);
@@ -514,7 +601,14 @@ export default function UserDashboard({
               const bankName = vAcc.bank_name || 'Virtual Account';
               return (
                 // the number gets the widest possible track.
-                <div className="p-2 px-3 bg-sky-950/70 backdrop-blur-xl border border-white/20 rounded-xl flex items-center justify-between gap-2 shadow-inner">
+                <div
+                  onClick={() => {
+                    setGeneratedAccountDetails(vAcc);
+                    setShowDvaSuccessModal(true);
+                  }}
+                  className="p-2 px-3 bg-sky-950/70 hover:bg-sky-950/85 backdrop-blur-xl border border-white/20 rounded-xl flex items-center justify-between gap-2 shadow-inner cursor-pointer transition-all"
+                  title="View Dedicated Virtual Account details"
+                >
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[9.5px] font-black text-sky-300 uppercase tracking-widest font-display">VIRTUAL ACCOUNT</span>
@@ -760,6 +854,204 @@ export default function UserDashboard({
           </div>
         </section>
       </main>
+
+      {/* ── Dynamic KYC Pop-up Modal (Required by PayVessel or KYC providers) ── */}
+      {showKycModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-all ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold font-display">Identity Verification</h3>
+                  <p className="text-[10px] text-slate-400">
+                    {targetProviderInfo?.name || priorityProviderName || 'DVA Provider'} Virtual Account Assignment
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!kycSubmitting) setShowKycModal(false); }}
+                disabled={kycSubmitting}
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleKycSubmit} className="space-y-4 pt-4">
+              <div className="p-3 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 rounded-2xl text-xs text-sky-800 dark:text-sky-300">
+                To assign your dedicated bank account, please provide your 11-digit BVN or NIN. You can select whichever you prefer.
+              </div>
+
+              {/* BVN / NIN Toggle Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Choose Verification Method</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setKycType('bvn'); setKycValue(''); }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      kycType === 'bvn'
+                        ? 'bg-sky-500 text-white border-sky-400 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent hover:border-slate-300'
+                    }`}
+                  >
+                    <span>BVN</span>
+                    <span className="text-[10px] opacity-80">(Bank Number)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setKycType('nin'); setKycValue(''); }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      kycType === 'nin'
+                        ? 'bg-sky-500 text-white border-sky-400 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent hover:border-slate-300'
+                    }`}
+                  >
+                    <span>NIN</span>
+                    <span className="text-[10px] opacity-80">(National ID)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Number Input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    {kycType === 'bvn' ? '11-Digit BVN' : '11-Digit NIN'}
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono">{kycValue.length}/11</span>
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={11}
+                  value={kycValue}
+                  onChange={(e) => setKycValue(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-mono tracking-widest text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  autoFocus
+                />
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-tight">
+                🔒 Your identity details are encrypted and securely stored in your customer profile to generate your virtual account.
+              </p>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowKycModal(false)}
+                  disabled={kycSubmitting}
+                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={kycValue.length !== 11 || kycSubmitting}
+                  className="flex-1 py-3 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-sky-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {kycSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Generate Account</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Virtual Account Details Pop-up Modal ── */}
+      {showDvaSuccessModal && generatedAccountDetails && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-all text-center space-y-4 ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+          }`}>
+            <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-inner">
+              <Sparkles className="w-7 h-7 text-emerald-500 fill-emerald-500/20" />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-500 border border-sky-500/20 font-display">
+                {generatedAccountDetails.provider ? `${generatedAccountDetails.provider.toUpperCase()} • HIGHEST PRIORITY` : 'PRIORITY DVA'}
+              </span>
+              <h3 className="text-base font-bold font-display pt-1">Virtual Account Generated!</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Your dedicated wallet account is active and ready for automatic funding.
+              </p>
+            </div>
+
+            {/* Account Card Box */}
+            <div className="p-4 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-500/30 rounded-2xl text-left space-y-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-sky-300 block font-display">Bank Name</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">{generatedAccountDetails.bank_name}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-sky-300 block font-display">Account Number</span>
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <span className="text-lg font-black font-mono tracking-wider text-sky-600 dark:text-sky-400">
+                    {generatedAccountDetails.account_number}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText(generatedAccountDetails.account_number);
+                        }
+                      } catch {}
+                      setCopiedModalAccount(true);
+                      toast.success(`Account number ${generatedAccountDetails.account_number} copied!`);
+                      setTimeout(() => setCopiedModalAccount(false), 2500);
+                    }}
+                    className="p-1.5 px-2.5 rounded-lg bg-sky-500 text-white hover:bg-sky-600 text-xs font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer font-display"
+                  >
+                    {copiedModalAccount ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedModalAccount ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-sky-300 block font-display">Account Name</span>
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{generatedAccountDetails.account_name}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-left flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+              <span>
+                Transfer any amount to this account from any Nigerian bank app or USSD to instantly fund your wallet. Transfers reflect within seconds.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowDvaSuccessModal(false);
+                setGeneratedAccountDetails(null);
+              }}
+              className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-sky-500/20 active:scale-95 cursor-pointer font-display"
+            >
+              Done & Return to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

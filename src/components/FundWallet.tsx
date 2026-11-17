@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, VirtualAccount, DvaProviderInfo } from '../types';
-import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info, ShieldCheck, X } from 'lucide-react';
+import { ChevronLeft, Copy, Landmark, Check, RefreshCw, Info, ShieldCheck, X, Sparkles } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
@@ -18,6 +18,11 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
   const toast = useToast();
   const { theme } = useTheme();
   const [fundTab, setFundTab] = useState<'virtual' | 'online' | 'manual'>('virtual');
+  const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState<boolean>(true);
+  const [manualPaymentEnabled, setManualPaymentEnabled] = useState<boolean>(true);
+  const [showDvaSuccessModal, setShowDvaSuccessModal] = useState(false);
+  const [generatedAccountDetails, setGeneratedAccountDetails] = useState<VirtualAccount | null>(null);
+  const [copiedModalAccount, setCopiedModalAccount] = useState(false);
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccount[]>([]);
   const [dvaProviders, setDvaProviders] = useState<DvaProviderInfo[]>([]);
@@ -171,6 +176,18 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
         setShowKycModal(false);
         setKycTargetProvider(null);
         toast.success('Dedicated Virtual Account ready!');
+
+        const raw = genRes.data?.virtual_account || (Array.isArray(genRes.data?.accounts) ? genRes.data.accounts[0] : null) || genRes.data;
+        if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
+          setGeneratedAccountDetails({
+            bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',
+            account_number: raw.account_number || raw.accountNo || raw.account_no,
+            account_name: raw.account_name || raw.accountName || currentUser.name,
+            provider: raw.provider || targetCode,
+            badge: raw.badge,
+          });
+          setShowDvaSuccessModal(true);
+        }
       } else {
         if (errMsg) {
           toast.error(errMsg);
@@ -263,6 +280,16 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
 
       if (walletRes.status === 'fulfilled' && walletRes.value) {
         const res = walletRes.value;
+        if (typeof res.data?.online_payment_enabled !== 'undefined') {
+          const isOnline = Boolean(res.data.online_payment_enabled);
+          setOnlinePaymentEnabled(isOnline);
+          setFundTab((currentTab) => (!isOnline && currentTab === 'online' ? 'virtual' : currentTab));
+        }
+        if (typeof res.data?.manual_payment_enabled !== 'undefined') {
+          const isManual = Boolean(res.data.manual_payment_enabled);
+          setManualPaymentEnabled(isManual);
+          setFundTab((currentTab) => (!isManual && currentTab === 'manual' ? 'virtual' : currentTab));
+        }
         if (res.data?.has_kyc || res.has_kyc || res.data?.bvn_masked || res.data?.nin_masked) {
           persistUserKycState(
             undefined,
@@ -411,22 +438,26 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
           >
             ⚡ Wallet Account
           </button>
-          <button
-            onClick={() => setFundTab('online')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              fundTab === 'online' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            💳 Online Checkout
-          </button>
-          <button
-            onClick={() => setFundTab('manual')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              fundTab === 'manual' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            🏛️ Fund Through Admin
-          </button>
+          {onlinePaymentEnabled && (
+            <button
+              onClick={() => setFundTab('online')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                fundTab === 'online' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              💳 Online Checkout
+            </button>
+          )}
+          {manualPaymentEnabled && (
+            <button
+              onClick={() => setFundTab('manual')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                fundTab === 'manual' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              🏛️ Fund Through Admin
+            </button>
+          )}
         </div>
 
         {/* Tab 1: Virtual / Wallet Accounts */}
@@ -527,7 +558,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                 })}
 
                 {/* Secondary manual bank option if present */}
-                {manualBank && manualBank.account_number && (
+                {manualPaymentEnabled && manualBank && manualBank.account_number && (
                   <div className="p-4 bg-slate-800/60 border border-slate-700/60 rounded-2xl">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">
                       Alternative Bank Transfer Account
@@ -975,6 +1006,84 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Virtual Account Details Pop-up Modal ── */}
+      {showDvaSuccessModal && generatedAccountDetails && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-800 bg-slate-900 text-white text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-inner">
+              <Sparkles className="w-7 h-7 text-emerald-500 fill-emerald-500/20" />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-display">
+                {generatedAccountDetails.provider ? `${generatedAccountDetails.provider.toUpperCase()} • DEDICATED DVA` : 'DEDICATED ACCOUNT'}
+              </span>
+              <h3 className="text-base font-bold font-display pt-1">Virtual Account Ready!</h3>
+              <p className="text-xs text-slate-400">
+                Your dedicated wallet account is active and ready for automatic funding.
+              </p>
+            </div>
+
+            {/* Account Card Box */}
+            <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-left space-y-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-sky-400 block font-display">Bank Name</span>
+                <span className="text-sm font-bold text-white">{generatedAccountDetails.bank_name}</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-sky-400 block font-display">Account Number</span>
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <span className="text-lg font-black font-mono tracking-wider text-sky-400">
+                    {generatedAccountDetails.account_number}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText(generatedAccountDetails.account_number);
+                        }
+                      } catch {}
+                      setCopiedModalAccount(true);
+                      toast.success(`Account number ${generatedAccountDetails.account_number} copied!`);
+                      setTimeout(() => setCopiedModalAccount(false), 2500);
+                    }}
+                    className="p-1.5 px-2.5 rounded-lg bg-sky-500 text-white hover:bg-sky-600 text-xs font-bold flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer font-display"
+                  >
+                    {copiedModalAccount ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedModalAccount ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-sky-400 block font-display">Account Name</span>
+                <span className="text-xs font-semibold text-slate-200">{generatedAccountDetails.account_name}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-800/60 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                Transfer any amount to this account from any Nigerian bank app or USSD to instantly fund your wallet. Transfers reflect automatically in seconds.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowDvaSuccessModal(false);
+                setGeneratedAccountDetails(null);
+              }}
+              className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-sky-500/20 active:scale-95 cursor-pointer font-display"
+            >
+              Done & Return to Wallet
+            </button>
           </div>
         </div>
       )}

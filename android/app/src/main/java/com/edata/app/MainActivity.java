@@ -144,6 +144,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeNotifierPlugin.class);
         registerPlugin(InstallReferrerPlugin.class);
+        registerPlugin(com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth.class);
         SplashScreen.installSplashScreen(this);
         EdgeToEdge.enable(
             this,

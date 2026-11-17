@@ -1564,6 +1564,7 @@ function MainApp() {
               {activeView === 'dashboard' && (
                 <UserDashboard
                   currentUser={currentUser}
+                  setCurrentUser={handleSetCurrentUser}
                   transactions={transactions}
                   quickActions={quickActions}
                   serviceCategories={serviceCategories}
