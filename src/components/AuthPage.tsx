@@ -8,6 +8,7 @@ import { useToast } from './Toast';
 import { useTheme } from '../context/ThemeContext';
 import { UserProfile } from '../types';
 import { DEFAULT_USER, INITIAL_SUBSCRIBERS } from '../data';
+import PrivacyTerms from './PrivacyTerms';
 
 interface AuthPageProps {
   onLoginSuccess: (token: string) => void;
@@ -42,7 +43,7 @@ export default function AuthPage({
       return '';
     }
   });
-  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -198,12 +199,6 @@ export default function AuthPage({
       return;
     }
     isGoogleSubmittingRef.current = true;
-
-    if (!acceptTerms) {
-      isGoogleSubmittingRef.current = false;
-      toast.warning('Please accept the Terms & Conditions to proceed with Google Sign-In.');
-      return;
-    }
 
     if (!navigator.onLine) {
       isGoogleSubmittingRef.current = false;
@@ -364,10 +359,6 @@ export default function AuthPage({
   // ─── Register Submit Handler (Step 1) ───
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!acceptTerms) {
-      toast.warning('Please accept the Terms & Conditions to proceed.');
-      return;
-    }
 
     const allowedDomains = [
       'gmail.com', 'googlemail.com',
@@ -608,17 +599,16 @@ export default function AuthPage({
                       <span>Continue with Google</span>
                     </button>
 
-                    <label className="flex items-center justify-center gap-2.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={acceptTerms}
-                        onChange={(e) => setAcceptTerms(e.target.checked)}
-                        className="rounded border-slate-300 bg-white text-[#0284c7] focus:ring-sky-500 w-4 h-4 cursor-pointer"
-                      />
-                      <span className={`text-xs font-medium ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I accept the <span className="font-semibold text-sky-500">Terms & Conditions</span>
-                      </span>
-                    </label>
+                    <p className={`text-center text-[11px] leading-snug font-medium px-2 pt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      By clicking on continue you've agreed to the{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowTermsModal(true)}
+                        className="font-semibold text-sky-500 hover:underline cursor-pointer inline"
+                      >
+                        Terms and Conditions
+                      </button>
+                    </p>
 
                     {/* Divider */}
                     <div className="relative py-0.5">
@@ -686,15 +676,16 @@ export default function AuthPage({
                       />
                     </div>
                     {!googleSignInAvailable && (
-                      <label className="flex items-center gap-2.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={acceptTerms}
-                          onChange={(e) => setAcceptTerms(e.target.checked)}
-                          className="rounded border-slate-300 bg-white text-[#0284c7] focus:ring-sky-500 w-4 h-4 cursor-pointer"
-                        />
-                        <span className={`text-xs font-medium ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>I accept the Terms & Conditions</span>
-                      </label>
+                      <p className={`text-center text-[11px] leading-snug font-medium pt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        By clicking on continue you've agreed to the{' '}
+                        <button
+                          type="button"
+                          onClick={() => setShowTermsModal(true)}
+                          className="font-semibold text-sky-500 hover:underline cursor-pointer inline"
+                        >
+                          Terms and Conditions
+                        </button>
+                      </p>
                     )}
                     <button
                       type="submit"
@@ -1016,6 +1007,14 @@ export default function AuthPage({
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Terms & Conditions In-App Overlay ── */}
+      {showTermsModal && (
+        <PrivacyTerms
+          mode="terms"
+          onBack={() => setShowTermsModal(false)}
+        />
       )}
     </div>
   );
