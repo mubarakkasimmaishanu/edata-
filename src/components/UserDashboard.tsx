@@ -425,9 +425,9 @@ export default function UserDashboard({
   const displayedServices = services.slice(0, MAX_DASHBOARD_SERVICES);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col pb-36">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
       {/* ── 1. Top Header App Bar (Matching Image 1) ── */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-lg safe-top">
+      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-2xl border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-lg safe-top">
         <div className="flex items-center gap-3">
           {/* User Avatar Circle + Membership Badge Column */}
           <div className="flex flex-col items-center shrink-0">
@@ -502,9 +502,9 @@ export default function UserDashboard({
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-5 space-y-5 max-w-lg mx-auto w-full pb-12">
+      <main className="flex-1 px-4 pt-3 pb-24 space-y-3.5 max-w-lg mx-auto w-full">
         {/* ── 2. Hero Wallet Balance Card (Matching Image 1 & 2) ── */}
-        <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-4 rounded-[1.8rem] shadow-xl shadow-sky-950/50 relative overflow-hidden border border-sky-400/30 space-y-2.5">
+        <div className="hero-wallet-card bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white p-3.5 rounded-[1.8rem] shadow-xl shadow-sky-950/50 relative overflow-hidden border border-sky-400/30 space-y-2">
           <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
 
           {/* Top Row: Main Wallet Pill + History > */}
@@ -544,7 +544,7 @@ export default function UserDashboard({
             {/* Add Money Button */}
             <button
               onClick={() => onNavigate('fund')}
-              className="bg-white text-sky-950 font-black text-xs px-3 py-2 rounded-full shadow-lg transition-spring active:scale-95 flex items-center justify-center gap-1 btn-sheen cursor-pointer shrink-0 font-display"
+              className="bg-white text-sky-950 font-black text-xs px-3 py-1.5 rounded-full shadow-lg transition-spring active:scale-95 flex items-center justify-center gap-1 btn-sheen cursor-pointer shrink-0 font-display"
             >
               <Plus className="w-3.5 h-3.5 text-sky-600 stroke-[3]" />
               Add Money
@@ -552,9 +552,9 @@ export default function UserDashboard({
           </div>
 
           {/* Separate Rounded Pill Containers for COMMISSION & BONUS (Matching Sketch) */}
-          <div className="grid grid-cols-2 gap-3 pt-0.5">
+          <div className="grid grid-cols-2 gap-2.5 pt-0.5">
             {/* Commission Pill Container */}
-            <div className="flex items-center justify-between px-3.5 py-2 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
               <span className="text-[11px] font-bold text-sky-100 font-display tracking-tight">Commission</span>
               <span className="text-xs font-black text-emerald-300 font-mono tabular-nums ml-1">
                 {isBalanceHidden ? '••••' : formatMoney(currentUser.commissionWallet ?? 0)}
@@ -562,7 +562,7 @@ export default function UserDashboard({
             </div>
 
             {/* Bonus Pill Container */}
-            <div className="flex items-center justify-between px-3.5 py-2 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-sky-950/55 hover:bg-sky-950/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm transition-all">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[11px] font-bold text-sky-100 font-display tracking-tight truncate">Bonus</span>
                 {currentUser.bonusExpiresAt && (currentUser.bonusWallet ?? 0) > 0 && (() => {
@@ -693,62 +693,64 @@ export default function UserDashboard({
         </div>
 
         {/* ── 3. QUICK ACTIONS Card Section (Matching Image 1 & 2) ── */}
-        <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 space-y-3 shadow-xl">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-display">QUICK ACTIONS</span>
-            <button
-              onClick={() => onNavigate('services')}
-              className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer font-display"
-            >
-              All →
-            </button>
-          </div>
+        {(actionsToDisplay.length > 0 || isSyncing) && (
+          <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-3.5 space-y-2.5 shadow-xl">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-display">QUICK ACTIONS</span>
+              <button
+                onClick={() => onNavigate('services')}
+                className="text-xs font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer font-display"
+              >
+                All →
+              </button>
+            </div>
 
-          <div className="grid grid-cols-5 gap-2">
-            {actionsToDisplay.length > 0 ? (
-              actionsToDisplay.map((item, idx) => {
-                const iconSrc = getActionIcon(item.icon, item.network);
-                return (
-                  <button
-                    key={item.id || idx}
-                    onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
-                    className="flex flex-col items-center justify-start gap-1.5 transition-all group cursor-pointer active:scale-95 min-w-0"
-                    title={item.title}
-                  >
-                    <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
-                      <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
-                    </div>
-                    <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display w-full text-center leading-tight whitespace-normal break-words hyphens-auto">
-                      {item.title}
-                    </span>
-                  </button>
-                );
-              })
-            ) : isSyncing ? (
-              [1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5 animate-pulse min-w-0">
-                  <div className="w-12 h-12 rounded-full bg-slate-700/60 border border-slate-700/50" />
-                  <div className="h-2 w-10 bg-slate-750/70 rounded" />
-                </div>
-              ))
-            ) : null}
-          </div>
-        </section>
+            <div className="grid grid-cols-5 gap-2">
+              {actionsToDisplay.length > 0 ? (
+                actionsToDisplay.map((item, idx) => {
+                  const iconSrc = getActionIcon(item.icon, item.network);
+                  return (
+                    <button
+                      key={item.id || idx}
+                      onClick={() => onNavigate(item.service_type || 'data', { network: item.network, planId: item.plan_id, quickAction: item })}
+                      className="flex flex-col items-center justify-start gap-1.5 transition-all group cursor-pointer active:scale-95 min-w-0"
+                      title={item.title}
+                    >
+                      <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-slate-900 border border-slate-700/80 shadow-md p-1 group-hover:scale-105 transition-transform">
+                        <img src={iconSrc} alt={item.title} className="w-full h-full object-contain rounded-full" />
+                      </div>
+                      <span className="text-[10px] font-extrabold text-slate-200 tracking-tight font-display w-full text-center leading-tight whitespace-normal break-words hyphens-auto">
+                        {item.title}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : isSyncing ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 animate-pulse min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-slate-700/60 border border-slate-700/50" />
+                    <div className="h-2 w-10 bg-slate-750/70 rounded" />
+                  </div>
+                ))
+              ) : null}
+            </div>
+          </section>
+        )}
 
         {/* ── 4. SERVICES Grid — Premium Square Cards (SaukiGlobal-inspired) ── */}
-        <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 space-y-3.5 shadow-xl">
+        <section className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-3.5 space-y-2.5 shadow-xl">
           <div className="px-1">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-display">SERVICES</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-4 gap-2">
             {displayedServices.map((srv) => {
               const Icon = srv.icon;
               return (
                 <button
                   key={srv.id}
                   onClick={() => onNavigate(srv.id)}
-                  className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
+                  className="flex flex-col items-center gap-1.5 transition-all group cursor-pointer active:scale-[0.93]"
                 >
                   <div className="w-full aspect-square rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center shadow-md group-hover:border-sky-500/40 group-hover:bg-slate-800/90 group-active:bg-slate-700/70 transition-all duration-200 relative">
                     <Icon className="w-7 h-7 text-sky-400 stroke-[1.8] drop-shadow-sm group-hover:scale-105 transition-transform" />
@@ -768,7 +770,7 @@ export default function UserDashboard({
             {/* "More" navigation card with Plus (+) icon */}
             <button
               onClick={() => onNavigate('services')}
-              className="flex flex-col items-center gap-2 transition-all group cursor-pointer active:scale-[0.93]"
+              className="flex flex-col items-center gap-1.5 transition-all group cursor-pointer active:scale-[0.93]"
               title="View all services"
             >
               <div className="w-full aspect-square rounded-2xl bg-sky-500/10 border border-sky-500/40 flex items-center justify-center shadow-md group-hover:border-sky-400 group-hover:bg-sky-500/20 group-active:bg-sky-500/30 transition-all duration-200 relative">

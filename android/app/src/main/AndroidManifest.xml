@@ -35,9 +35,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="edata.com.ng" android:pathPrefix="/join" />
-                <data android:scheme="https" android:host="edata.com.ng" android:pathPrefix="/r" />
+                <data android:scheme="https" android:host="edata.com.ng" android:pathPrefix="/r/" />
                 <data android:scheme="https" android:host="www.edata.com.ng" android:pathPrefix="/join" />
-                <data android:scheme="https" android:host="www.edata.com.ng" android:pathPrefix="/r" />
+                <data android:scheme="https" android:host="www.edata.com.ng" android:pathPrefix="/r/" />
             </intent-filter>
 
         </activity>

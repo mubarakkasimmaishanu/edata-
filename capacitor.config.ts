@@ -13,6 +13,20 @@ const config: CapacitorConfig = {
     preferredContentMode: 'mobile'
   },
   plugins: {
+    // Live (OTA) updates served by our own backend: `npm run build:web` publishes
+    // a bundle, installed apps download it in the background and switch on next open.
+    // Managed in Admin > App Version > Live Updates.
+    CapacitorUpdater: {
+      autoUpdate: true,
+      updateUrl: 'https://edata.com.ng/api/ota-update',
+      statsUrl: '',
+      channelUrl: '',
+      appReadyTimeout: 15000,
+      responseTimeout: 30,
+      resetWhenUpdate: true,
+      autoDeleteFailed: true,
+      autoDeletePrevious: true,
+    },
     GoogleAuth: {
       scopes: ['profile', 'email'],
       serverClientId: '452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com',

@@ -346,9 +346,14 @@ export function parsePlanDataSizeMb(planName?: string): number {
   return 0;
 }
 
+// `includeDuration` controls the "(30 DAYS)" style validity tag. Rows rendered
+// *under* a plan-type section header (e.g. "DATA SHARE (30 DAYS)") pass `false`
+// because the header already states the validity, and auto-deriving it from
+// a range like "3 - 7 Days" would wrongly show "(3 DAYS)".
 export function formatPlanRowText(
   p: ProductItem,
-  defaultOperator: string = 'MTN'
+  defaultOperator: string = 'MTN',
+  includeDuration: boolean = true,
 ): string {
   let name = (p.name || '').trim();
   const op = (p.operator || defaultOperator || 'MTN').trim();
@@ -385,8 +390,11 @@ export function formatPlanRowText(
   // 7. Ensure clean spacing before parens e.g. "15GB(520MB" -> "15GB (520MB"
   name = name.replace(/(\d+(?:\.\d+)?(?:GB|MB))\s*\(/gi, '$1 (');
 
-  // 8. If no duration is inside parentheses, check if duration can be parsed from plan info
-  if (!name.includes('(')) {
+  if (!includeDuration) {
+    // Drop validity tags like "(30 DAYS)", "(1 - 2 DAYS)", "(24 HRS)", "(1 MONTH)"
+    name = name.replace(/\s*\(\s*\d+(?:\s*-\s*\d+)?\s*(?:DAYS?|HRS?|HOURS?|MONTHS?|WEEKS?)\s*\)/gi, '');
+  } else if (!name.includes('(')) {
+    // 8. If no duration is inside parentheses, check if duration can be parsed from plan info
     const durDays = parsePlanDurationDays(p.name, p.planTypeName);
     if (durDays > 0) {
       name = `${name} (${durDays} DAYS)`;
@@ -1775,7 +1783,7 @@ export default function ServiceForm(props: ServiceFormProps) {
                                     const isSelected = selectedProduct?.id === p.id;
                                     const dynamicPrice = getDynamicPrice(p);
                                     const opName = p.operator || detectedOperator || 'MTN';
-                                    const planRowText = formatPlanRowText(p, opName);
+                                    const planRowText = formatPlanRowText(p, opName, false);
                                     const formattedPrice = `₦${dynamicPrice.toLocaleString('en-NG')}`;
 
                                     return (

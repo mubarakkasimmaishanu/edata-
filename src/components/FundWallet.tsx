@@ -145,8 +145,9 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
         }).catch(() => {});
       }
 
+      let genRes: any = null;
       try {
-        const genRes = targetCode
+        genRes = targetCode
           ? await api.generateDvaAccount(targetCode, kycPayload)
           : await api.generateVirtualAccount(kycPayload);
 
@@ -177,7 +178,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
         setKycTargetProvider(null);
         toast.success('Dedicated Virtual Account ready!');
 
-        const raw = genRes.data?.virtual_account || (Array.isArray(genRes.data?.accounts) ? genRes.data.accounts[0] : null) || genRes.data;
+        const raw = genRes?.data?.virtual_account || (Array.isArray(genRes?.data?.accounts) ? genRes.data.accounts[0] : null) || genRes?.data;
         if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
           setGeneratedAccountDetails({
             bank_name: raw.bank_name || raw.bank || 'Dedicated Virtual Account',

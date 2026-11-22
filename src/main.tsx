@@ -4,6 +4,14 @@ import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import { captureBrowserReferral } from './services/deepLink';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+
+// Live updates: confirm this bundle booted fine. If it isn't confirmed within
+// appReadyTimeout, the native layer rolls back to the previous working bundle.
+if (Capacitor.isNativePlatform()) {
+  CapacitorUpdater.notifyAppReady().catch((e) => console.warn('[eData] notifyAppReady failed', e));
+}
 
 captureBrowserReferral();
 

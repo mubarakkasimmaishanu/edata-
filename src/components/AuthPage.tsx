@@ -46,6 +46,21 @@ export default function AuthPage({
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
+  // Lock document scroll while on the Auth screen so the page stays fixed and non-scrollable
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
+    };
+  }, []);
+
   // Listen for captured referral codes from Deep Links or Deferred Clipboard bridge
   useEffect(() => {
     const pending = getPendingReferral();
@@ -96,7 +111,7 @@ export default function AuthPage({
   const isGoogleSubmittingRef = useRef(false);
 
   // Google Client ID (Web Client ID from Firebase / Google Cloud Console)
-  const GOOGLE_CLIENT_ID = '452311037053-nqv6g7b0jhn0iv703jed97fbuhf1n14v.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_ID = '518586633606-cicn4tnirn59flm3mv384ja7nt42c7vg.apps.googleusercontent.com';
   // iOS OAuth Client ID (Google Cloud Console → Credentials → OAuth client → type "iOS",
   // bundle ID com.eDATA.app). The Web client ID above CANNOT be used by the native iOS SDK.
   // When set, also add its reversed form (com.googleusercontent.apps.XXXX) to
@@ -484,12 +499,12 @@ export default function AuthPage({
   };
 
   return (
-    <div className={`min-h-screen flex flex-col justify-between w-full font-sans transition-colors duration-200 ${
+    <div className={`fixed inset-0 h-dvh w-full overflow-hidden [@media(max-height:560px)]:overflow-y-auto overscroll-none flex flex-col font-sans transition-colors duration-200 ${
       theme === 'light' ? 'bg-[#f4f7fb] text-slate-900' : 'bg-slate-900 text-slate-100'
     }`}>
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-5 py-8">
-        {/* Top Quick Theme Toggle Button */}
-        <div className="flex justify-end pt-2">
+      <div className="relative w-full max-w-md mx-auto flex-1 flex flex-col justify-between px-5 pt-[max(12px,env(safe-area-inset-top))] pb-[max(8px,env(safe-area-inset-bottom))]">
+        {/* Top Quick Theme Toggle Button (floats top-right to eliminate extra vertical row) */}
+        <div className="absolute top-[max(12px,env(safe-area-inset-top))] right-5 z-20">
           <button
             type="button"
             onClick={toggleTheme}
@@ -509,15 +524,14 @@ export default function AuthPage({
         </div>
 
         {screenMode === 'auth' && (
-          <div className="flex-1 flex flex-col justify-between space-y-6">
-            <div className="space-y-6 pt-2">
-              {/* Header Title */}
+          <div className="flex-1 flex flex-col justify-between">
+            <div className="my-auto space-y-2.5">
               {/* App Brand Header */}
-              <div className="text-center space-y-1 pt-4 pb-2 flex flex-col items-center">
-                <div className="w-16 h-16 mb-2 rounded-2xl overflow-hidden shadow-lg shadow-sky-500/20 border border-sky-500/30 flex items-center justify-center bg-slate-900/50 backdrop-blur-md">
+              <div className="text-center space-y-0.5 flex flex-col items-center">
+                <div className="w-16 h-16 mb-1 rounded-2xl overflow-hidden shadow-lg shadow-sky-500/20 border border-sky-500/30 flex items-center justify-center bg-slate-900/50 backdrop-blur-md">
                   <img src={edataLogo} alt="eData Logo" className="w-full h-full object-contain" />
                 </div>
-                <h1 className="text-3xl font-black tracking-tight flex items-center justify-center gap-0.5 font-display">
+                <h1 className="text-3xl leading-tight font-black tracking-tight flex items-center justify-center gap-0.5 font-display">
                   <span className="text-[#0284c7] font-extrabold">e</span>
                   <span className={`font-extrabold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Data</span>
                 </h1>
@@ -527,7 +541,7 @@ export default function AuthPage({
               </div>
 
               {/* System Card */}
-              <div className={`rounded-3xl p-5 backdrop-blur-xl space-y-5 transition-all ${
+              <div className={`rounded-3xl px-4 py-3.5 backdrop-blur-xl space-y-2.5 transition-all ${
                 theme === 'light'
                   ? 'bg-white border border-slate-200/80 shadow-xl shadow-slate-200/60'
                   : 'bg-slate-800/90 border border-slate-700/80 shadow-2xl'
@@ -570,7 +584,7 @@ export default function AuthPage({
 
                 {/* Google Sign-In & Terms at TOP */}
                 {googleSignInAvailable && (
-                  <div className="space-y-3 pt-1">
+                  <div className="space-y-2">
                     <button
                       type="button"
                       onClick={handleGoogleSignIn}
@@ -594,7 +608,7 @@ export default function AuthPage({
                       <span>Continue with Google</span>
                     </button>
 
-                    <label className="flex items-center justify-center gap-2.5 pt-0.5 cursor-pointer select-none">
+                    <label className="flex items-center justify-center gap-2.5 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={acceptTerms}
@@ -607,7 +621,7 @@ export default function AuthPage({
                     </label>
 
                     {/* Divider */}
-                    <div className="relative py-1.5">
+                    <div className="relative py-0.5">
                       <div className="absolute inset-0 flex items-center">
                         <div className={`w-full border-t ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`} />
                       </div>
@@ -626,8 +640,8 @@ export default function AuthPage({
 
                 {/* Form */}
                 {isRegistering ? (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-4" id="register-form" method="post">
-                    <div className="space-y-1.5">
+                  <form onSubmit={handleRegisterSubmit} className="space-y-2.5" id="register-form" method="post">
+                    <div className="space-y-1">
                       <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
@@ -645,7 +659,7 @@ export default function AuthPage({
                         }`}
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
                           Referral / Promo Code <span className={`${theme === 'light' ? 'text-slate-400' : 'text-slate-500'} font-normal`}>(Optional)</span>
@@ -672,7 +686,7 @@ export default function AuthPage({
                       />
                     </div>
                     {!googleSignInAvailable && (
-                      <label className="flex items-center gap-2.5 pt-1 cursor-pointer">
+                      <label className="flex items-center gap-2.5 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={acceptTerms}
@@ -690,9 +704,9 @@ export default function AuthPage({
                     </button>
                   </form>
                 ) : (
-                  <form onSubmit={handleLoginSubmit} className="space-y-4" id="login-form" method="post">
+                  <form onSubmit={handleLoginSubmit} className="space-y-2.5" id="login-form" method="post">
                     {loginError && (
-                      <div className={`p-3 border rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                      <div className={`px-3 py-2 border rounded-2xl text-xs font-semibold flex items-center gap-2 ${
                         theme === 'light'
                           ? 'bg-[#fff1f2] border-rose-200 text-rose-800'
                           : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
@@ -701,7 +715,7 @@ export default function AuthPage({
                         <span>{loginError}</span>
                       </div>
                     )}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Email Address</label>
                       <input
                         type="email"
@@ -719,7 +733,7 @@ export default function AuthPage({
                         }`}
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       <div className="flex justify-between items-center">
                         <label className={`text-xs font-bold block ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>Password</label>
                         <button
@@ -768,7 +782,7 @@ export default function AuthPage({
               </div>
             </div>
 
-            <p className={`text-center text-[11px] font-medium py-3 ${
+            <p className={`text-center text-[11px] leading-snug font-medium pt-1.5 pb-0.5 ${
               theme === 'light' ? 'text-slate-400' : 'text-slate-500'
             }`}>
               Protected by 256-bit SSL Security & Verification Token Validation
@@ -777,8 +791,8 @@ export default function AuthPage({
         )}
 
         {screenMode === 'otp' && (
-          <div className="flex-1 flex flex-col justify-between">
-            <div className="space-y-6 mt-4">
+          <div className="flex-1 flex flex-col justify-between pt-12">
+            <div className="space-y-6 my-auto">
               <div className="space-y-2 text-center">
                 <h2 className="text-2xl font-black text-white">Enter Verification Code</h2>
                 <p className="text-xs text-slate-400 font-medium">
@@ -838,8 +852,8 @@ export default function AuthPage({
         )}
 
         {screenMode === 'password_create' && (
-          <div className="flex-1 flex flex-col justify-between">
-            <div className="space-y-6 mt-4">
+          <div className="flex-1 flex flex-col justify-between pt-12">
+            <div className="space-y-6 my-auto">
               <div className="space-y-2 text-center">
                 <h2 className="text-2xl font-black text-white">Create Password</h2>
                 <p className="text-xs text-slate-400 font-medium">Secure your account with a strong password.</p>

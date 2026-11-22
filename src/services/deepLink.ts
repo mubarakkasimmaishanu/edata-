@@ -1,6 +1,7 @@
 import { App, URLOpenListenerEvent } from '@capacitor/app';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
+import { Browser } from '@capacitor/browser';
 
 export const PENDING_REFERRAL_KEY = 'edata_pending_referral';
 export const PENDING_CLICK_ID_KEY = 'edata_pending_click_id';
@@ -257,6 +258,21 @@ export async function checkClipboardForReferral(): Promise<string | null> {
   return null;
 }
 
+function handleWebOnlyAuthUrl(rawUrl: string): boolean {
+  if (!rawUrl || typeof rawUrl !== 'string') return false;
+  if (/\/(reset-password|password-reset|reset-pin|pin-reset|request-password-reset|forgot-password)\b/i.test(rawUrl)) {
+    const safeWebUrl = rawUrl
+      .replace(/\/reset-password\b/i, '/password-reset')
+      .replace(/\/reset-pin\b/i, '/pin-reset')
+      .replace(/\/request-password-reset\b/i, '/forgot-password');
+    Browser.open({ url: safeWebUrl }).catch(() => {
+      try { window.open(safeWebUrl, '_system'); } catch {}
+    });
+    return true;
+  }
+  return false;
+}
+
 /**
  * Initialize Deep Linking system (Google Play Install Referrer + Direct App Links)
  */
@@ -265,6 +281,7 @@ export function initDeepLinking(): void {
   // 1. Listen for App Links while running or launching
   App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
     console.log('[DeepLink] appUrlOpen event:', event.url);
+    if (handleWebOnlyAuthUrl(event.url)) return;
     const code = extractReferralFromUrl(event.url);
     if (code) {
       console.log('[DeepLink] Referral code extracted from App Link:', code);
@@ -282,6 +299,7 @@ export function initDeepLinking(): void {
   App.getLaunchUrl().then(launchData => {
     if (launchData && launchData.url) {
       console.log('[DeepLink] Cold start launch URL:', launchData.url);
+      if (handleWebOnlyAuthUrl(launchData.url)) return;
       const code = extractReferralFromUrl(launchData.url);
       if (code) {
         savePendingReferral(code);
