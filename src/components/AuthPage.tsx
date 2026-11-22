@@ -773,11 +773,9 @@ export default function AuthPage({
               </div>
             </div>
 
-            <p className={`text-center text-[11px] leading-snug font-medium pt-1.5 pb-0.5 ${
-              theme === 'light' ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              Protected by 256-bit SSL Security & Verification Token Validation
-            </p>
+            <div className="text-center text-[11px] leading-snug font-medium pt-1.5 pb-0.5 invisible select-none pointer-events-none" aria-hidden="true">
+              &nbsp;
+            </div>
           </div>
         )}
 
