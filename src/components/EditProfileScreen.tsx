@@ -81,6 +81,9 @@ export default function EditProfileScreen({ currentUser, setCurrentUser, onBack 
       }
 
       const res = await api.updateProfile(payload);
+      if (!res || res.success === false) {
+        throw new Error(res?.error || res?.message || 'NIN verification failed via PayVessel. Please check your 11-digit NIN and try again.');
+      }
       const fullName = `${firstname.trim()} ${lastname.trim()}`;
       const newNinMasked =
         res?.data?.nin_masked ||

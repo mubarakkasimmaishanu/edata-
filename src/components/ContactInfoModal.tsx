@@ -73,8 +73,8 @@ export default function ContactInfoModal({
   bvnMasked = null,
   ninMasked = null,
   title = 'Complete Personal Info & NIN Verification',
-  subtitle = 'Your wallet is funded! Please provide your personal details and 11-digit NIN. Your NIN is securely saved for backup virtual accounts (like PayVessel) in case KatPay ever has an issue.',
-  submitButtonLabel = 'Save NIN & Complete Verification',
+  subtitle = 'Your wallet is funded! Please provide your personal details and 11-digit NIN. Your NIN is verified live via PayVessel and saved ahead of time for backup virtual account funding.',
+  submitButtonLabel = 'Verify NIN & Save Details',
   dismissButtonLabel = 'Remind Me Later',
   onSave,
   onDismiss,
@@ -202,7 +202,7 @@ export default function ContactInfoModal({
           ? (kycType === 'nin' ? { nin: cleanKyc } : { bvn: cleanKyc })
           : {}),
       });
-      toast.success('Personal information and NIN verification saved successfully!');
+      toast.success('Personal information & NIN verified via PayVessel and saved!');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update personal and KYC details. Please try again.');
     } finally {
@@ -470,7 +470,7 @@ export default function ContactInfoModal({
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving...</span>
+                  <span>Verifying NIN via PayVessel...</span>
                 </>
               ) : (
                 <>

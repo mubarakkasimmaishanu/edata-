@@ -1192,6 +1192,9 @@ function MainApp() {
 
   const handleSaveContactInfo = async (payload: PersonalAndKycPayload) => {
     const res = await api.updateProfile(payload);
+    if (!res || res.success === false) {
+      throw new Error(res?.error || res?.message || 'NIN verification failed via PayVessel. Please check your 11-digit NIN and try again.');
+    }
     const updatedUserFromServer = res?.data?.user || {};
     const vAccounts = res?.data?.virtual_accounts || updatedUserFromServer?.virtual_accounts || [];
     const primaryVa = res?.data?.virtual_account || updatedUserFromServer?.virtual_account || vAccounts[0] || null;

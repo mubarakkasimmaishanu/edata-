@@ -7,6 +7,7 @@ export interface ContactPromptData {
   has_whatsapp: boolean;
   has_kyc?: boolean;
   has_nin?: boolean;
+  nin_verified_payvessel?: boolean;
   requires_nin?: boolean;
   has_funded?: boolean;
   firstname?: string;
