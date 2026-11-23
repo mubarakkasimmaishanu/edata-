@@ -111,11 +111,7 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
       handleGenerateVirtualAccount(undefined, provider.code);
       return;
     }
-    if (!hasExistingKyc) {
-      setShowKycModal(true);
-      return;
-    }
-    handleGenerateVirtualAccount();
+    handleGenerateVirtualAccount(undefined, 'katpay');
   };
 
   const handleGenerateVirtualAccount = async (manualKyc?: { bvn?: string; nin?: string }, providerCode?: string) => {
@@ -273,9 +269,35 @@ export default function FundWallet({ currentUser, setCurrentUser, onBack, onRefr
       ]);
 
       if (dvaRes.status === 'fulfilled' && dvaRes.value?.success && Array.isArray(dvaRes.value?.data?.providers)) {
-        setDvaProviders(dvaRes.value.data.providers);
+        const provList: DvaProviderInfo[] = dvaRes.value.data.providers;
+        setDvaProviders(provList);
         if (dvaRes.value.data.has_kyc || dvaRes.value.data.bvn_masked || dvaRes.value.data.nin_masked) {
           persistUserKycState(undefined, undefined, dvaRes.value.data.bvn_masked, dvaRes.value.data.nin_masked);
+        }
+
+        // Silent background KatPay DVA provisioning if KatPay is active and user has no KatPay DVA yet
+        const katProv = provList.find((p) => p.code === 'katpay' && p.is_active);
+        if (katProv && (!katProv.has_account || !Array.isArray(katProv.accounts) || katProv.accounts.length === 0)) {
+          api.generateDvaAccount('katpay').then((genRes) => {
+            const raw = genRes?.data?.virtual_account || (Array.isArray(genRes?.data?.accounts) ? genRes.data.accounts[0] : null) || genRes?.data;
+            if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
+              const newAcc: VirtualAccount = {
+                bank_name: raw.bank_name || raw.bank || 'PalmPay',
+                account_number: raw.account_number || raw.accountNo || raw.account_no,
+                account_name: raw.account_name || raw.accountName || currentUser.name,
+                provider: 'katpay',
+                is_primary: true,
+                badge: raw.badge || 'Free Transfer • Instant',
+              };
+              setVirtualAccounts((prev) => [newAcc, ...prev.filter((a) => a.account_number !== newAcc.account_number)]);
+              setDvaProviders((prev) =>
+                prev.map((p) => (p.code === 'katpay' ? { ...p, has_account: true, accounts: [newAcc] } : p))
+              );
+              try {
+                localStorage.setItem('edata_virtual_account', JSON.stringify(newAcc));
+              } catch {}
+            }
+          }).catch(() => {});
         }
       }
 

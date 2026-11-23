@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, ShieldCheck, Check, X, Loader2, MessageCircle } from 'lucide-react';
+import { Phone, ShieldCheck, Check, X, Loader2, MessageCircle, User, Copy } from 'lucide-react';
 import { useToast } from './Toast';
 import { useBackHandler } from '../utils/backHandler';
+
+export interface PersonalAndKycPayload {
+  firstname: string;
+  lastname: string;
+  phone: string;
+  whatsapp: string;
+  bvn?: string;
+  nin?: string;
+}
 
 interface ContactInfoModalProps {
   isOpen: boolean;
   isForced?: boolean;
+  initialFirstname?: string;
+  initialLastname?: string;
   initialPhone?: string;
   initialWhatsapp?: string;
+  hasKyc?: boolean;
+  bvnMasked?: string | null;
+  ninMasked?: string | null;
   title?: string;
   subtitle?: string;
   submitButtonLabel?: string;
   dismissButtonLabel?: string;
-  onSave: (phone: string, whatsapp: string) => Promise<boolean | void>;
+  onSave: (payload: PersonalAndKycPayload) => Promise<boolean | void>;
   onDismiss: () => void;
 }
 
@@ -51,24 +65,35 @@ function detectCarrier(rawPhone: string) {
 export default function ContactInfoModal({
   isOpen,
   isForced = false,
+  initialFirstname = '',
+  initialLastname = '',
   initialPhone = '',
   initialWhatsapp = '',
-  title = 'Complete Contact Info',
-  subtitle = 'Provide your phone number and WhatsApp contact to receive instant SMS transaction receipts, token delivery, and dedicated customer support.',
-  submitButtonLabel = 'Save & Continue',
+  hasKyc = false,
+  bvnMasked = null,
+  ninMasked = null,
+  title = 'Complete Personal & KYC Details',
+  subtitle = 'Your wallet is funded and active! Please provide your personal information and BVN or NIN to complete your KYC verification.',
+  submitButtonLabel = 'Save & Complete Verification',
   dismissButtonLabel = 'Remind Me Later',
   onSave,
   onDismiss,
 }: ContactInfoModalProps) {
   const toast = useToast();
 
+  const [firstname, setFirstname] = useState(initialFirstname);
+  const [lastname, setLastname] = useState(initialLastname);
   const [phone, setPhone] = useState(initialPhone);
   const [whatsapp, setWhatsapp] = useState(initialWhatsapp || initialPhone);
   const [syncSame, setSyncSame] = useState(!initialWhatsapp || initialWhatsapp === initialPhone);
+  const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
+  const [kycValue, setKycValue] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Sync state if initial props change
   useEffect(() => {
+    if (initialFirstname) setFirstname(initialFirstname);
+    if (initialLastname) setLastname(initialLastname);
     if (initialPhone) {
       setPhone(initialPhone);
       if (!initialWhatsapp || initialWhatsapp === initialPhone) {
@@ -80,7 +105,7 @@ export default function ContactInfoModal({
       setWhatsapp(initialWhatsapp);
       setSyncSame(false);
     }
-  }, [initialPhone, initialWhatsapp]);
+  }, [initialFirstname, initialLastname, initialPhone, initialWhatsapp]);
 
   // Lock body scroll while modal is active
   useEffect(() => {
@@ -100,6 +125,7 @@ export default function ContactInfoModal({
   if (!isOpen) return null;
 
   const carrier = detectCarrier(phone);
+  const alreadyHasKyc = Boolean(hasKyc || bvnMasked || ninMasked);
 
   const handlePhoneChange = (val: string) => {
     const clean = val.replace(/[^\d+]/g, '');
@@ -121,35 +147,71 @@ export default function ContactInfoModal({
     }
   };
 
+  const handlePasteKyc = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const clean = text.replace(/\D/g, '').slice(0, 11);
+      if (clean) {
+        setKycValue(clean);
+        toast.success(`Pasted ${kycType.toUpperCase()}!`);
+      } else {
+        toast.info('No digits found in clipboard.');
+      }
+    } catch {
+      toast.info('Please type or paste directly.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const cleanFirst = firstname.trim();
+    const cleanLast = lastname.trim();
     const cleanPhone = phone.trim();
     const cleanWhatsapp = syncSame ? cleanPhone : whatsapp.trim();
+    const cleanKyc = kycValue.replace(/\D/g, '').trim();
 
-    if (!cleanPhone || cleanPhone.length < 10) {
+    if (!cleanFirst || !cleanLast) {
+      toast.warning('Please enter your first name and last name.');
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.replace(/\D/g, '').length < 10) {
       toast.warning('Please enter a valid 11-digit Nigerian phone number.');
       return;
     }
 
-    if (!cleanWhatsapp || cleanWhatsapp.length < 10) {
+    if (!cleanWhatsapp || cleanWhatsapp.replace(/\D/g, '').length < 10) {
       toast.warning('Please enter a valid WhatsApp number.');
+      return;
+    }
+
+    if (!alreadyHasKyc && cleanKyc.length !== 11) {
+      toast.warning(`Please enter a valid 11-digit ${kycType.toUpperCase()} to complete KYC verification.`);
       return;
     }
 
     setSaving(true);
     try {
-      await onSave(cleanPhone, cleanWhatsapp);
-      toast.success('Phone and WhatsApp contacts updated successfully!');
+      await onSave({
+        firstname: cleanFirst,
+        lastname: cleanLast,
+        phone: cleanPhone,
+        whatsapp: cleanWhatsapp,
+        ...(!alreadyHasKyc && cleanKyc.length === 11
+          ? (kycType === 'bvn' ? { bvn: cleanKyc } : { nin: cleanKyc })
+          : {}),
+      });
+      toast.success('Personal information and KYC details saved successfully!');
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update contact info. Please try again.');
+      toast.error(err?.message || 'Failed to update personal and KYC details. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       {/* Blurred Backdrop */}
       <div
         onClick={() => {
@@ -159,29 +221,29 @@ export default function ContactInfoModal({
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 p-5 shadow-2xl text-white z-10 transition-all transform animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 p-5 shadow-2xl text-white z-10 transition-all transform animate-in fade-in zoom-in-95 duration-200 my-auto max-h-[92vh] overflow-y-auto">
         
         {/* Ambient Top Glow */}
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-sky-500/15 rounded-full filter blur-3xl pointer-events-none" />
 
         {/* Modal Header */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-2.5">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-emerald-500 p-0.5 shadow-lg shadow-sky-500/25 flex items-center justify-center">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-emerald-500 p-0.5 shadow-lg shadow-sky-500/25 flex items-center justify-center">
                 <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
-                  <Phone className="w-5 h-5 text-sky-400" />
+                  <ShieldCheck className="w-5 h-5 text-sky-400" />
                 </div>
               </div>
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white border-2 border-slate-900 shadow">
+              <span className="absolute -bottom-1 -right-1 w-4.5 h-4.5 rounded-full bg-emerald-500 flex items-center justify-center text-white border-2 border-slate-900 shadow">
                 <MessageCircle className="w-2.5 h-2.5 fill-current" />
               </span>
             </div>
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-sky-400 font-mono">
-                ACCOUNT VERIFICATION
+                PERSONAL INFO & KYC
               </span>
-              <h2 className="text-base font-black text-white leading-tight font-display">
+              <h2 className="text-sm font-black text-white leading-tight font-display">
                 {title}
               </h2>
             </div>
@@ -194,24 +256,60 @@ export default function ContactInfoModal({
               onClick={onDismiss}
               disabled={saving}
               title="Remind Me Later"
-              className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center border border-slate-700/60 text-xs transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center border border-slate-700/60 text-xs transition-colors cursor-pointer shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed mb-4">
+        <p className="text-xs text-slate-300 leading-relaxed mb-3.5">
           {subtitle}
         </p>
 
-        {/* Contact Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          
-          {/* FIELD 1: Primary Phone Number */}
+        {/* Personal & KYC Form */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* ROW 1: First Name & Last Name */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label htmlFor="modal_firstname" className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1 mb-1">
+                <User className="w-3 h-3 text-sky-400" />
+                <span>First Name</span>
+                <span className="text-rose-400">*</span>
+              </label>
+              <input
+                id="modal_firstname"
+                type="text"
+                placeholder="First Name"
+                value={firstname}
+                onChange={(e) => setFirstname(e.target.value)}
+                required
+                className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl py-2 px-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="modal_lastname" className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1 mb-1">
+                <span>Last Name</span>
+                <span className="text-rose-400">*</span>
+              </label>
+              <input
+                id="modal_lastname"
+                type="text"
+                placeholder="Last Name"
+                value={lastname}
+                onChange={(e) => setLastname(e.target.value)}
+                required
+                className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl py-2 px-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* FIELD 2: Primary Phone Number */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="modal_phone" className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1">
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="modal_phone" className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1">
+                <Phone className="w-3 h-3 text-sky-400" />
                 <span>Phone Number</span>
                 <span className="text-rose-400">*</span>
               </label>
@@ -235,7 +333,7 @@ export default function ContactInfoModal({
                 value={phone}
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 required
-                className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-2xl py-2.5 pl-24 pr-4 text-sm font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20 font-mono transition-all"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl py-2 pl-24 pr-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20 font-mono transition-all"
               />
             </div>
           </div>
@@ -247,54 +345,120 @@ export default function ContactInfoModal({
                 type="checkbox"
                 checked={syncSame}
                 onChange={(e) => handleToggleSync(e.target.checked)}
-                className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-emerald-500/30 accent-emerald-500 cursor-pointer"
+                className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-emerald-500/30 accent-emerald-500 cursor-pointer"
               />
-              <span className="text-xs font-medium text-slate-300">
+              <span className="text-[11px] font-medium text-slate-300">
                 WhatsApp is same as Phone Number
               </span>
             </label>
           </div>
 
-          {/* FIELD 2: WhatsApp Number */}
-          <div className={`transition-all ${syncSame ? 'opacity-65' : 'opacity-100'}`}>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="modal_whatsapp" className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                <span>WhatsApp Number</span>
-                <span className="text-rose-400">*</span>
-              </label>
-              <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono">
-                {syncSame ? 'Synced with Phone' : 'Custom Number'}
+          {/* FIELD 3: WhatsApp Number */}
+          {!syncSame && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="modal_whatsapp" className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                  <span>WhatsApp Number</span>
+                  <span className="text-rose-400">*</span>
+                </label>
+              </div>
+
+              <div className="relative flex items-center">
+                <div className="absolute left-3 flex items-center gap-1.5 pr-2 border-r border-slate-700 pointer-events-none">
+                  <span className="text-sm">🇳🇬</span>
+                  <span className="text-xs font-bold text-slate-300 font-mono">+234</span>
+                </div>
+                <input
+                  id="modal_whatsapp"
+                  type="tel"
+                  placeholder="08012345678"
+                  maxLength={11}
+                  value={whatsapp}
+                  onChange={(e) => handleWhatsappChange(e.target.value)}
+                  required
+                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-emerald-500 rounded-xl py-2 pl-24 pr-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono transition-all"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* FIELD 4: Required KYC Details (BVN or NIN) */}
+          {!alreadyHasKyc ? (
+            <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] font-bold text-sky-400 uppercase tracking-wider">
+                  KYC Verification (BVN or NIN) *
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">{kycValue.length}/11</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => { setKycType('bvn'); setKycValue(''); }}
+                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                    kycType === 'bvn'
+                      ? 'bg-sky-500 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  BVN (Bank ID)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setKycType('nin'); setKycValue(''); }}
+                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                    kycType === 'nin'
+                      ? 'bg-sky-500 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  NIN (National ID)
+                </button>
+              </div>
+
+              <div className="relative flex items-center">
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
+                  value={kycValue}
+                  onChange={(e) => setKycValue(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
+                  required
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-sky-500 rounded-xl py-2 pl-3 pr-16 text-xs font-mono tracking-widest text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteKyc}
+                  className="absolute right-1.5 px-2 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Copy className="w-2.5 h-2.5" />
+                  <span>Paste</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300">
+              <span className="flex items-center gap-1.5 font-bold">
+                <Check className="w-4 h-4 text-emerald-400" />
+                KYC Identity Verified
+              </span>
+              <span className="font-mono text-[11px] text-emerald-400">
+                {bvnMasked || ninMasked || 'Verified'}
               </span>
             </div>
-
-            <div className="relative flex items-center">
-              <div className="absolute left-3 flex items-center gap-1.5 pr-2 border-r border-slate-700 pointer-events-none">
-                <span className="text-sm">🇳🇬</span>
-                <span className="text-xs font-bold text-slate-300 font-mono">+234</span>
-              </div>
-              <input
-                id="modal_whatsapp"
-                type="tel"
-                placeholder="08012345678"
-                maxLength={11}
-                disabled={syncSame}
-                value={syncSame ? phone : whatsapp}
-                onChange={(e) => handleWhatsappChange(e.target.value)}
-                required
-                className="w-full bg-slate-950/80 border border-slate-700 focus:border-emerald-500 rounded-2xl py-2.5 pl-24 pr-4 text-sm font-semibold text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono transition-all disabled:cursor-not-allowed"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Security Assurance */}
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/50 border border-slate-800 text-[11px] text-slate-400">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/50 border border-slate-800 text-[10.5px] text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Your numbers are kept strictly confidential for eData account services only.</span>
+            <span>Your personal and KYC details are encrypted and securely stored for compliance.</span>
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="pt-2 space-y-2">
+          <div className="pt-1 space-y-2">
             <button
               type="submit"
               disabled={saving}
@@ -319,7 +483,7 @@ export default function ContactInfoModal({
                 type="button"
                 onClick={onDismiss}
                 disabled={saving}
-                className="w-full py-2 text-center text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="w-full py-1.5 text-center text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
               >
                 {dismissButtonLabel}
               </button>

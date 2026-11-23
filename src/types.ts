@@ -1,11 +1,20 @@
 export interface ContactPromptData {
   should_show: boolean;
   is_forced: boolean;
+  has_personal_info?: boolean;
+  has_personal_name?: boolean;
   has_phone: boolean;
   has_whatsapp: boolean;
+  has_kyc?: boolean;
+  has_funded?: boolean;
+  firstname?: string;
+  lastname?: string;
   phone?: string;
   whatsapp?: string;
+  bvn_masked?: string | null;
+  nin_masked?: string | null;
   tx_count?: number;
+  deposit_count?: number;
   balance?: number;
   min_tx_count?: number;
   min_balance?: number;

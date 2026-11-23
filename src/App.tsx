@@ -6,7 +6,7 @@ import { UserProfile, ProductItem, Transaction, QuickAction, PlanTypeItem, Popup
 import { api, getAuthToken, setAuthToken, API_BASE_URL, resolveImageUrl } from './services/api';
 import { runBackHandlers } from './utils/backHandler';
 import PopupBanner from './components/PopupBanner';
-import ContactInfoModal from './components/ContactInfoModal';
+import ContactInfoModal, { PersonalAndKycPayload } from './components/ContactInfoModal';
 import { ContactPromptData } from './types';
 import { AppVersionData } from './types';
 import { checkAppUpdate, isUpdateSnoozed, snoozeUpdate, getInstalledAppVersion, compareSemver, isIosPlatform, openStoreLink } from './services/appUpdateService';
@@ -998,6 +998,7 @@ function MainApp() {
             const prevTotal = prev.totalEffectiveBalance ?? prev.walletBalance;
             const balanceChanged = Math.abs(newBalance - prevTotal) > 0.01 || Math.abs(mainW - (prev.mainWallet ?? 0)) > 0.01;
             if (balanceChanged) {
+              syncProfileAndWallet(true);
               syncTransactions(true);
               syncNotifications(true);
             }
@@ -1185,14 +1186,49 @@ function MainApp() {
     } catch { }
   };
 
-  const handleSaveContactInfo = async (phone: string, whatsapp: string) => {
-    await api.updateProfile({ phone, whatsapp });
+  const handleSaveContactInfo = async (payload: PersonalAndKycPayload) => {
+    const res = await api.updateProfile(payload);
+    const updatedUserFromServer = res?.data?.user || {};
+    const vAccounts = res?.data?.virtual_accounts || updatedUserFromServer?.virtual_accounts || [];
+    const primaryVa = res?.data?.virtual_account || updatedUserFromServer?.virtual_account || vAccounts[0] || null;
+    if (primaryVa && primaryVa.account_number) {
+      try {
+        localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVa));
+      } catch {}
+    }
+    const newBvnMask = updatedUserFromServer?.bvn_masked || (payload.bvn ? `*******${payload.bvn.slice(-4)}` : undefined);
+    const newNinMask = updatedUserFromServer?.nin_masked || (payload.nin ? `*******${payload.nin.slice(-4)}` : undefined);
     handleSetCurrentUser((prev) => ({
       ...prev,
-      phone,
-      whatsapp,
+      firstname: payload.firstname || prev.firstname,
+      lastname: payload.lastname || prev.lastname,
+      name: `${payload.firstname} ${payload.lastname}`.trim() || prev.name,
+      phone: payload.phone,
+      whatsapp: payload.whatsapp,
+      ...(newBvnMask ? { bvn: newBvnMask, bvn_masked: newBvnMask, bvnMasked: newBvnMask, hasKyc: true, has_kyc: true } : {}),
+      ...(newNinMask ? { nin: newNinMask, nin_masked: newNinMask, ninMasked: newNinMask, hasKyc: true, has_kyc: true } : {}),
+      ...(primaryVa ? { virtualAccount: primaryVa } : {}),
+      ...(vAccounts.length > 0 ? { virtualAccounts: vAccounts } : {}),
     }));
-    setContactPromptData((prev) => (prev ? { ...prev, should_show: false, has_phone: true, has_whatsapp: true, phone, whatsapp } : null));
+    setContactPromptData((prev) =>
+      res?.data?.contact_prompt
+        ? res.data.contact_prompt
+        : prev
+        ? {
+            ...prev,
+            should_show: false,
+            has_personal_info: true,
+            has_personal_name: true,
+            has_phone: true,
+            has_whatsapp: true,
+            has_kyc: true,
+            firstname: payload.firstname,
+            lastname: payload.lastname,
+            phone: payload.phone,
+            whatsapp: payload.whatsapp,
+          }
+        : null
+    );
   };
 
   const handleDismissContactPrompt = () => {
@@ -1851,12 +1887,17 @@ function MainApp() {
           />
         )}
 
-        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'app' && activeView === 'dashboard' && (
+        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'app' && (
           <ContactInfoModal
             isOpen={true}
             isForced={Boolean(contactPromptData.is_forced)}
+            initialFirstname={contactPromptData.firstname || ''}
+            initialLastname={contactPromptData.lastname || ''}
             initialPhone={contactPromptData.phone || currentUser.phone}
             initialWhatsapp={contactPromptData.whatsapp || currentUser.whatsapp}
+            hasKyc={Boolean(contactPromptData.has_kyc ?? currentUser.hasKyc ?? currentUser.has_kyc)}
+            bvnMasked={contactPromptData.bvn_masked || currentUser.bvn_masked || null}
+            ninMasked={contactPromptData.nin_masked || currentUser.nin_masked || null}
             title={contactPromptData.title}
             subtitle={contactPromptData.subtitle}
             submitButtonLabel={contactPromptData.submit_button_label}

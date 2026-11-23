@@ -252,11 +252,25 @@ export default function AuthPage({
       if (backendRes.success && backendRes.data?.token) {
         clearPendingReferral();
         setAuthToken(backendRes.data.token);
+        const vAccounts = backendRes.data?.virtual_accounts || backendRes.data?.user?.virtual_accounts || [];
+        const primaryVa = backendRes.data?.virtual_account || backendRes.data?.user?.virtual_account || vAccounts[0] || null;
+        if (primaryVa && primaryVa.account_number) {
+          try {
+            localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVa));
+          } catch {}
+        } else {
+          // Ensure KatPay DVA is silently provisioned in background
+          api.generateDvaAccount('katpay').catch(() => {});
+        }
         const userObj: UserProfile = {
           id: backendRes.data.user.id,
           name: `${backendRes.data.user.firstname || ''} ${backendRes.data.user.lastname || ''}`.trim() || 'eData User',
+          firstname: backendRes.data.user.firstname || '',
+          lastname: backendRes.data.user.lastname || '',
           email: backendRes.data.user.email,
           phone: backendRes.data.user.phone || '',
+          whatsapp: backendRes.data.user.whatsapp || '',
+          contact_prompt: backendRes.data.contact_prompt || backendRes.data.user?.contact_prompt,
           walletBalance: parseFloat(backendRes.data.user?.wallet_balance ?? backendRes.data.user?.balance ?? backendRes.data.wallet_balance ?? backendRes.data.balance ?? '0'),
           category: backendRes.data.user.level_label || 'Basic User',
           bvn: backendRes.data.user.bvn_masked || backendRes.data.user.bvn || '',
@@ -273,6 +287,8 @@ export default function AuthPage({
           hasPendingUpgrade: backendRes.data.user.has_pending_upgrade || false,
           upgradeFee: backendRes.data.user.premium_upgrade_fee || 5000,
           photo: backendRes.data.user.photo || null,
+          virtualAccount: primaryVa,
+          virtualAccounts: vAccounts,
         };
 
         setCurrentUser(userObj);
@@ -316,11 +332,24 @@ export default function AuthPage({
       const res = await api.login(authEmail, authPassword);
       if (res.success && res.data) {
         setAuthToken(res.data.token);
+        const vAccounts = res.data?.virtual_accounts || res.data?.user?.virtual_accounts || [];
+        const primaryVa = res.data?.virtual_account || res.data?.user?.virtual_account || vAccounts[0] || null;
+        if (primaryVa && primaryVa.account_number) {
+          try {
+            localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVa));
+          } catch {}
+        } else {
+          api.generateDvaAccount('katpay').catch(() => {});
+        }
         const userObj: UserProfile = {
           id: res.data.user.id,
           name: `${res.data.user.firstname || ''} ${res.data.user.lastname || ''}`.trim() || 'eData User',
+          firstname: res.data.user.firstname || '',
+          lastname: res.data.user.lastname || '',
           email: res.data.user.email,
           phone: res.data.user.phone || '',
+          whatsapp: res.data.user.whatsapp || '',
+          contact_prompt: res.data.contact_prompt || res.data.user?.contact_prompt,
           walletBalance: parseFloat(res.data.user?.wallet_balance ?? res.data.user?.balance ?? res.data.wallet_balance ?? res.data.balance ?? '0'),
           category: res.data.user.level_label || 'Basic User',
           bvn: res.data.user.bvn_masked || res.data.user.bvn || '',
@@ -336,6 +365,8 @@ export default function AuthPage({
           hasPendingUpgrade: res.data.user.has_pending_upgrade || false,
           upgradeFee: res.data.user.premium_upgrade_fee || 5000,
           photo: res.data.user.photo || null,
+          virtualAccount: primaryVa,
+          virtualAccounts: vAccounts,
         };
 
         setCurrentUser(userObj);
@@ -442,16 +473,33 @@ export default function AuthPage({
       const activePromo = authPromo.trim() || getPendingReferral() || undefined;
       const res = await api.signupComplete(authEmail, otpCode, regPassword, regConfirmPassword, '', activePromo);
       if (res.success && res.data) {
+        setAuthToken(res.data.token);
+        const vAccounts = res.data?.virtual_accounts || res.data?.user?.virtual_accounts || [];
+        const primaryVa = res.data?.virtual_account || res.data?.user?.virtual_account || vAccounts[0] || null;
+        if (primaryVa && primaryVa.account_number) {
+          try {
+            localStorage.setItem('edata_virtual_account', JSON.stringify(primaryVa));
+          } catch {}
+        } else {
+          // Ensure KatPay DVA is silently provisioned in background during onboarding
+          api.generateDvaAccount('katpay').catch(() => {});
+        }
         const newUserObj: UserProfile = {
           id: res.data.user.id,
           name: authEmail.split('@')[0].toUpperCase(),
+          firstname: res.data.user.firstname || authEmail.split('@')[0],
+          lastname: res.data.user.lastname || 'User',
           email: res.data.user.email,
           phone: res.data.user.phone || '',
+          whatsapp: res.data.user.whatsapp || '',
+          contact_prompt: res.data.contact_prompt || res.data.user?.contact_prompt,
           walletBalance: 0,
           category: res.data.user.level_label || 'Basic User',
-          bvn: '', nin: '', isVerified: false,
+          bvn: '', nin: '', isVerified: true,
           pinCode: '', hasPin: res.data.user.has_pin || false,
           promoCode: activePromo || authPromo,
+          virtualAccount: primaryVa,
+          virtualAccounts: vAccounts,
         };
         setCurrentUser(newUserObj);
         localStorage.setItem('edata_current_user', JSON.stringify(newUserObj));

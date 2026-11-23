@@ -172,10 +172,12 @@ export default function UserDashboard({
   }, [currentUser.virtualAccount, priorityProviderCode]);
 
   useEffect(() => {
+    let cancelled = false;
     api.getWallet()
-      .then((res) => {
-        const priorityCode = res.data?.dashboard_priority_code || res.dashboard_priority_code || '';
-        const priorityName = res.data?.dashboard_priority_name || res.dashboard_priority_name || '';
+      .then(async (res) => {
+        if (cancelled) return;
+        const priorityCode = res.data?.dashboard_priority_code || res.dashboard_priority_code || 'katpay';
+        const priorityName = res.data?.dashboard_priority_name || res.dashboard_priority_name || 'PalmPay';
         if (priorityCode) setPriorityProviderCode(priorityCode);
         if (priorityName) setPriorityProviderName(priorityName);
 
@@ -186,17 +188,17 @@ export default function UserDashboard({
           return !b.includes('wema') && num !== '0127189291';
         });
 
-        const chosen = priorityCode
+        const chosen = (priorityCode
           ? vAccounts.find((a: any) => a.is_primary === true || a.provider === priorityCode)
-          : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0]);
+          : (vAccounts.find((a: any) => a.is_primary === true) || vAccounts[0])) || vAccounts[0];
 
         if (chosen && (chosen.account_number || chosen.account_no || chosen.accountNo)) {
           const acc: VirtualAccount = {
             bank_name: chosen.bank_name || chosen.bank || 'Dedicated Virtual Account',
             account_number: chosen.account_number || chosen.account_no || chosen.accountNo,
             account_name: chosen.account_name || chosen.accountName || displayName,
-            provider: chosen.provider,
-            is_primary: chosen.is_primary,
+            provider: chosen.provider || 'katpay',
+            is_primary: true,
             badge: chosen.badge,
           };
           setLocalVirtualAccount(acc);
@@ -204,13 +206,45 @@ export default function UserDashboard({
             localStorage.setItem('edata_virtual_account', JSON.stringify(acc));
           } catch {}
         } else {
-          setLocalVirtualAccount(null);
+          // Silent background KatPay DVA auto-provisioning during onboarding
+          setIsGeneratingAccount(true);
           try {
-            localStorage.removeItem('edata_virtual_account');
-          } catch {}
+            const genRes = await api.generateDvaAccount('katpay');
+            if (cancelled) return;
+            const accData = genRes?.data || genRes;
+            const raw = accData?.virtual_account || (Array.isArray(accData?.accounts) ? accData.accounts[0] : null) || accData;
+            if (raw && (raw.account_number || raw.accountNo || raw.account_no)) {
+              const autoAcc: VirtualAccount = {
+                bank_name: raw.bank_name || raw.bank || 'PalmPay',
+                account_number: raw.account_number || raw.accountNo || raw.account_no,
+                account_name: raw.account_name || raw.accountName || displayName,
+                provider: raw.provider || 'katpay',
+                is_primary: true,
+                badge: raw.badge || 'Free Transfer • Instant',
+              };
+              setLocalVirtualAccount(autoAcc);
+              try {
+                localStorage.setItem('edata_virtual_account', JSON.stringify(autoAcc));
+              } catch {}
+              if (setCurrentUser) {
+                setCurrentUser({
+                  ...currentUser,
+                  virtualAccount: autoAcc,
+                  virtualAccounts: [autoAcc, ...(currentUser.virtualAccounts || [])],
+                });
+              }
+            }
+          } catch {
+            // Silent background failure
+          } finally {
+            if (!cancelled) setIsGeneratingAccount(false);
+          }
         }
       })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleGenerateVirtualAccount = async () => {

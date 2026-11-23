@@ -268,15 +268,9 @@ export const api = {
   },
 
   async generateVirtualAccount(data?: { bvn?: string; nin?: string }, provider?: string) {
-    if (provider) {
-      return request('/dva-generate', {
-        method: 'POST',
-        body: JSON.stringify({ provider, ...(data || {}) }),
-      });
-    }
-    return request('/payvessel-generate-virtual-account', {
+    return request('/dva-generate', {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: JSON.stringify({ provider: provider || 'katpay', ...(data || {}) }),
     });
   },
 
