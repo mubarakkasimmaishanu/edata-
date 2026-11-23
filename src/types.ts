@@ -6,6 +6,8 @@ export interface ContactPromptData {
   has_phone: boolean;
   has_whatsapp: boolean;
   has_kyc?: boolean;
+  has_nin?: boolean;
+  requires_nin?: boolean;
   has_funded?: boolean;
   firstname?: string;
   lastname?: string;

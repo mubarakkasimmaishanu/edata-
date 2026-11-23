@@ -72,9 +72,9 @@ export default function ContactInfoModal({
   hasKyc = false,
   bvnMasked = null,
   ninMasked = null,
-  title = 'Complete Personal & KYC Details',
-  subtitle = 'Your wallet is funded and active! Please provide your personal information and BVN or NIN to complete your KYC verification.',
-  submitButtonLabel = 'Save & Complete Verification',
+  title = 'Complete Personal Info & NIN Verification',
+  subtitle = 'Your wallet is funded! Please provide your personal details and 11-digit NIN. Your NIN is securely saved for backup virtual accounts (like PayVessel) in case KatPay ever has an issue.',
+  submitButtonLabel = 'Save NIN & Complete Verification',
   dismissButtonLabel = 'Remind Me Later',
   onSave,
   onDismiss,
@@ -86,7 +86,7 @@ export default function ContactInfoModal({
   const [phone, setPhone] = useState(initialPhone);
   const [whatsapp, setWhatsapp] = useState(initialWhatsapp || initialPhone);
   const [syncSame, setSyncSame] = useState(!initialWhatsapp || initialWhatsapp === initialPhone);
-  const [kycType, setKycType] = useState<'bvn' | 'nin'>('bvn');
+  const [kycType, setKycType] = useState<'nin' | 'bvn'>('nin');
   const [kycValue, setKycValue] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -125,7 +125,7 @@ export default function ContactInfoModal({
   if (!isOpen) return null;
 
   const carrier = detectCarrier(phone);
-  const alreadyHasKyc = Boolean(hasKyc || bvnMasked || ninMasked);
+  const alreadyHasNin = Boolean(ninMasked);
 
   const handlePhoneChange = (val: string) => {
     const clean = val.replace(/[^\d+]/g, '');
@@ -186,8 +186,8 @@ export default function ContactInfoModal({
       return;
     }
 
-    if (!alreadyHasKyc && cleanKyc.length !== 11) {
-      toast.warning(`Please enter a valid 11-digit ${kycType.toUpperCase()} to complete KYC verification.`);
+    if (!alreadyHasNin && cleanKyc.length !== 11) {
+      toast.warning(`Please enter a valid 11-digit ${kycType.toUpperCase()} to save for backup virtual account verification.`);
       return;
     }
 
@@ -198,11 +198,11 @@ export default function ContactInfoModal({
         lastname: cleanLast,
         phone: cleanPhone,
         whatsapp: cleanWhatsapp,
-        ...(!alreadyHasKyc && cleanKyc.length === 11
-          ? (kycType === 'bvn' ? { bvn: cleanKyc } : { nin: cleanKyc })
+        ...(!alreadyHasNin && cleanKyc.length === 11
+          ? (kycType === 'nin' ? { nin: cleanKyc } : { bvn: cleanKyc })
           : {}),
       });
-      toast.success('Personal information and KYC details saved successfully!');
+      toast.success('Personal information and NIN verification saved successfully!');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update personal and KYC details. Please try again.');
     } finally {
@@ -383,28 +383,17 @@ export default function ContactInfoModal({
             </div>
           )}
 
-          {/* FIELD 4: Required KYC Details (BVN or NIN) */}
-          {!alreadyHasKyc ? (
+          {/* FIELD 4: Required NIN / KYC Details (Saved for PayVessel Backup DVA) */}
+          {!alreadyHasNin ? (
             <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10.5px] font-bold text-sky-400 uppercase tracking-wider">
-                  KYC Verification (BVN or NIN) *
+                  11-Digit NIN Verification (Saved for Backup DVA) *
                 </span>
                 <span className="text-[10px] font-mono text-slate-400">{kycValue.length}/11</span>
               </div>
 
               <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => { setKycType('bvn'); setKycValue(''); }}
-                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                    kycType === 'bvn'
-                      ? 'bg-sky-500 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  BVN (Bank ID)
-                </button>
                 <button
                   type="button"
                   onClick={() => { setKycType('nin'); setKycValue(''); }}
@@ -416,6 +405,17 @@ export default function ContactInfoModal({
                 >
                   NIN (National ID)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { setKycType('bvn'); setKycValue(''); }}
+                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                    kycType === 'bvn'
+                      ? 'bg-sky-500 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  BVN (Bank ID)
+                </button>
               </div>
 
               <div className="relative flex items-center">
@@ -425,7 +425,7 @@ export default function ContactInfoModal({
                   maxLength={11}
                   value={kycValue}
                   onChange={(e) => setKycValue(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                  placeholder={kycType === 'bvn' ? 'Enter 11-digit BVN' : 'Enter 11-digit NIN'}
+                  placeholder={kycType === 'nin' ? 'Enter 11-digit NIN' : 'Enter 11-digit BVN'}
                   required
                   className="w-full bg-slate-900 border border-slate-700 focus:border-sky-500 rounded-xl py-2 pl-3 pr-16 text-xs font-mono tracking-widest text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
@@ -438,15 +438,18 @@ export default function ContactInfoModal({
                   <span>Paste</span>
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 leading-snug">
+                Your NIN is securely saved for backup virtual accounts (like PayVessel) in case KatPay later has an issue.
+              </p>
             </div>
           ) : (
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300">
               <span className="flex items-center gap-1.5 font-bold">
                 <Check className="w-4 h-4 text-emerald-400" />
-                KYC Identity Verified
+                NIN Verified & Saved for Backup DVA
               </span>
               <span className="font-mono text-[11px] text-emerald-400">
-                {bvnMasked || ninMasked || 'Verified'}
+                {ninMasked || bvnMasked || 'Verified'}
               </span>
             </div>
           )}

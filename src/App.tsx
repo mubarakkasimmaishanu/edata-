@@ -997,7 +997,11 @@ function MainApp() {
 
             const prevTotal = prev.totalEffectiveBalance ?? prev.walletBalance;
             const balanceChanged = Math.abs(newBalance - prevTotal) > 0.01 || Math.abs(mainW - (prev.mainWallet ?? 0)) > 0.01;
+            const walletJustFunded = (newBalance - prevTotal) > 0.01 || (mainW - (prev.mainWallet ?? 0)) > 0.01;
             if (balanceChanged) {
+              if (walletJustFunded) {
+                setContactPromptDismissed(false);
+              }
               syncProfileAndWallet(true);
               syncTransactions(true);
               syncNotifications(true);
