@@ -567,3 +567,13 @@ export interface PhysicalProductSubmitResponse {
   available_balance?: number;
   shortfall?: number;
 }
+
+export interface DashboardSliderItem {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  target_route?: string;
+  display_order?: number;
+  status?: number;
+}

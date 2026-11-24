@@ -542,6 +542,9 @@ export const api = {
   async getQuickActions(silent = false) {
     return request('/quick-actions', {}, silent);
   },
+  async getDashboardSliders(silent = true) {
+    return request(`/dashboard-sliders?_t=${Date.now()}`, {}, silent);
+  },
 
   async getSupportInfo() {
     return request('/support');

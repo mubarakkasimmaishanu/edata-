@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { UserProfile, Transaction, QuickAction, VirtualAccount, DvaProviderInfo } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { UserProfile, Transaction, QuickAction, VirtualAccount, DvaProviderInfo, DashboardSliderItem } from '../types';
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
@@ -92,6 +92,60 @@ function getActionIcon(iconName?: string, network?: string): string {
   return mtnIcon;
 }
 
+const DEFAULT_DASHBOARD_SLIDES: DashboardSliderItem[] = [
+  {
+    id: 1,
+    title: 'Earn up to ₦2,500',
+    description: 'Invite friends and earn dynamic cash payouts',
+    icon: 'Gift',
+    target_route: 'referral',
+    display_order: 1,
+  },
+];
+
+function renderSliderIcon(iconName?: string) {
+  const raw = (iconName || 'Gift').trim();
+  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/uploads/') || raw.startsWith('data:')) {
+    return <img src={resolveImageUrl(raw)} alt="Slide Icon" className="w-5 h-5 object-contain" />;
+  }
+  const key = raw.toLowerCase();
+  switch (key) {
+    case 'zap':
+      return <Zap className="w-5 h-5 text-white" />;
+    case 'sparkles':
+      return <Sparkles className="w-5 h-5 text-white" />;
+    case 'shieldcheck':
+      return <ShieldCheck className="w-5 h-5 text-white" />;
+    case 'wifi':
+      return <Wifi className="w-5 h-5 text-white" />;
+    case 'smartphone':
+      return <Smartphone className="w-5 h-5 text-white" />;
+    case 'tv':
+      return <Tv className="w-5 h-5 text-white" />;
+    case 'lightbulb':
+      return <Lightbulb className="w-5 h-5 text-white" />;
+    case 'bookopen':
+      return <BookOpen className="w-5 h-5 text-white" />;
+    case 'repeat':
+      return <Repeat className="w-5 h-5 text-white" />;
+    case 'creditcard':
+      return <CreditCard className="w-5 h-5 text-white" />;
+    case 'package':
+      return <Package className="w-5 h-5 text-white" />;
+    case 'headphones':
+      return <Headphones className="w-5 h-5 text-white" />;
+    case 'bell':
+      return <Bell className="w-5 h-5 text-white" />;
+    case 'layers':
+      return <Layers className="w-5 h-5 text-white" />;
+    case 'user':
+      return <User className="w-5 h-5 text-white" />;
+    case 'gift':
+    default:
+      return <Gift className="w-5 h-5 text-white" />;
+  }
+}
+
 interface UserDashboardProps {
   currentUser: UserProfile;
   setCurrentUser?: (user: UserProfile) => void;
@@ -140,6 +194,81 @@ export default function UserDashboard({
   const [targetProviderInfo, setTargetProviderInfo] = useState<DvaProviderInfo | null>(null);
   const [showDvaSuccessModal, setShowDvaSuccessModal] = useState(false);
   const [generatedAccountDetails, setGeneratedAccountDetails] = useState<VirtualAccount | null>(null);
+  const [dashboardSliders, setDashboardSliders] = useState<DashboardSliderItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('edata_dashboard_sliders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return DEFAULT_DASHBOARD_SLIDES;
+  });
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+  const touchStartXRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getDashboardSliders(true)
+      .then((res) => {
+        if (cancelled) return;
+        const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.dashboard_sliders) ? res.dashboard_sliders : null);
+        if (rows && rows.length > 0) {
+          setDashboardSliders(rows);
+          setActiveSlideIndex((prev) => (prev >= rows.length ? 0 : prev));
+          try {
+            localStorage.setItem('edata_dashboard_sliders', JSON.stringify(rows));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isSyncing]);
+
+  useEffect(() => {
+    if (dashboardSliders.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveSlideIndex((prev) => (prev + 1) % dashboardSliders.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [dashboardSliders.length]);
+
+  const safeSlideIndex = dashboardSliders.length > 0 ? activeSlideIndex % dashboardSliders.length : 0;
+  const currentSlide = dashboardSliders[safeSlideIndex] || DEFAULT_DASHBOARD_SLIDES[0];
+
+  const handleSlideClick = (slide: DashboardSliderItem) => {
+    const route = (slide?.target_route || 'referral').trim();
+    if (!route || route === 'none') return;
+    if (route.startsWith('http://') || route.startsWith('https://')) {
+      window.open(route, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    onNavigate(route);
+  };
+
+  const handleSliderTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    if (e.touches && e.touches.length > 0) {
+      touchStartXRef.current = e.touches[0].clientX;
+    }
+  };
+
+  const handleSliderTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    if (touchStartXRef.current === null || dashboardSliders.length <= 1) return;
+    const endX = e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : touchStartXRef.current;
+    const deltaX = endX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX < 0) {
+        setActiveSlideIndex((prev) => (prev + 1) % dashboardSliders.length);
+      } else {
+        setActiveSlideIndex((prev) => (prev - 1 + dashboardSliders.length) % dashboardSliders.length);
+      }
+    }
+  };
   const [localVirtualAccount, setLocalVirtualAccount] = useState<VirtualAccount | null>(() => {
     try {
       const saved = localStorage.getItem('edata_virtual_account');
@@ -872,21 +1001,44 @@ export default function UserDashboard({
           </section>
         )}
 
-        {/* ── 6. Earn / Referral Banner Card ── */}
+        {/* ── 6. Earn / Referral Banner Card (Admin-Managed Dynamic Slider) ── */}
         <section
-          onClick={() => onNavigate('referral')}
-          className={`rounded-3xl p-4 flex items-center justify-between text-white transition-all cursor-pointer active:scale-98 ${
+          onClick={() => handleSlideClick(currentSlide)}
+          onTouchStart={handleSliderTouchStart}
+          onTouchEnd={handleSliderTouchEnd}
+          className={`rounded-3xl p-4 flex items-center justify-between text-white transition-all cursor-pointer active:scale-98 select-none ${
             theme === 'light'
               ? 'bg-gradient-to-r from-[#0284c7] via-[#0369a1] to-[#1d4ed8] border border-sky-400/30 shadow-lg shadow-sky-600/15'
               : 'bg-gradient-to-r from-sky-900 to-indigo-950 border border-sky-500/40 shadow-xl'
           }`}
         >
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-black text-white font-display">Earn up to ₦2,500</h4>
-            <p className="text-[11px] text-sky-100 font-medium">Invite friends and earn dynamic cash payouts</p>
+          <div className="space-y-0.5 min-w-0 flex-1 pr-3">
+            <h4 className="text-sm font-black text-white font-display truncate">
+              {currentSlide.title}
+            </h4>
+            <p className="text-[11px] text-sky-100 font-medium line-clamp-2">
+              {currentSlide.description}
+            </p>
+            {dashboardSliders.length > 1 && (
+              <div className="flex items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
+                {dashboardSliders.map((slide, idx) => (
+                  <button
+                    key={slide.id || idx}
+                    type="button"
+                    aria-label={`Go to slide ${idx + 1}`}
+                    onClick={() => setActiveSlideIndex(idx)}
+                    className={`h-1 rounded-full transition-all duration-300 cursor-pointer ${
+                      idx === safeSlideIndex
+                        ? 'w-4 bg-sky-300'
+                        : 'w-1.5 bg-white/35 hover:bg-white/60'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div className="w-10 h-10 rounded-2xl bg-white/20 text-white border border-white/25 flex items-center justify-center shrink-0">
-            <Gift className="w-5 h-5 text-white" />
+            {renderSliderIcon(currentSlide.icon)}
           </div>
         </section>
       </main>
