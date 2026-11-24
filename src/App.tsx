@@ -14,7 +14,8 @@ import ForceUpdateScreen from './components/ForceUpdateScreen';
 import GracePeriodBanner from './components/GracePeriodBanner';
 import { initPushNotifications, syncPushTokenOnLogin } from './services/pushNotification';
 import { initDeepLinking, onReferralCaptured } from './services/deepLink';
-import { initChatwoot, syncChatwootUser, clearChatwootIdentity } from './services/chatwootService';
+import { initChatwoot, syncChatwootUser, clearChatwootIdentity, openChatwoot } from './services/chatwootService';
+import { MessageCircle } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -1869,6 +1870,27 @@ function MainApp() {
             </>
           )}
         </div>
+
+        {/* ── Floating Direct Live Chat Icon (Right Corner of Every Page) ── */}
+        {!pinScreenMode && (
+          <button
+            type="button"
+            onClick={() => openChatwoot()}
+            title="Direct Live Chat"
+            aria-label="Direct Live Chat"
+            className={`fixed right-4 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-[#0284c7] via-[#0369a1] to-[#1d4ed8] text-white shadow-xl shadow-sky-900/40 border border-sky-300/40 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer ${
+              currentScreen === 'app' && !['installment-phone', 'pos-device', 'prepaid-meter', 'solar', 'others', 'physical-products'].includes(activeView)
+                ? 'bottom-24'
+                : 'bottom-6'
+            }`}
+          >
+            <MessageCircle className="w-6 h-6 text-white fill-white/15" />
+            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-slate-900"></span>
+            </span>
+          </button>
+        )}
 
         {/* ── Dynamic In-App Popup Banner ────────────────────────────────
             Admin-managed via /api/popups. Renders above every screen
