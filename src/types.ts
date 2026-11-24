@@ -1,5 +1,6 @@
 export interface ContactPromptData {
   should_show: boolean;
+  should_show_nin_prompt?: boolean;
   is_forced: boolean;
   has_personal_info?: boolean;
   has_personal_name?: boolean;

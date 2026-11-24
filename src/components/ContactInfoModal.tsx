@@ -125,7 +125,7 @@ export default function ContactInfoModal({
   if (!isOpen) return null;
 
   const carrier = detectCarrier(phone);
-  const alreadyHasNin = Boolean(ninMasked);
+  const alreadyHasNin = Boolean(hasKyc || ninMasked || bvnMasked);
 
   const handlePhoneChange = (val: string) => {
     const clean = val.replace(/[^\d+]/g, '');

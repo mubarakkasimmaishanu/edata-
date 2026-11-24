@@ -1217,13 +1217,19 @@ function MainApp() {
       ...(primaryVa ? { virtualAccount: primaryVa } : {}),
       ...(vAccounts.length > 0 ? { virtualAccounts: vAccounts } : {}),
     }));
+    setContactPromptDismissed(true);
     setContactPromptData((prev) =>
       res?.data?.contact_prompt
-        ? res.data.contact_prompt
+        ? {
+            ...res.data.contact_prompt,
+            should_show: false,
+            should_show_nin_prompt: false,
+          }
         : prev
         ? {
             ...prev,
             should_show: false,
+            should_show_nin_prompt: false,
             has_personal_info: true,
             has_personal_name: true,
             has_phone: true,
@@ -1894,7 +1900,7 @@ function MainApp() {
           />
         )}
 
-        {contactPromptData?.should_show && !contactPromptDismissed && currentScreen === 'app' && (
+        {(contactPromptData?.should_show_nin_prompt ?? contactPromptData?.should_show) && !contactPromptDismissed && currentScreen === 'app' && (
           <ContactInfoModal
             isOpen={true}
             isForced={Boolean(contactPromptData.is_forced)}
