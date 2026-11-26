@@ -664,7 +664,7 @@ export default function DailyPriceListModal({ isOpen, onClose, currentUser }: Da
                                       borderBottom: cardTheme === 'paper' ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                                     }}
                                   >
-                                    {p.size_label}.
+                                    {p.size_label}
                                   </td>
                                   {showNormal && (
                                     <td
@@ -677,7 +677,7 @@ export default function DailyPriceListModal({ isOpen, onClose, currentUser }: Da
                                         borderBottom: cardTheme === 'paper' ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                                       }}
                                     >
-                                      #{Math.round(p.selling_price)}.
+                                      ₦{Math.round(p.selling_price).toLocaleString()}
                                     </td>
                                   )}
                                   {showPremium && (
@@ -691,7 +691,7 @@ export default function DailyPriceListModal({ isOpen, onClose, currentUser }: Da
                                         borderBottom: cardTheme === 'paper' ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                                       }}
                                     >
-                                      #{Math.round(p.premium_price)}
+                                      ₦{Math.round(p.premium_price).toLocaleString()}
                                     </td>
                                   )}
                                   {showReferred && (
@@ -705,7 +705,7 @@ export default function DailyPriceListModal({ isOpen, onClose, currentUser }: Da
                                         borderBottom: cardTheme === 'paper' ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                                       }}
                                     >
-                                      #{Math.round(p.referred_price)}
+                                      ₦{Math.round(p.referred_price).toLocaleString()}
                                     </td>
                                   )}
                                 </tr>
