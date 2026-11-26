@@ -7,7 +7,7 @@ import { useBackHandler } from '../utils/backHandler';
 import {
   ChevronLeft, Copy, Check, ArrowRight,
   Users, RefreshCw, Award, TrendingUp, Target, Clock, CheckCircle2, Gift,
-  Landmark, AlertCircle, ArrowUpRight, DollarSign, Wallet as WalletIcon, Lock, Edit3, ShieldCheck, ChevronDown
+  Landmark, AlertCircle, ArrowUpRight, DollarSign, Wallet as WalletIcon, Lock, Edit3, ShieldCheck, ChevronDown, Camera
 } from 'lucide-react';
 import { FaWhatsapp, FaShareNodes } from 'react-icons/fa6';
 import { formatMoney } from '../utils/formatters';
@@ -19,6 +19,7 @@ import nineMobileIcon from '@/assets/icons/9mobile.png';
 import walletIcon from '@/assets/icons/airtimetocash.png';
 import userVerifyIcon from '@/assets/icons/user-verify.png';
 import PinInput from './PinInput';
+import DailyPriceListModal from './DailyPriceListModal';
 
 // Real official brand icons wrapped for React 19
 const OfficialWhatsApp = ({ className = 'w-5 h-5' }: { className?: string }) => {
@@ -42,6 +43,7 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
   const { theme } = useTheme();
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [referralConfig, setReferralConfig] = useState<ReferralConfig | null>(null);
 
@@ -750,6 +752,15 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={() => setShowPriceListModal(true)}
+            className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs py-3 px-4 rounded-2xl shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 font-display mb-2.5"
+          >
+            <Camera className="w-4 h-4 text-slate-950" />
+            <span>Generate Daily Price List Graphic</span>
+          </button>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <button
               type="button"
@@ -1216,6 +1227,13 @@ export default function ReferralScreen({ currentUser, onBack, onNavigate }: Refe
           </div>
         </div>
       )}
+
+      {/* Daily Price List Generator Modal */}
+      <DailyPriceListModal
+        isOpen={showPriceListModal}
+        onClose={() => setShowPriceListModal(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

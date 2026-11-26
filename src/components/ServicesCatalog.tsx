@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import {
   Smartphone, Wifi, Tv, Lightbulb, BookOpen, Repeat, Plus, Headphones,
-  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Package, CreditCard, Sun
+  Search, ChevronRight, Sparkles, Layers, ShieldCheck, Zap, Gift, ArrowLeft, Package, CreditCard, Sun, Camera
 } from 'lucide-react';
 import mtnIcon from '@/assets/icons/mtn.png';
 import airtelIcon from '@/assets/icons/airtel.png';
@@ -60,6 +60,7 @@ export default function ServicesCatalog({ currentUser, serviceCategories = [], o
     // Telecom
     { id: 'airtime', name: 'Airtime', desc: 'Instant VTU top-up', category: 'telecom', icon: Smartphone, adminGated: true },
     { id: 'data', name: 'Data', desc: 'All network data bundles', category: 'telecom', icon: Layers, adminGated: true },
+    { id: 'price-list', name: 'Price List', desc: 'Daily rates generator', category: 'telecom', icon: Camera, isNew: true },
     { id: 'a2c', name: 'A2C', desc: 'Airtime to Cash', category: 'telecom', icon: Repeat, adminGated: true },
     { id: 'fund', name: 'Fund Wallet', desc: 'Bank transfer', category: 'telecom', icon: Plus },
     // Bills

@@ -3,7 +3,7 @@ import { UserProfile, Transaction, QuickAction, VirtualAccount, DvaProviderInfo,
 import { formatMoney } from '../utils/formatters';
 import {
   Eye, EyeOff, Plus, RefreshCw, Bell, Smartphone, Wifi, Tv, Lightbulb,
-  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package, CreditCard, Zap, X
+  BookOpen, Repeat, ArrowRight, ShieldCheck, ChevronRight, Copy, Check, Sparkles, Layers, Headphones, Clock, Gift, User, Sun, Moon, MoreHorizontal, Package, CreditCard, Zap, X, Camera
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import mtnIcon from '@/assets/icons/mtn.png';
@@ -569,6 +569,7 @@ export default function UserDashboard({
   const allServiceTiles: { id: string; name: string; icon: any; adminGated?: boolean; isNew?: boolean }[] = [
     { id: 'airtime',           name: 'Airtime',        icon: Smartphone, adminGated: true },
     { id: 'data',              name: 'Data',           icon: Layers,     adminGated: true },
+    { id: 'price-list',        name: 'Price List',     icon: Camera,     isNew: true },
     { id: 'cable',             name: 'Cable TV',       icon: Tv,         adminGated: true },
     { id: 'electricity',       name: 'Electricity',    icon: Lightbulb,  adminGated: true },
     { id: 'installment-phone', name: 'Phones',         icon: Smartphone, isNew: true },
@@ -638,6 +639,15 @@ export default function UserDashboard({
             ) : (
               <Sun className="w-4.5 h-4.5 text-amber-400" />
             )}
+          </button>
+
+          {/* Daily Price List Generator Button */}
+          <button
+            onClick={() => onNavigate('price-list')}
+            className="p-2 text-emerald-400 hover:text-emerald-300 bg-slate-800/80 hover:bg-slate-800 rounded-2xl transition-all active:scale-95 cursor-pointer border border-emerald-500/40"
+            title="Daily Price List Generator"
+          >
+            <Camera className="w-4.5 h-4.5 text-emerald-400" />
           </button>
 
           {/* Support Headset Button */}

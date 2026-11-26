@@ -58,6 +58,7 @@ import SplashScreen from './components/SplashScreen';
 import UserDashboard from './components/UserDashboard';
 import BottomNav from './components/BottomNav';
 import PinScreen from './components/PinScreen';
+import DailyPriceListModal from './components/DailyPriceListModal';
 
 // Lazy: secondary routes. Each becomes its own chunk fetched only when
 // the user navigates to it — cold start bundle shrinks by ~300 KB and
@@ -117,6 +118,7 @@ type ActiveView =
   | 'installment-phone'
   | 'pos-device'
   | 'solar'
+  | 'price-list'
   | 'others';
 
 function getInitialViewFromUrl(): ActiveView {
@@ -161,6 +163,9 @@ function getInitialViewFromUrl(): ActiveView {
       'support': 'support',
       'notifications': 'notifications',
       'referral': 'referral',
+      'price-list': 'price-list',
+      'pricelist': 'price-list',
+      'prices': 'price-list',
       'upgrade': 'upgrade',
     };
 
@@ -362,6 +367,7 @@ function MainApp() {
   const [activeQuickAction, setActiveQuickAction] = useState<QuickAction | null>(null);
   const [quickActionPrice, setQuickActionPrice] = useState<number>(0);
   const [pinScreenMode, setPinScreenMode] = useState<'purchase' | 'set_pin' | null>(null);
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
 
   // Used ONLY by the hardware/system back listeners below to collapse the
   // duplicate events Capacitor fires for a single physical press
@@ -1395,6 +1401,10 @@ function MainApp() {
   }, []);
 
   const navigateTo = (view: string, params?: { network?: string; planId?: number | null; quickAction?: QuickAction }) => {
+    if (view === 'price-list') {
+      setShowPriceListModal(true);
+      return;
+    }
     let targetView = (view || 'data') as ActiveView;
     let targetNetwork = params?.network || '';
     let targetPlanId = params?.planId !== undefined ? params.planId : null;
@@ -1941,6 +1951,12 @@ function MainApp() {
             onDismiss={handleDismissContactPrompt}
           />
         )}
+
+        <DailyPriceListModal
+          isOpen={showPriceListModal}
+          onClose={() => setShowPriceListModal(false)}
+          currentUser={currentUser}
+        />
       </div>
     </>
   );

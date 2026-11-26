@@ -645,4 +645,17 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  // --- Daily Price List Generator ---
+  async getPriceList(networkIds?: number[], planTypeIds?: number[]) {
+    const params = new URLSearchParams();
+    if (networkIds && networkIds.length > 0) {
+      networkIds.forEach((id) => params.append('network_ids[]', String(id)));
+    }
+    if (planTypeIds && planTypeIds.length > 0) {
+      planTypeIds.forEach((id) => params.append('plan_type_ids[]', String(id)));
+    }
+    const query = params.toString() ? '?' + params.toString() : '';
+    return request('/price-list' + query);
+  },
 };
