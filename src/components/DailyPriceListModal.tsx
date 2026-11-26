@@ -111,18 +111,40 @@ export default function DailyPriceListModal({ isOpen, onClose, currentUser }: Da
     if (presetKey === 'ceo-mtn') {
       setSelectedNetworkIds([27]);
       groups.forEach((grp) => {
-        const titleLower = grp.group_title.toLowerCase();
-        if (grp.service_id === 27 && (titleLower.includes('7-day') || titleLower.includes('30-day'))) {
+        if (grp.service_id !== 27) return;
+        const t = grp.group_title.toLowerCase();
+        const is7Day = /7\s*-?\s*day|weekly/i.test(t);
+        const is30Day = /30\s*-?\s*day|monthly/i.test(t);
+        if (/data\s*share/i.test(t) && (is7Day || is30Day)) {
           grp.plans.forEach((p) => newSelected.add(p.id));
         }
       });
+      if (newSelected.size === 0) {
+        groups.forEach((grp) => {
+          if (grp.service_id !== 27) return;
+          const t = grp.group_title.toLowerCase();
+          if (/weekly|monthly|7\s*-?\s*day|30\s*-?\s*day/i.test(t)) {
+            grp.plans.forEach((p) => newSelected.add(p.id));
+          }
+        });
+      }
+      if (newSelected.size === 0) {
+        const mtn = groups.filter((g) => g.service_id === 27);
+        mtn.slice(0, 2).forEach((g) => g.plans.forEach((p) => newSelected.add(p.id)));
+      }
     } else if (presetKey === 'mtn-sme') {
       setSelectedNetworkIds([27]);
       groups.forEach((grp) => {
-        if (grp.service_id === 27 && grp.group_title.toLowerCase().includes('sme')) {
+        if (grp.service_id !== 27) return;
+        const t = grp.group_title.toLowerCase();
+        if (/sme|data\s*share|corporate|cg/i.test(t)) {
           grp.plans.forEach((p) => newSelected.add(p.id));
         }
       });
+      if (newSelected.size === 0) {
+        const mtn = groups.filter((g) => g.service_id === 27);
+        if (mtn.length > 0) mtn[0].plans.forEach((p) => newSelected.add(p.id));
+      }
     } else if (presetKey === 'mtn-all') {
       setSelectedNetworkIds([27]);
       groups.forEach((grp) => {
